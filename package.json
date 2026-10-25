@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "promote:prod": "node scripts/promote-to-prod.mjs",
+    "staging:sync": "git checkout staging && git pull origin master"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",

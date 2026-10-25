@@ -25,6 +25,17 @@ export function Navbar({ onOpenAuth }: { onOpenAuth?: () => void }) {
   const { user, logout } = useAuth();
   const { t, lang, toggleLang, theme, toggleTheme } = useThemeLang();
   const [supportOpen, setSupportOpen] = useState(false);
+  const [isStaging, setIsStaging] = useState(false);
+
+  React.useEffect(() => {
+    if (
+      typeof window !== 'undefined' &&
+      (window.location.hostname.includes('staging') ||
+        process.env.NEXT_PUBLIC_VERCEL_ENV === 'preview')
+    ) {
+      setIsStaging(true);
+    }
+  }, []);
 
   return (
     <>
@@ -48,6 +59,12 @@ export function Navbar({ onOpenAuth }: { onOpenAuth?: () => void }) {
             <div>
               <div className="font-extrabold text-neutral-900 dark:text-white tracking-tight text-base flex items-center gap-1.5 leading-none">
                 SHEIN <span className="text-[#8B5CF6] font-bold">Concierge</span>
+                {isStaging && (
+                  <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800 text-[9px] font-black text-amber-800 dark:text-amber-300 tracking-wider">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                    STAGING
+                  </span>
+                )}
               </div>
               <p className="text-[11px] text-neutral-400 dark:text-neutral-500 font-medium tracking-tight mt-0.5">
                 {t.brandSubtitle}
