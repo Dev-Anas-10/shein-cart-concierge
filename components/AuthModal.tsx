@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/lib/auth-context';
 import { useThemeLang } from '@/lib/theme-lang-context';
 import { getSupabase } from '@/lib/supabase';
@@ -181,8 +182,13 @@ export function AuthModal({ isOpen, onClose, defaultRole = 'user' }: AuthModalPr
   const isRtl = dir === 'rtl';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-md bg-white dark:bg-[#14121a] text-neutral-900 dark:text-white rounded-3xl shadow-2xl border border-neutral-200 dark:border-[#2a2538] overflow-hidden transition-colors">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 16 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+        className="relative w-full max-w-md bg-white dark:bg-[#14121a] text-neutral-900 dark:text-white rounded-3xl shadow-2xl border border-neutral-200 dark:border-[#2a2538] overflow-hidden transition-colors"
+      >
         {/* Header */}
         <div className="p-6 bg-neutral-50 dark:bg-[#1a1722] border-b border-neutral-200 dark:border-[#2a2538] flex items-center justify-between">
           <div className="text-start">
@@ -495,7 +501,7 @@ export function AuthModal({ isOpen, onClose, defaultRole = 'user' }: AuthModalPr
             )}
           </div>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

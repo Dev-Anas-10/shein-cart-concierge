@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { extractSheinUrl } from '@/lib/shein-extractor';
 import { ExtractedCartResult } from '@/lib/types';
 import { useThemeLang } from '@/lib/theme-lang-context';
@@ -12,6 +13,9 @@ import {
   ShoppingBag,
   CheckCircle2,
   AlertCircle,
+  ShieldCheck,
+  CreditCard,
+  Zap,
 } from 'lucide-react';
 
 interface CartExtractorCardProps {
@@ -86,62 +90,78 @@ export function CartExtractorCard({ onExtracted, currentDynamicFeePercent }: Car
   };
 
   return (
-    <div className="bg-white rounded-[32px] p-6 sm:p-10 border border-neutral-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] space-y-6 transition-colors">
+    <motion.div
+      initial={{ opacity: 0, y: 24 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+      className="relative rounded-[32px] p-6 sm:p-10 bg-white/90 dark:bg-[#13101c]/90 backdrop-blur-2xl border border-neutral-200/70 dark:border-[#2a243a] shadow-[0_12px_45px_rgb(0,0,0,0.05)] dark:shadow-[0_12px_45px_rgb(0,0,0,0.5)] space-y-6 transition-colors overflow-hidden"
+    >
+      {/* Decorative ambient gradient backdrop */}
+      <div className="absolute top-0 right-0 -mr-20 -mt-20 w-80 h-80 rounded-full bg-purple-500/10 dark:bg-purple-600/15 blur-3xl pointer-events-none" />
+      <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-80 h-80 rounded-full bg-rose-500/10 dark:bg-rose-600/10 blur-3xl pointer-events-none" />
+
       {/* Top Graphic Header */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-6 pb-2">
+      <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-6 pb-2">
         <div className="space-y-2 text-center sm:text-start">
           <div className="flex items-center justify-center sm:justify-start gap-2">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-50 text-[#7C3AED] text-[11px] font-black uppercase tracking-wider">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-100/70 dark:bg-purple-950/60 text-[#7C3AED] dark:text-purple-300 text-[11px] font-black uppercase tracking-wider border border-purple-200/50 dark:border-purple-800/50">
               <Sparkles className="w-3.5 h-3.5 text-[#8B5CF6]" />
               {t.extractorBadge}
             </span>
-            <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-neutral-100 text-neutral-600 text-[11px] font-medium">
+            <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-neutral-100 dark:bg-[#201a2d] text-neutral-600 dark:text-neutral-400 text-[11px] font-semibold border border-neutral-200/60 dark:border-[#2f2742]">
               +{currentDynamicFeePercent}% {t.feeLabel}
             </span>
           </div>
 
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-neutral-900 tracking-tight">
+          <h2 className="text-2xl sm:text-3xl font-black text-neutral-900 dark:text-white tracking-tight">
             {t.extractorTitle}
           </h2>
-          <p className="text-xs sm:text-sm text-neutral-500 max-w-lg leading-relaxed">
+          <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400 max-w-lg leading-relaxed">
             {t.extractorDesc}
           </p>
         </div>
 
-        {/* Minimalist Vector Illustration Badge */}
-        <div className="relative w-28 h-28 shrink-0 flex items-center justify-center">
-          <div className="absolute inset-0 bg-[#F3E8FF] rounded-full scale-95" />
-          <svg className="w-20 h-20 relative z-10" viewBox="0 0 100 100" fill="none">
-            <circle cx="50" cy="50" r="38" fill="#E9D5FF" opacity="0.6" />
-            <rect x="25" y="42" width="50" height="32" rx="6" fill="#FFFFFF" stroke="#18181B" strokeWidth="2.5" />
-            <path d="M40 74L36 84H64L60 74" stroke="#18181B" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M20 84H80" stroke="#18181B" strokeWidth="3" strokeLinecap="round" />
-            <circle cx="50" cy="56" r="6" fill="#A78BFA" />
-            <path d="M68 28C74 34 68 46 76 50" stroke="#18181B" strokeWidth="2" strokeLinecap="round" />
+        {/* Minimalist Liquid Vector Illustration Badge */}
+        <motion.div
+          whileHover={{ scale: 1.05, rotate: 2 }}
+          transition={{ duration: 0.3 }}
+          className="relative w-28 h-28 shrink-0 flex items-center justify-center cursor-default"
+        >
+          <div className="absolute inset-0 bg-gradient-to-tr from-purple-200/60 to-purple-100/30 dark:from-purple-900/40 dark:to-purple-950/20 rounded-3xl scale-95 blur-xs" />
+          <svg className="w-20 h-20 relative z-10 drop-shadow-sm" viewBox="0 0 100 100" fill="none">
+            <circle cx="50" cy="50" r="38" fill="#E9D5FF" className="dark:fill-[#2d2242]" opacity="0.7" />
+            <rect x="25" y="42" width="50" height="32" rx="6" fill="#FFFFFF" className="dark:fill-[#1b1726]" stroke="#8B5CF6" strokeWidth="2.5" />
+            <path d="M40 74L36 84H64L60 74" stroke="#8B5CF6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M20 84H80" stroke="#8B5CF6" strokeWidth="3" strokeLinecap="round" />
+            <circle cx="50" cy="56" r="6" fill="#A855F7" />
+            <path d="M68 28C74 34 68 46 76 50" stroke="#EC4899" strokeWidth="2.5" strokeLinecap="round" />
           </svg>
-        </div>
+        </motion.div>
       </div>
 
-      {/* Pill Filter Badges (Sample Cart removed cleanly!) */}
-      <div className="flex flex-wrap items-center gap-2 pt-1">
-        <span className="px-3.5 py-1.5 rounded-full text-xs font-semibold bg-neutral-50 text-neutral-600 border border-neutral-200/80">
+      {/* Pill Feature Badges */}
+      <div className="relative z-10 flex flex-wrap items-center gap-2 pt-1">
+        <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-neutral-100/80 dark:bg-[#1a1626] text-neutral-700 dark:text-neutral-300 border border-neutral-200/70 dark:border-[#2f2742]">
+          <Zap className="w-3.5 h-3.5 text-amber-500" />
           {t.autoLinkBadge}
         </span>
-        <span className="px-3.5 py-1.5 rounded-full text-xs font-semibold bg-neutral-50 text-neutral-600 border border-neutral-200/80">
+        <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-neutral-100/80 dark:bg-[#1a1626] text-neutral-700 dark:text-neutral-300 border border-neutral-200/70 dark:border-[#2f2742]">
+          <CreditCard className="w-3.5 h-3.5 text-purple-500" />
           {t.paymentBadge}
         </span>
-        <span className="px-3.5 py-1.5 rounded-full text-xs font-semibold bg-neutral-50 text-neutral-600 border border-neutral-200/80">
+        <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-neutral-100/80 dark:bg-[#1a1626] text-neutral-700 dark:text-neutral-300 border border-neutral-200/70 dark:border-[#2f2742]">
+          <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
           {t.adminVerifiedBadge}
         </span>
       </div>
 
       {/* Form Input Container */}
-      <form onSubmit={handleExtract} className="space-y-4 pt-2">
-        <div className="relative rounded-2xl border border-neutral-200 focus-within:border-[#A78BFA] focus-within:ring-2 focus-within:ring-purple-100 transition-all bg-[#FBFBFC]">
-          <div className="flex items-center gap-3 px-4 pt-3.5 text-neutral-400">
-            <Search className="w-4 h-4 text-neutral-400" />
-            <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">
-              SHEIN Share Box
+      <form onSubmit={handleExtract} className="relative z-10 space-y-4 pt-2">
+        <div className="relative rounded-2xl border border-neutral-200/90 dark:border-[#2f2742] focus-within:border-[#8B5CF6] dark:focus-within:border-[#A855F7] focus-within:ring-4 focus-within:ring-purple-500/10 dark:focus-within:ring-purple-500/15 transition-all bg-[#FAFAFC] dark:bg-[#191524]">
+          <div className="flex items-center gap-3 px-4 pt-3.5 text-neutral-400 dark:text-neutral-500">
+            <Search className="w-4 h-4 text-[#8B5CF6]" />
+            <span className="text-[11px] font-black uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+              SHEIN Cart Share Text / Link
             </span>
           </div>
 
@@ -150,48 +170,67 @@ export function CartExtractorCard({ onExtracted, currentDynamicFeePercent }: Car
             value={inputText}
             onChange={(e) => handleTextChange(e.target.value)}
             placeholder={t.placeholder}
-            className="w-full px-4 py-3 text-xs sm:text-sm text-neutral-900 bg-transparent focus:outline-none placeholder:text-neutral-400 font-sans resize-y leading-relaxed"
+            className="w-full px-4 py-3 text-xs sm:text-sm text-neutral-900 dark:text-white bg-transparent focus:outline-none placeholder:text-neutral-400 dark:placeholder:text-neutral-600 font-sans resize-y leading-relaxed"
           />
 
-          <div className="px-4 py-2.5 bg-neutral-50/80 border-t border-neutral-100 flex items-center justify-between text-[11px] text-neutral-400">
+          <div className="px-4 py-2.5 bg-neutral-100/60 dark:bg-[#151120] border-t border-neutral-200/60 dark:border-[#262035] flex items-center justify-between text-[11px] text-neutral-400 dark:text-neutral-500 rounded-b-2xl">
             <span>{t.acceptsHint}</span>
-            <span>
+            <span className="font-mono">
               {inputText.length} {t.chars}
             </span>
           </div>
         </div>
 
-        {/* Scraped URL Feedback */}
-        {detectedUrl && (
-          <div className="p-3.5 rounded-2xl bg-purple-50/80 border border-purple-200 text-neutral-900 text-xs flex items-center justify-between gap-3 animate-in fade-in">
-            <div className="flex items-center gap-2.5 overflow-hidden">
-              <CheckCircle2 className="w-4 h-4 text-[#8B5CF6] shrink-0" />
-              <div className="overflow-hidden">
-                <span className="font-bold text-[#6D28D9] block text-[11px]">{t.validLinkDetected}</span>
-                <span className="truncate font-mono text-[11px] text-neutral-700 block">
-                  {detectedUrl}
-                </span>
+        {/* Scraped URL Feedback with Framer Motion AnimatePresence */}
+        <AnimatePresence>
+          {detectedUrl && (
+            <motion.div
+              initial={{ opacity: 0, y: -8, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -8, scale: 0.98 }}
+              transition={{ duration: 0.25 }}
+              className="p-3.5 rounded-2xl bg-purple-50/90 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 text-neutral-900 dark:text-white text-xs flex items-center justify-between gap-3 shadow-xs"
+            >
+              <div className="flex items-center gap-2.5 overflow-hidden">
+                <CheckCircle2 className="w-4 h-4 text-[#8B5CF6] shrink-0" />
+                <div className="overflow-hidden">
+                  <span className="font-bold text-[#6D28D9] dark:text-purple-300 block text-[11px]">
+                    {t.validLinkDetected}
+                  </span>
+                  <span className="truncate font-mono text-[11px] text-neutral-700 dark:text-neutral-300 block">
+                    {detectedUrl}
+                  </span>
+                </div>
               </div>
-            </div>
-            <span className="shrink-0 text-[11px] font-bold text-[#7C3AED] bg-white px-2.5 py-1 rounded-full border border-purple-200">
-              {t.ready}
-            </span>
-          </div>
-        )}
+              <span className="shrink-0 text-[11px] font-bold text-[#7C3AED] dark:text-purple-300 bg-white dark:bg-[#201a2e] px-2.5 py-1 rounded-full border border-purple-200 dark:border-purple-800">
+                {t.ready}
+              </span>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-        {error && (
-          <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2.5 animate-in shake">
-            <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
-            <span>{error}</span>
-          </div>
-        )}
+        <AnimatePresence>
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-rose-800 dark:text-rose-200 text-xs flex items-center gap-2.5 shadow-xs"
+            >
+              <AlertCircle className="w-4 h-4 shrink-0 text-rose-600 dark:text-rose-400" />
+              <span>{error}</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-        {/* Submit Button */}
+        {/* Submit Button with Spring Motion */}
         <div className="flex items-center justify-end pt-1">
-          <button
+          <motion.button
+            whileHover={{ scale: 1.02, y: -1 }}
+            whileTap={{ scale: 0.98 }}
             type="submit"
             disabled={loading}
-            className="w-full sm:w-auto px-8 py-3.5 bg-[#8B5CF6] hover:bg-[#7C3AED] disabled:opacity-50 text-white font-extrabold text-xs sm:text-sm rounded-2xl shadow-sm transition-all flex items-center justify-center gap-2.5 active:scale-98 cursor-pointer"
+            className="w-full sm:w-auto px-8 py-3.5 bg-gradient-to-r from-[#8B5CF6] via-[#7C3AED] to-[#6D28D9] hover:from-[#7C3AED] hover:to-[#5B21B6] disabled:opacity-50 text-white font-extrabold text-xs sm:text-sm rounded-2xl shadow-lg shadow-purple-500/25 transition-all flex items-center justify-center gap-2.5 cursor-pointer"
           >
             {loading ? (
               <>
@@ -205,9 +244,9 @@ export function CartExtractorCard({ onExtracted, currentDynamicFeePercent }: Car
                 {dir === 'rtl' ? <ArrowLeft className="w-4 h-4" /> : <ArrowRight className="w-4 h-4" />}
               </>
             )}
-          </button>
+          </motion.button>
         </div>
       </form>
-    </div>
+    </motion.div>
   );
 }

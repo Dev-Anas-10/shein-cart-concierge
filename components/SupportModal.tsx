@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import { useThemeLang } from '@/lib/theme-lang-context';
 import {
   X,
@@ -46,8 +47,13 @@ export function SupportModal({
   )}`;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in">
-      <div className="relative w-full max-w-md bg-white dark:bg-[#14121a] text-neutral-900 dark:text-white rounded-[32px] shadow-2xl border border-neutral-100 dark:border-[#2a2538] overflow-hidden transition-colors">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 16 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+        className="relative w-full max-w-md bg-white dark:bg-[#14121a] text-neutral-900 dark:text-white rounded-[32px] shadow-2xl border border-neutral-100 dark:border-[#2a2538] overflow-hidden transition-colors"
+      >
         {/* Header */}
         <div className="p-6 bg-[#F5EDFF] dark:bg-purple-950/40 border-b border-purple-100 dark:border-[#2a2538] flex items-center justify-between">
           <div className="space-y-1 text-start">
@@ -184,7 +190,7 @@ export function SupportModal({
             </span>
           </div>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
