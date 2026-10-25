@@ -12,6 +12,7 @@ import { CartExtractorCard } from '@/components/CartExtractorCard';
 import { ExtractedGoodsView } from '@/components/ExtractedGoodsView';
 import { AuthModal } from '@/components/AuthModal';
 import { FullPageLoginCard } from '@/components/FullPageLoginCard';
+import { CustomSectionRenderer } from '@/components/CustomSectionRenderer';
 import { getClientOrders, mergeAndDeduplicateOrders } from '@/lib/order-storage';
 import { SafeImage } from '@/components/SafeImage';
 import {
@@ -104,10 +105,32 @@ export default function HomePage() {
     return <FullPageLoginCard onGuestContinue={() => setGuestMode(true)} />;
   }
 
+  const topSections = settings?.customSections?.filter((s) => s.enabled && s.position === 'top') || [];
+  const middleSections = settings?.customSections?.filter((s) => s.enabled && s.position === 'middle') || [];
+  const bottomSections = settings?.customSections?.filter((s) => s.enabled && s.position === 'bottom') || [];
+
   return (
     <div className="min-h-screen bg-[#FBFBFC] dark:bg-[#0c0a0f] text-neutral-900 dark:text-white pb-24 transition-colors relative overflow-hidden">
       {/* Background ambient lighting */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-6xl h-96 bg-gradient-to-b from-purple-400/8 via-pink-400/4 to-transparent dark:from-purple-600/10 dark:via-purple-900/5 dark:to-transparent pointer-events-none blur-3xl -z-10" />
+
+      {/* Optional Top Announcement Bar Configured by Admin */}
+      {settings?.announcementEnabled !== false && settings?.announcementText && (
+        <div
+          className={`w-full py-2.5 px-4 text-center text-xs font-black shadow-xs transition-colors flex items-center justify-center gap-2 ${
+            settings?.announcementBg === 'amber'
+              ? 'bg-amber-400 text-amber-950'
+              : settings?.announcementBg === 'emerald'
+              ? 'bg-emerald-600 text-white'
+              : settings?.announcementBg === 'rose'
+              ? 'bg-rose-600 text-white'
+              : 'bg-gradient-to-r from-purple-700 via-indigo-700 to-purple-800 text-white'
+          }`}
+        >
+          <Sparkles className="w-3.5 h-3.5 shrink-0 opacity-90" />
+          <span>{settings.announcementText}</span>
+        </div>
+      )}
 
       <Navbar onOpenAuth={() => setAuthOpen(true)} />
 
@@ -123,15 +146,22 @@ export default function HomePage() {
             <motion.div variants={itemVariants} className="text-center sm:text-start space-y-3 pt-2">
               <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-purple-50 dark:bg-purple-950/50 border border-purple-200/60 dark:border-purple-800/60 text-[#7C3AED] dark:text-purple-300 text-xs font-black uppercase tracking-wider shadow-xs">
                 <Sparkles className="w-3.5 h-3.5 text-[#8B5CF6]" />
-                <span>{t.heroBadge}</span>
+                <span>{settings?.heroBadge || t.heroBadge}</span>
               </div>
               <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-neutral-950 dark:text-white tracking-tight leading-tight">
-                {t.heroTitle}
+                {settings?.heroTitle || t.heroTitle}
               </h1>
               <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400 max-w-xl leading-relaxed">
-                {t.heroSubtitle}
+                {settings?.heroSubtitle || t.heroSubtitle}
               </p>
             </motion.div>
+
+            {/* Custom Sections: Top Position */}
+            {topSections.map((sec) => (
+              <motion.div key={sec.id} variants={itemVariants}>
+                <CustomSectionRenderer section={sec} dir={dir} />
+              </motion.div>
+            ))}
 
             {/* Main Extractor Card with Liquid Glass & Motion */}
             <motion.div variants={itemVariants}>
@@ -141,51 +171,62 @@ export default function HomePage() {
               />
             </motion.div>
 
-            {/* Trust Metrics Bar */}
-            <motion.div
-              variants={itemVariants}
-              className="grid grid-cols-2 md:grid-cols-4 gap-3 py-2"
-            >
-              <div className="p-4 rounded-2xl bg-white/70 dark:bg-[#14111d]/70 backdrop-blur-md border border-neutral-200/60 dark:border-[#2a243a] flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-purple-100/70 dark:bg-purple-950/60 text-[#8B5CF6] flex items-center justify-center shrink-0">
-                  <CreditCard className="w-4 h-4" />
+            {/* Trust Metrics Bar (Can be toggled by Admin) */}
+            {settings?.trustMetricsEnabled !== false && (
+              <motion.div
+                variants={itemVariants}
+                className="grid grid-cols-2 md:grid-cols-4 gap-3 py-2"
+              >
+                <div className="p-4 rounded-2xl bg-white/70 dark:bg-[#14111d]/70 backdrop-blur-md border border-neutral-200/60 dark:border-[#2a243a] flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-purple-100/70 dark:bg-purple-950/60 text-[#8B5CF6] flex items-center justify-center shrink-0">
+                    <CreditCard className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-black text-neutral-900 dark:text-white leading-tight">
+                      {settings?.enableInstapay ? 'InstaPay & Wallets' : 'Mobile Wallets'}
+                    </h4>
+                    <p className="text-[10px] text-neutral-400 dark:text-neutral-500">{dir === 'rtl' ? 'دفع بالجنيه المصري' : 'Pay in Egyptian EGP'}</p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="text-xs font-black text-neutral-900 dark:text-white leading-tight">InstaPay & VF Cash</h4>
-                  <p className="text-[10px] text-neutral-400 dark:text-neutral-500">{dir === 'rtl' ? 'دفع بالجنيه المصري' : 'Pay in Egyptian EGP'}</p>
-                </div>
-              </div>
 
-              <div className="p-4 rounded-2xl bg-white/70 dark:bg-[#14111d]/70 backdrop-blur-md border border-neutral-200/60 dark:border-[#2a243a] flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-emerald-100/70 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                  <ShieldCheck className="w-4 h-4" />
+                <div className="p-4 rounded-2xl bg-white/70 dark:bg-[#14111d]/70 backdrop-blur-md border border-neutral-200/60 dark:border-[#2a243a] flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-100/70 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                    <ShieldCheck className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-black text-neutral-900 dark:text-white leading-tight">{dir === 'rtl' ? 'فحص ومراجعة دقيقة' : 'Supervisor Verified'}</h4>
+                    <p className="text-[10px] text-neutral-400 dark:text-neutral-500">{dir === 'rtl' ? 'ضمان توافر المقاسات' : 'Inventory & size check'}</p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="text-xs font-black text-neutral-900 dark:text-white leading-tight">{dir === 'rtl' ? 'فحص ومراجعة دقيقة' : 'Supervisor Verified'}</h4>
-                  <p className="text-[10px] text-neutral-400 dark:text-neutral-500">{dir === 'rtl' ? 'ضمان توافر المقاسات' : 'Inventory & size check'}</p>
-                </div>
-              </div>
 
-              <div className="p-4 rounded-2xl bg-white/70 dark:bg-[#14111d]/70 backdrop-blur-md border border-neutral-200/60 dark:border-[#2a243a] flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-amber-100/70 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-                  <Truck className="w-4 h-4" />
+                <div className="p-4 rounded-2xl bg-white/70 dark:bg-[#14111d]/70 backdrop-blur-md border border-neutral-200/60 dark:border-[#2a243a] flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-amber-100/70 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                    <Truck className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-black text-neutral-900 dark:text-white leading-tight">{dir === 'rtl' ? 'توصيل لباب بيتك' : 'Doorstep Delivery'}</h4>
+                    <p className="text-[10px] text-neutral-400 dark:text-neutral-500">{dir === 'rtl' ? 'كل محافظات مصر' : 'Across all Egypt'}</p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="text-xs font-black text-neutral-900 dark:text-white leading-tight">{dir === 'rtl' ? 'توصيل لباب بيتك' : 'Doorstep Delivery'}</h4>
-                  <p className="text-[10px] text-neutral-400 dark:text-neutral-500">{dir === 'rtl' ? 'كل محافظات مصر' : 'Across all Egypt'}</p>
-                </div>
-              </div>
 
-              <div className="p-4 rounded-2xl bg-white/70 dark:bg-[#14111d]/70 backdrop-blur-md border border-neutral-200/60 dark:border-[#2a243a] flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-blue-100/70 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
-                  <Lock className="w-4 h-4" />
+                <div className="p-4 rounded-2xl bg-white/70 dark:bg-[#14111d]/70 backdrop-blur-md border border-neutral-200/60 dark:border-[#2a243a] flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-blue-100/70 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                    <Lock className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-black text-neutral-900 dark:text-white leading-tight">{dir === 'rtl' ? 'خصوصية كاملة' : '100% Privacy'}</h4>
+                    <p className="text-[10px] text-neutral-400 dark:text-neutral-500">{dir === 'rtl' ? 'طلباتك محمية وموثقة' : 'Strict user data security'}</p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="text-xs font-black text-neutral-900 dark:text-white leading-tight">{dir === 'rtl' ? 'خصوصية كاملة' : '100% Privacy'}</h4>
-                  <p className="text-[10px] text-neutral-400 dark:text-neutral-500">{dir === 'rtl' ? 'طلباتك محمية وموثقة' : 'Strict user data security'}</p>
-                </div>
-              </div>
-            </motion.div>
+              </motion.div>
+            )}
+
+            {/* Custom Sections: Middle Position */}
+            {middleSections.map((sec) => (
+              <motion.div key={sec.id} variants={itemVariants}>
+                <CustomSectionRenderer section={sec} dir={dir} />
+              </motion.div>
+            ))}
 
             {/* Latest Orders / Activity Section (Visible only when user is logged in) */}
             {user && recentOrders.length > 0 && (
@@ -261,61 +302,70 @@ export default function HomePage() {
               </motion.div>
             )}
 
-            {/* Three Step Workflow with Spring Hover */}
-            <motion.div variants={itemVariants} className="space-y-3 pt-2">
-              <h3 className="font-black text-neutral-900 dark:text-white text-lg px-1">
-                {dir === 'rtl' ? 'كيف تعمل خدمة SHEIN Concierge؟' : 'How SHEIN Concierge Works'}
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <motion.div
-                  whileHover={{ y: -6 }}
-                  transition={{ duration: 0.2 }}
-                  className="bg-white/90 dark:bg-[#14111d]/90 backdrop-blur-md p-6 rounded-3xl border border-neutral-200/70 dark:border-[#2a243a] shadow-xs space-y-3"
-                >
-                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#8B5CF6] to-[#C084FC] text-white flex items-center justify-center font-black text-sm shadow-sm shadow-purple-500/20">
-                    1
-                  </div>
-                  <h4 className="font-black text-neutral-900 dark:text-white text-sm">
-                    {t.step1Title}
-                  </h4>
-                  <p className="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">
-                    {t.step1Desc}
-                  </p>
-                </motion.div>
+            {/* Three Step Workflow with Spring Hover (Can be toggled or customized by Admin) */}
+            {settings?.howItWorksEnabled !== false && (
+              <motion.div variants={itemVariants} className="space-y-3 pt-2">
+                <h3 className="font-black text-neutral-900 dark:text-white text-lg px-1">
+                  {dir === 'rtl' ? 'كيف تعمل خدمة SHEIN Concierge؟' : 'How SHEIN Concierge Works'}
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <motion.div
+                    whileHover={{ y: -6 }}
+                    transition={{ duration: 0.2 }}
+                    className="bg-white/90 dark:bg-[#14111d]/90 backdrop-blur-md p-6 rounded-3xl border border-neutral-200/70 dark:border-[#2a243a] shadow-xs space-y-3"
+                  >
+                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#8B5CF6] to-[#C084FC] text-white flex items-center justify-center font-black text-sm shadow-sm shadow-purple-500/20">
+                      1
+                    </div>
+                    <h4 className="font-black text-neutral-900 dark:text-white text-sm">
+                      {settings?.step1Title || t.step1Title}
+                    </h4>
+                    <p className="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">
+                      {settings?.step1Desc || t.step1Desc}
+                    </p>
+                  </motion.div>
 
-                <motion.div
-                  whileHover={{ y: -6 }}
-                  transition={{ duration: 0.2 }}
-                  className="bg-white/90 dark:bg-[#14111d]/90 backdrop-blur-md p-6 rounded-3xl border border-neutral-200/70 dark:border-[#2a243a] shadow-xs space-y-3"
-                >
-                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#8B5CF6] to-[#C084FC] text-white flex items-center justify-center font-black text-sm shadow-sm shadow-purple-500/20">
-                    2
-                  </div>
-                  <h4 className="font-black text-neutral-900 dark:text-white text-sm">
-                    {t.step2Title}
-                  </h4>
-                  <p className="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">
-                    {t.step2Desc}
-                  </p>
-                </motion.div>
+                  <motion.div
+                    whileHover={{ y: -6 }}
+                    transition={{ duration: 0.2 }}
+                    className="bg-white/90 dark:bg-[#14111d]/90 backdrop-blur-md p-6 rounded-3xl border border-neutral-200/70 dark:border-[#2a243a] shadow-xs space-y-3"
+                  >
+                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#8B5CF6] to-[#C084FC] text-white flex items-center justify-center font-black text-sm shadow-sm shadow-purple-500/20">
+                      2
+                    </div>
+                    <h4 className="font-black text-neutral-900 dark:text-white text-sm">
+                      {settings?.step2Title || t.step2Title}
+                    </h4>
+                    <p className="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">
+                      {settings?.step2Desc || t.step2Desc}
+                    </p>
+                  </motion.div>
 
-                <motion.div
-                  whileHover={{ y: -6 }}
-                  transition={{ duration: 0.2 }}
-                  className="bg-white/90 dark:bg-[#14111d]/90 backdrop-blur-md p-6 rounded-3xl border border-neutral-200/70 dark:border-[#2a243a] shadow-xs space-y-3"
-                >
-                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#8B5CF6] to-[#C084FC] text-white flex items-center justify-center font-black text-sm shadow-sm shadow-purple-500/20">
-                    3
-                  </div>
-                  <h4 className="font-black text-neutral-900 dark:text-white text-sm">
-                    {t.step3Title}
-                  </h4>
-                  <p className="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">
-                    {t.step3Desc}
-                  </p>
-                </motion.div>
-              </div>
-            </motion.div>
+                  <motion.div
+                    whileHover={{ y: -6 }}
+                    transition={{ duration: 0.2 }}
+                    className="bg-white/90 dark:bg-[#14111d]/90 backdrop-blur-md p-6 rounded-3xl border border-neutral-200/70 dark:border-[#2a243a] shadow-xs space-y-3"
+                  >
+                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#8B5CF6] to-[#C084FC] text-white flex items-center justify-center font-black text-sm shadow-sm shadow-purple-500/20">
+                      3
+                    </div>
+                    <h4 className="font-black text-neutral-900 dark:text-white text-sm">
+                      {settings?.step3Title || t.step3Title}
+                    </h4>
+                    <p className="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">
+                      {settings?.step3Desc || t.step3Desc}
+                    </p>
+                  </motion.div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Custom Sections: Bottom Position */}
+            {bottomSections.map((sec) => (
+              <motion.div key={sec.id} variants={itemVariants}>
+                <CustomSectionRenderer section={sec} dir={dir} />
+              </motion.div>
+            ))}
           </motion.div>
         ) : (
           <ExtractedGoodsView

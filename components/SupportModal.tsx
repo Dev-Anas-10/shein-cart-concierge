@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useThemeLang } from '@/lib/theme-lang-context';
+import { SystemSettings } from '@/lib/types';
 import {
   X,
   Phone,
@@ -12,29 +13,89 @@ import {
   Clock,
   ExternalLink,
   Mail,
+  CreditCard,
+  Wallet,
 } from 'lucide-react';
 
 interface SupportModalProps {
   isOpen: boolean;
   onClose: () => void;
   supportPhone?: string;
+  supportWhatsapp?: string;
   supportEmail?: string;
+  supportHours?: string;
   vodafoneNumber?: string;
   instapayAddress?: string;
+  showPaymentInSupport?: boolean;
+  enableInstapay?: boolean;
+  enableVodafoneCash?: boolean;
+  secondaryWalletNumber?: string;
+  secondaryWalletName?: string;
 }
 
 export function SupportModal({
   isOpen,
   onClose,
-  supportPhone = '+20 128 494 7782',
-  supportEmail = 'gamallahmedd01@gmail.com',
-  vodafoneNumber = '01284947782',
-  instapayAddress = 'shein.orders@instapay',
+  supportPhone: propPhone,
+  supportWhatsapp: propWhatsapp,
+  supportEmail: propEmail,
+  supportHours: propHours,
+  vodafoneNumber: propVodafone,
+  instapayAddress: propInstapay,
+  showPaymentInSupport: propShowPayment,
+  enableInstapay: propEnableInstapay,
+  enableVodafoneCash: propEnableVodafone,
+  secondaryWalletNumber: propSecondaryWallet,
+  secondaryWalletName: propSecondaryName,
 }: SupportModalProps) {
   const { t, dir } = useThemeLang();
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [settings, setSettings] = useState<SystemSettings | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetch('/api/settings')
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.success && d.data) {
+            setSettings(d.data);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
+
+  // Resolve values: passed props take highest priority, then fetched live settings, then fallback defaults
+  const supportPhone =
+    propPhone ?? settings?.supportPhone ?? '+20 128 494 7782';
+  const supportWhatsapp =
+    propWhatsapp ?? settings?.supportWhatsapp ?? supportPhone;
+  const supportEmail =
+    propEmail ?? settings?.supportEmail ?? 'gamallahmedd01@gmail.com';
+  const supportHours =
+    propHours ??
+    settings?.supportHours ??
+    (dir === 'rtl'
+      ? 'خدمة العملاء يومياً من ٩:٠٠ صباحاً حتى ١١:٠٠ مساءً (بتوقيت القاهرة)'
+      : 'Daily support: 9:00 AM – 11:00 PM (Cairo Time)');
+
+  const showPaymentInSupport =
+    propShowPayment ?? settings?.showPaymentInSupport ?? true;
+  const enableInstapay =
+    propEnableInstapay ?? settings?.enableInstapay ?? true;
+  const enableVodafoneCash =
+    propEnableVodafone ?? settings?.enableVodafoneCash ?? true;
+
+  const instapayAddress =
+    propInstapay ?? settings?.instapayAddress ?? 'shein.orders@instapay';
+  const vodafoneNumber =
+    propVodafone ?? settings?.vodafoneCashNumber ?? '01284947782';
+  const secondaryWallet =
+    propSecondaryWallet ?? settings?.secondaryWalletNumber ?? '';
+  const secondaryName =
+    propSecondaryName ?? settings?.secondaryWalletName ?? 'محفظة كاش إضافية';
 
   const handleCopy = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -42,8 +103,8 @@ export function SupportModal({
     setTimeout(() => setCopiedField(null), 2000);
   };
 
-  const cleanPhone = supportPhone.replace(/[^0-9]/g, '');
-  const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(
+  const cleanWhatsapp = (supportWhatsapp || supportPhone).replace(/[^0-9]/g, '');
+  const whatsappUrl = `https://wa.me/${cleanWhatsapp}?text=${encodeURIComponent(
     dir === 'rtl'
       ? 'مرحبا، أود الاستفسار بخصوص طلبي من شي إن والدفع عبر إنستاباي أو فودافون كاش.'
       : 'Hello, I would like to inquire about my SHEIN order and InstaPay / Vodafone Cash payment.'
@@ -79,7 +140,7 @@ export function SupportModal({
         </div>
 
         {/* Channels */}
-        <div className="p-6 space-y-3.5 text-xs">
+        <div className="p-6 space-y-3.5 text-xs max-h-[75vh] overflow-y-auto">
           {/* WhatsApp Direct Chat */}
           <a
             href={whatsappUrl}
@@ -177,57 +238,87 @@ export function SupportModal({
             </div>
           </div>
 
-          {/* Payment Accounts Quick Reference */}
-          <div className="p-4 rounded-2xl border border-purple-100 dark:border-purple-900/60 bg-purple-50/50 dark:bg-purple-950/20 space-y-2.5">
-            <span className="font-extrabold text-[#6D28D9] dark:text-purple-300 text-xs block text-start">
-              {dir === 'rtl' ? 'بيانات التحويل المعتمدة في مصر:' : 'Official Payment Targets (Egypt):'}
-            </span>
-
-            <div className="flex items-center justify-between text-[11px] bg-white dark:bg-[#1a1722] p-2.5 rounded-xl border border-purple-100 dark:border-[#2a2538]">
-              <div className="text-start">
-                <span className="text-neutral-400 dark:text-neutral-500 block font-medium">
-                  {t.instapayTitle}
+          {/* Payment Accounts Quick Reference (Only shown if enabled by admin!) */}
+          {showPaymentInSupport && (enableInstapay || enableVodafoneCash || secondaryWallet) && (
+            <div className="p-4 rounded-2xl border border-purple-100 dark:border-purple-900/60 bg-purple-50/50 dark:bg-purple-950/20 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="font-extrabold text-[#6D28D9] dark:text-purple-300 text-xs block text-start">
+                  {dir === 'rtl' ? 'بيانات التحويل المعتمدة في مصر:' : 'Official Payment Targets (Egypt):'}
                 </span>
-                <span className="font-mono font-bold text-neutral-900 dark:text-white" dir="ltr">
-                  {instapayAddress}
+                <span className="text-[10px] bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-full font-bold">
+                  {dir === 'rtl' ? 'معتمد' : 'Verified'}
                 </span>
               </div>
-              <button
-                type="button"
-                onClick={() => handleCopy(instapayAddress, 'instapay')}
-                className="text-[11px] font-bold text-[#7C3AED] dark:text-purple-400 hover:underline flex items-center gap-1 cursor-pointer shrink-0"
-              >
-                {copiedField === 'instapay' ? 'تم النسخ ✓' : (dir === 'rtl' ? 'نسخ' : 'Copy')}
-              </button>
-            </div>
 
-            <div className="flex items-center justify-between text-[11px] bg-white dark:bg-[#1a1722] p-2.5 rounded-xl border border-purple-100 dark:border-[#2a2538]">
-              <div className="text-start">
-                <span className="text-neutral-400 dark:text-neutral-500 block font-medium">
-                  {t.vodafoneTitle}
-                </span>
-                <span className="font-mono font-bold text-neutral-900 dark:text-white" dir="ltr">
-                  {vodafoneNumber}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => handleCopy(vodafoneNumber, 'vodafone')}
-                className="text-[11px] font-bold text-[#7C3AED] dark:text-purple-400 hover:underline flex items-center gap-1 cursor-pointer shrink-0"
-              >
-                {copiedField === 'vodafone' ? 'تم النسخ ✓' : (dir === 'rtl' ? 'نسخ' : 'Copy')}
-              </button>
+              {enableInstapay && (
+                <div className="flex items-center justify-between text-[11px] bg-white dark:bg-[#1a1722] p-2.5 rounded-xl border border-purple-100 dark:border-[#2a2538]">
+                  <div className="text-start">
+                    <span className="text-neutral-400 dark:text-neutral-500 block font-medium flex items-center gap-1">
+                      <CreditCard className="w-3 h-3 text-[#7C3AED]" />
+                      {t.instapayTitle}
+                    </span>
+                    <span className="font-mono font-bold text-neutral-900 dark:text-white" dir="ltr">
+                      {instapayAddress}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(instapayAddress, 'instapay')}
+                    className="text-[11px] font-bold text-[#7C3AED] dark:text-purple-400 hover:underline flex items-center gap-1 cursor-pointer shrink-0"
+                  >
+                    {copiedField === 'instapay' ? 'تم النسخ ✓' : (dir === 'rtl' ? 'نسخ' : 'Copy')}
+                  </button>
+                </div>
+              )}
+
+              {enableVodafoneCash && (
+                <div className="flex items-center justify-between text-[11px] bg-white dark:bg-[#1a1722] p-2.5 rounded-xl border border-purple-100 dark:border-[#2a2538]">
+                  <div className="text-start">
+                    <span className="text-neutral-400 dark:text-neutral-500 block font-medium flex items-center gap-1">
+                      <Wallet className="w-3 h-3 text-rose-500" />
+                      {t.vodafoneTitle}
+                    </span>
+                    <span className="font-mono font-bold text-neutral-900 dark:text-white" dir="ltr">
+                      {vodafoneNumber}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(vodafoneNumber, 'vodafone')}
+                    className="text-[11px] font-bold text-[#7C3AED] dark:text-purple-400 hover:underline flex items-center gap-1 cursor-pointer shrink-0"
+                  >
+                    {copiedField === 'vodafone' ? 'تم النسخ ✓' : (dir === 'rtl' ? 'نسخ' : 'Copy')}
+                  </button>
+                </div>
+              )}
+
+              {secondaryWallet && (
+                <div className="flex items-center justify-between text-[11px] bg-white dark:bg-[#1a1722] p-2.5 rounded-xl border border-purple-100 dark:border-[#2a2538]">
+                  <div className="text-start">
+                    <span className="text-neutral-400 dark:text-neutral-500 block font-medium flex items-center gap-1">
+                      <Wallet className="w-3 h-3 text-amber-500" />
+                      {secondaryName || (dir === 'rtl' ? 'محفظة كاش إضافية' : 'Secondary Wallet')}
+                    </span>
+                    <span className="font-mono font-bold text-neutral-900 dark:text-white" dir="ltr">
+                      {secondaryWallet}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(secondaryWallet, 'secondaryWallet')}
+                    className="text-[11px] font-bold text-[#7C3AED] dark:text-purple-400 hover:underline flex items-center gap-1 cursor-pointer shrink-0"
+                  >
+                    {copiedField === 'secondaryWallet' ? 'تم النسخ ✓' : (dir === 'rtl' ? 'نسخ' : 'Copy')}
+                  </button>
+                </div>
+              )}
             </div>
-          </div>
+          )}
 
           {/* Operating hours */}
           <div className="flex items-center gap-2 pt-1 text-neutral-500 dark:text-neutral-400 text-[11px]">
             <Clock className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
-            <span>
-              {dir === 'rtl'
-                ? 'خدمة العملاء يومياً من ٩:٠٠ صباحاً حتى ١١:٠٠ مساءً (بتوقيت القاهرة)'
-                : 'Daily support: 9:00 AM – 11:00 PM (Cairo Time)'}
-            </span>
+            <span>{supportHours}</span>
           </div>
         </div>
       </motion.div>

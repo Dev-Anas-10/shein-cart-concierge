@@ -152,12 +152,64 @@
     "dynamicFeePercent": 20,
     "flatShippingFee": 0,
     "currency": "EGP",
+    "showPaymentInSupport": true,
+    "enableInstapay": true,
     "instapayAddress": "shein.orders@instapay",
     "instapayAccountName": "SHEIN Concierge Egypt",
+    "enableVodafoneCash": true,
     "vodafoneCashNumber": "01284947782",
     "vodafoneCashInstructions": "أرسل المبلغ المطلوب إلى الرقم أعلاه عبر فودافون كاش، ثم أرفق لقطة الشاشة لتأكيد الدفع.",
+    "secondaryWalletNumber": "01284947782",
+    "secondaryWalletName": "محفظة كاش إضافية",
     "supportPhone": "+20 128 494 7782",
+    "supportWhatsapp": "+201284947782",
     "supportEmail": "gamallahmedd01@gmail.com",
-    "announcementText": "خدمة SHEIN Concierge — رسوم خدمة 20%، متاح الدفع عبر InstaPay أو فودافون كاش."
+    "supportHours": "يومياً من ٩:٠٠ صباحاً حتى ١١:٠٠ مساءً (بتوقيت القاهرة)",
+    "announcementEnabled": true,
+    "announcementText": "خدمة SHEIN Concierge — رسوم خدمة 20%، متاح الدفع عبر InstaPay أو فودافون كاش وتوصيل لكافة محافظات مصر.",
+    "announcementBg": "purple",
+    "heroBadge": "الخدمة الرسمية والأسرع في مصر",
+    "heroTitle": "استخرج سلة شي إن الخاصة بك وادفع بالجنيه المصري",
+    "heroSubtitle": "الصق رابط سلة المشاركة، نتحقق من المقاسات والأسعار، وادفع بأمان عبر إنستاباي أو فودافون كاش مع شحن موثوق لباب بيتك.",
+    "howItWorksEnabled": true,
+    "step1Title": "انسخ رابط السلة من شي إن",
+    "step1Desc": "اضغط على زر المشاركة داخل تطبيق SHEIN وانسخ الرابط المختصر أو الرمز.",
+    "step2Title": "مراجعة وتأكيد المقاسات",
+    "step2Desc": "يقوم المشرف بفحص الأسعار، التخفيضات، وتوفر المقاسات في مصر.",
+    "step3Title": "ادفع بالجنيه واستلم",
+    "step3Desc": "سدد القيمة عبر إنستاباي أو فودافون كاش وتتبع شحنتك حتى باب المنزل.",
+    "trustMetricsEnabled": true,
+    "customSections": [
+      {
+        "id": "sec-payment-guarantee",
+        "title": "ضمان الدفع الآمن والتوصيل في مصر",
+        "subtitle": "حماية كاملة لأموالك ومرونة الدفع بالعملة المحلية مع فواتير تفصيلية",
+        "badge": "ضمان وأمان 100%",
+        "type": "cards",
+        "position": "middle",
+        "theme": "purple",
+        "enabled": true,
+        "cards": [
+          {
+            "id": "card-1",
+            "title": "دفع بالجنيه المصري",
+            "desc": "بدون بطاقات دولية أو حدود مصرفية عبر إنستاباي وفودافون كاش.",
+            "icon": "ShieldCheck"
+          },
+          {
+            "id": "card-2",
+            "title": "فحص فوري للأصناف",
+            "desc": "مراجعة دقيقة لتوفر المقاسات والألوان وتطبيق أحدث كوبونات شي إن.",
+            "icon": "CheckCircle2"
+          },
+          {
+            "id": "card-3",
+            "title": "شحن سريع ومضمون",
+            "desc": "توصيل لجميع محافظات مصر مع إشعارات مباشرة لحالة الشحنة.",
+            "icon": "Truck"
+          }
+        ]
+      }
+    ]
   }
 }

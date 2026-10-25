@@ -86,17 +86,73 @@ export interface Order {
   updatedAt: string;
 }
 
+export interface CustomSectionCard {
+  id: string;
+  title: string;
+  desc: string;
+  icon?: string;
+  link?: string;
+}
+
+export interface CustomSection {
+  id: string;
+  title: string;
+  subtitle?: string;
+  badge?: string;
+  content?: string;
+  type: 'banner' | 'cards' | 'text' | 'faq';
+  cards?: CustomSectionCard[];
+  position: 'top' | 'middle' | 'bottom';
+  theme?: 'purple' | 'amber' | 'emerald' | 'dark' | 'glass';
+  enabled: boolean;
+  createdAt?: string;
+}
+
 export interface SystemSettings {
+  // Pricing & Fees
   dynamicFeePercent: number;    // Default 20
   flatShippingFee: number;      // Default 0 or 50 EGP
   currency: string;             // 'EGP'
-  instapayAddress: string;       // e.g. 'sheinextract@instapay'
-  instapayAccountName: string;   // e.g. 'SHEIN Express Egypt'
-  vodafoneCashNumber: string;    // e.g. '01012345678'
+
+  // Payment Options & Details
+  showPaymentInSupport: boolean;      // Toggle payment section in support modal
+  enableInstapay: boolean;            // Enable/disable InstaPay
+  instapayAddress: string;            // e.g. 'shein.orders@instapay'
+  instapayAccountName: string;        // e.g. 'SHEIN Concierge Egypt'
+  enableVodafoneCash: boolean;        // Enable/disable Vodafone Cash
+  vodafoneCashNumber: string;         // e.g. '01284947782'
   vodafoneCashInstructions: string;
+  secondaryWalletNumber?: string;     // Additional wallet number (e.g. Orange / Etisalat)
+  secondaryWalletName?: string;       // e.g. 'محفظة إضافية / اتصالات كاش'
+
+  // Support & Contact
   supportPhone: string;
+  supportWhatsapp?: string;
   supportEmail?: string;
+  supportHours?: string;
+
+  // Built-in Section Customization
+  announcementEnabled?: boolean;
   announcementText?: string;
+  announcementLink?: string;
+  announcementBg?: 'purple' | 'amber' | 'emerald' | 'rose';
+
+  heroBadge?: string;
+  heroTitle?: string;
+  heroSubtitle?: string;
+
+  howItWorksEnabled?: boolean;
+  step1Title?: string;
+  step1Desc?: string;
+  step2Title?: string;
+  step2Desc?: string;
+  step3Title?: string;
+  step3Desc?: string;
+
+  trustMetricsEnabled?: boolean;
+
+  // Custom Sections created by Admin
+  customSections?: CustomSection[];
 }
 
 export interface ExtractedCartResult {

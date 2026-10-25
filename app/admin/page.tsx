@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Order, GoodItem, SystemSettings, OrderStatus } from '@/lib/types';
+import { Order, GoodItem, SystemSettings, OrderStatus, CustomSection } from '@/lib/types';
 import { useAuth } from '@/lib/auth-context';
 import { Navbar } from '@/components/Navbar';
 import { AuthModal } from '@/components/AuthModal';
@@ -27,6 +27,19 @@ import {
   TrendingUp,
   AlertTriangle,
   CheckCheck,
+  Phone,
+  Mail,
+  MessageCircle,
+  Plus,
+  Trash2,
+  Edit3,
+  Layout,
+  Sparkles,
+  Wallet,
+  Layers,
+  Settings,
+  HelpCircle,
+  Truck,
 } from 'lucide-react';
 
 const PRESET_ITEM_COMMENTS = [
@@ -106,13 +119,60 @@ export default function AdminDashboardPage() {
   const [updating, setUpdating] = useState(false);
   const [zoomReceipt, setZoomReceipt] = useState(false);
 
-  // Settings modal
+  // Settings modal & tabs
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<'payments' | 'support' | 'sections' | 'custom_sections'>('payments');
+  const [savingSettings, setSavingSettings] = useState(false);
+
+  // 1. Payments & Wallets
   const [editFeePercent, setEditFeePercent] = useState(20);
+  const [editFlatShippingFee, setEditFlatShippingFee] = useState(0);
+  const [editShowPaymentInSupport, setEditShowPaymentInSupport] = useState(true);
+  const [editEnableInstapay, setEditEnableInstapay] = useState(true);
   const [editInstapayAddress, setEditInstapayAddress] = useState('');
   const [editInstapayName, setEditInstapayName] = useState('');
+  const [editEnableVodafoneCash, setEditEnableVodafoneCash] = useState(true);
   const [editVodafoneNumber, setEditVodafoneNumber] = useState('');
-  const [savingSettings, setSavingSettings] = useState(false);
+  const [editVodafoneInstructions, setEditVodafoneInstructions] = useState('');
+  const [editSecondaryWalletNumber, setEditSecondaryWalletNumber] = useState('');
+  const [editSecondaryWalletName, setEditSecondaryWalletName] = useState('');
+
+  // 2. Support & Contacts
+  const [editSupportPhone, setEditSupportPhone] = useState('');
+  const [editSupportWhatsapp, setEditSupportWhatsapp] = useState('');
+  const [editSupportEmail, setEditSupportEmail] = useState('');
+  const [editSupportHours, setEditSupportHours] = useState('');
+
+  // 3. Built-in Sections
+  const [editAnnouncementEnabled, setEditAnnouncementEnabled] = useState(true);
+  const [editAnnouncementText, setEditAnnouncementText] = useState('');
+  const [editAnnouncementBg, setEditAnnouncementBg] = useState<'purple' | 'amber' | 'emerald' | 'rose'>('purple');
+  const [editHeroBadge, setEditHeroBadge] = useState('');
+  const [editHeroTitle, setEditHeroTitle] = useState('');
+  const [editHeroSubtitle, setEditHeroSubtitle] = useState('');
+  const [editHowItWorksEnabled, setEditHowItWorksEnabled] = useState(true);
+  const [editStep1Title, setEditStep1Title] = useState('');
+  const [editStep1Desc, setEditStep1Desc] = useState('');
+  const [editStep2Title, setEditStep2Title] = useState('');
+  const [editStep2Desc, setEditStep2Desc] = useState('');
+  const [editStep3Title, setEditStep3Title] = useState('');
+  const [editStep3Desc, setEditStep3Desc] = useState('');
+  const [editTrustMetricsEnabled, setEditTrustMetricsEnabled] = useState(true);
+
+  // 4. Custom Dynamic Sections
+  const [editCustomSections, setEditCustomSections] = useState<CustomSection[]>([]);
+  const [showNewSectionModal, setShowNewSectionModal] = useState(false);
+  const [newSecTitle, setNewSecTitle] = useState('');
+  const [newSecSubtitle, setNewSecSubtitle] = useState('');
+  const [newSecBadge, setNewSecBadge] = useState('');
+  const [newSecType, setNewSecType] = useState<'cards' | 'banner' | 'text' | 'faq'>('cards');
+  const [newSecPosition, setNewSecPosition] = useState<'top' | 'middle' | 'bottom'>('middle');
+  const [newSecTheme, setNewSecTheme] = useState<'purple' | 'amber' | 'emerald' | 'dark' | 'glass'>('purple');
+  const [newSecContent, setNewSecContent] = useState('');
+  const [newSecCards, setNewSecCards] = useState<{ id: string; title: string; desc: string; icon: string }[]>([]);
+  const [cardTitle, setCardTitle] = useState('');
+  const [cardDesc, setCardDesc] = useState('');
+  const [cardIcon, setCardIcon] = useState('ShieldCheck');
 
   const fetchData = async () => {
     setLoading(true);
@@ -127,11 +187,41 @@ export default function AdminDashboardPage() {
 
       if (ordersJson.success) setOrders(ordersJson.data);
       if (settingsJson.success) {
-        setSettings(settingsJson.data);
-        setEditFeePercent(settingsJson.data.dynamicFeePercent);
-        setEditInstapayAddress(settingsJson.data.instapayAddress);
-        setEditInstapayName(settingsJson.data.instapayAccountName);
-        setEditVodafoneNumber(settingsJson.data.vodafoneCashNumber);
+        const s: SystemSettings = settingsJson.data;
+        setSettings(s);
+        setEditFeePercent(s.dynamicFeePercent ?? 20);
+        setEditFlatShippingFee(s.flatShippingFee ?? 0);
+        setEditShowPaymentInSupport(s.showPaymentInSupport ?? true);
+        setEditEnableInstapay(s.enableInstapay ?? true);
+        setEditInstapayAddress(s.instapayAddress ?? '');
+        setEditInstapayName(s.instapayAccountName ?? '');
+        setEditEnableVodafoneCash(s.enableVodafoneCash ?? true);
+        setEditVodafoneNumber(s.vodafoneCashNumber ?? '');
+        setEditVodafoneInstructions(s.vodafoneCashInstructions ?? '');
+        setEditSecondaryWalletNumber(s.secondaryWalletNumber ?? '');
+        setEditSecondaryWalletName(s.secondaryWalletName ?? '');
+
+        setEditSupportPhone(s.supportPhone ?? '');
+        setEditSupportWhatsapp(s.supportWhatsapp ?? s.supportPhone ?? '');
+        setEditSupportEmail(s.supportEmail ?? '');
+        setEditSupportHours(s.supportHours ?? '');
+
+        setEditAnnouncementEnabled(s.announcementEnabled ?? true);
+        setEditAnnouncementText(s.announcementText ?? '');
+        setEditAnnouncementBg(s.announcementBg ?? 'purple');
+        setEditHeroBadge(s.heroBadge ?? '');
+        setEditHeroTitle(s.heroTitle ?? '');
+        setEditHeroSubtitle(s.heroSubtitle ?? '');
+        setEditHowItWorksEnabled(s.howItWorksEnabled ?? true);
+        setEditStep1Title(s.step1Title ?? '');
+        setEditStep1Desc(s.step1Desc ?? '');
+        setEditStep2Title(s.step2Title ?? '');
+        setEditStep2Desc(s.step2Desc ?? '');
+        setEditStep3Title(s.step3Title ?? '');
+        setEditStep3Desc(s.step3Desc ?? '');
+        setEditTrustMetricsEnabled(s.trustMetricsEnabled ?? true);
+
+        setEditCustomSections(s.customSections ?? []);
       }
     } catch (err) {
       console.error('Failed to load admin data:', err);
@@ -251,31 +341,120 @@ export default function AdminDashboardPage() {
     }
   };
 
-  const handleSaveSettings = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveSettings = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     setSavingSettings(true);
     try {
+      const payload: Partial<SystemSettings> = {
+        dynamicFeePercent: Number(editFeePercent) || 20,
+        flatShippingFee: Number(editFlatShippingFee) || 0,
+        showPaymentInSupport: editShowPaymentInSupport,
+        enableInstapay: editEnableInstapay,
+        instapayAddress: editInstapayAddress.trim(),
+        instapayAccountName: editInstapayName.trim(),
+        enableVodafoneCash: editEnableVodafoneCash,
+        vodafoneCashNumber: editVodafoneNumber.trim(),
+        vodafoneCashInstructions: editVodafoneInstructions.trim(),
+        secondaryWalletNumber: editSecondaryWalletNumber.trim(),
+        secondaryWalletName: editSecondaryWalletName.trim(),
+
+        supportPhone: editSupportPhone.trim(),
+        supportWhatsapp: editSupportWhatsapp.trim(),
+        supportEmail: editSupportEmail.trim(),
+        supportHours: editSupportHours.trim(),
+
+        announcementEnabled: editAnnouncementEnabled,
+        announcementText: editAnnouncementText.trim(),
+        announcementBg: editAnnouncementBg,
+        heroBadge: editHeroBadge.trim(),
+        heroTitle: editHeroTitle.trim(),
+        heroSubtitle: editHeroSubtitle.trim(),
+        howItWorksEnabled: editHowItWorksEnabled,
+        step1Title: editStep1Title.trim(),
+        step1Desc: editStep1Desc.trim(),
+        step2Title: editStep2Title.trim(),
+        step2Desc: editStep2Desc.trim(),
+        step3Title: editStep3Title.trim(),
+        step3Desc: editStep3Desc.trim(),
+        trustMetricsEnabled: editTrustMetricsEnabled,
+
+        customSections: editCustomSections,
+      };
+
       const res = await fetch('/api/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          dynamicFeePercent: Number(editFeePercent) || 20,
-          instapayAddress: editInstapayAddress.trim(),
-          instapayAccountName: editInstapayName.trim(),
-          vodafoneCashNumber: editVodafoneNumber.trim(),
-        }),
+        body: JSON.stringify(payload),
       });
 
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Failed to update settings');
       setSettings(json.data);
-      setSettingsOpen(false);
-      addToast('success', 'Settings saved successfully!');
+      addToast('success', 'تم حفظ جميع التعديلات والإعدادات بنجاح! ✓');
     } catch (err: any) {
       addToast('error', err.message);
     } finally {
       setSavingSettings(false);
     }
+  };
+
+  const handleAddCustomSection = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSecTitle.trim()) {
+      addToast('error', 'عنوان السكشن مطلوب');
+      return;
+    }
+
+    const newSec: CustomSection = {
+      id: `sec-${Date.now()}`,
+      title: newSecTitle.trim(),
+      subtitle: newSecSubtitle.trim() || undefined,
+      badge: newSecBadge.trim() || undefined,
+      type: newSecType,
+      position: newSecPosition,
+      theme: newSecTheme,
+      content: newSecContent.trim() || undefined,
+      cards: newSecType === 'cards' && newSecCards.length > 0 ? newSecCards : undefined,
+      enabled: true,
+      createdAt: new Date().toISOString(),
+    };
+
+    setEditCustomSections((prev) => [...prev, newSec]);
+    setShowNewSectionModal(false);
+    setNewSecTitle('');
+    setNewSecSubtitle('');
+    setNewSecBadge('');
+    setNewSecContent('');
+    setNewSecCards([]);
+    addToast('success', 'تمت إضافة السكشن الجديد! لا تنسى الضغط على "حفظ التعديلات".');
+  };
+
+  const handleToggleCustomSection = (id: string) => {
+    setEditCustomSections((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, enabled: !s.enabled } : s))
+    );
+  };
+
+  const handleDeleteCustomSection = (id: string) => {
+    setEditCustomSections((prev) => prev.filter((s) => s.id !== id));
+    addToast('info', 'تم حذف السكشن من القائمة.');
+  };
+
+  const handleAddCardToNewSection = () => {
+    if (!cardTitle.trim()) return;
+    const newCard = {
+      id: `card-${Date.now()}`,
+      title: cardTitle.trim(),
+      desc: cardDesc.trim(),
+      icon: cardIcon,
+    };
+    setNewSecCards((prev) => [...prev, newCard]);
+    setCardTitle('');
+    setCardDesc('');
+  };
+
+  const handleRemoveCard = (cardId: string) => {
+    setNewSecCards((prev) => prev.filter((c) => c.id !== cardId));
   };
 
   // Metrics
@@ -378,10 +557,10 @@ export default function AdminDashboardPage() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSettingsOpen(true)}
-              className="px-4 py-2.5 bg-white hover:bg-neutral-50 text-neutral-800 border border-neutral-200 rounded-2xl text-xs font-extrabold transition-all flex items-center gap-2 shadow-xs cursor-pointer active:scale-95"
+              className="px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-2xl text-xs font-black transition-all flex items-center gap-2 shadow-md shadow-purple-500/20 cursor-pointer active:scale-95"
             >
-              <Sliders className="w-4 h-4 text-neutral-600" />
-              Dynamic Fee &amp; Wallets
+              <Settings className="w-4 h-4 text-purple-200" />
+              إعدادات الموقع والمحافظ والسكاشن (Site CMS)
             </button>
 
             <button
@@ -956,102 +1135,898 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      {/* GLOBAL SETTINGS MODAL */}
+      {/* GLOBAL SITE CMS & SETTINGS MODAL */}
       {settingsOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in">
-          <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-neutral-200 overflow-hidden">
-            <div className="p-6 bg-neutral-50 border-b border-neutral-200 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/75 backdrop-blur-md animate-in fade-in">
+          <div className="relative w-full max-w-4xl bg-white rounded-[32px] shadow-2xl border border-neutral-200 overflow-hidden flex flex-col max-h-[92vh]">
+            {/* Modal Header */}
+            <div className="p-6 bg-gradient-to-r from-neutral-50 via-purple-50/40 to-white border-b border-neutral-200 flex items-center justify-between">
               <div>
-                <h3 className="text-xl font-black text-neutral-950">Dynamic Fees & Target Wallets</h3>
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 rounded-full bg-purple-100 text-[#7C3AED] text-[10px] font-black uppercase tracking-wider">
+                    Site Customizer &amp; CMS
+                  </span>
+                  <span className="text-[10px] font-bold text-neutral-400">تحكم فوري مباشر</span>
+                </div>
+                <h3 className="text-xl font-black text-neutral-950 mt-1">
+                  إعدادات الموقع، المحافظ، الدعم والسكاشن
+                </h3>
                 <p className="text-xs text-neutral-500 mt-0.5">
-                  Configure default markup percentage and Egyptian payment receiving accounts.
+                  تعديل أرقام الدعم، إظهار/إخفاء بيانات الدفع في السبورت، وتعديل أو إضافة سكاشن جديدة للموقع.
                 </p>
               </div>
               <button
                 onClick={() => setSettingsOpen(false)}
-                className="p-2 text-neutral-400 hover:text-neutral-700 rounded-full cursor-pointer"
+                className="w-10 h-10 rounded-full bg-white hover:bg-neutral-100 text-neutral-400 hover:text-neutral-700 flex items-center justify-center border border-neutral-200 cursor-pointer transition-colors shrink-0"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveSettings} className="p-6 space-y-4 text-xs">
-              <div>
-                <label className="block font-bold text-neutral-700 mb-1">
-                  Default Dynamic Service Fee (%)
-                </label>
-                <div className="relative">
-                  <Percent className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
-                  <input
-                    type="number"
-                    min={0}
-                    max={100}
-                    required
-                    value={editFeePercent}
-                    onChange={(e) => setEditFeePercent(Number(e.target.value))}
-                    className="w-full pl-10 pr-3.5 py-3 bg-neutral-50 border border-neutral-200 rounded-2xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-rose-500 font-black text-base"
-                  />
-                </div>
-              </div>
+            {/* Navigation Tabs */}
+            <div className="flex items-center gap-2 px-6 pt-3 pb-2 bg-neutral-100/70 border-b border-neutral-200 overflow-x-auto text-xs font-black">
+              <button
+                type="button"
+                onClick={() => setSettingsTab('payments')}
+                className={`px-4 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
+                  settingsTab === 'payments'
+                    ? 'bg-white text-purple-700 shadow-xs border border-purple-200'
+                    : 'text-neutral-600 hover:bg-white/60'
+                }`}
+              >
+                <CreditCard className="w-4 h-4 text-purple-600" />
+                <span>طرق الدفع والمحافظ</span>
+              </button>
 
-              <div className="pt-2 border-t border-neutral-100 space-y-3">
-                <h5 className="font-black text-neutral-950 text-sm">InstaPay Target Account</h5>
-                <div>
-                  <label className="block font-bold text-neutral-700 mb-1">InstaPay Address (IPA)</label>
-                  <input
-                    type="text"
-                    required
-                    value={editInstapayAddress}
-                    onChange={(e) => setEditInstapayAddress(e.target.value)}
-                    placeholder="shein.orders@instapay"
-                    className="w-full px-3.5 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl focus:bg-white font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-neutral-700 mb-1">Account Display Name</label>
-                  <input
-                    type="text"
-                    required
-                    value={editInstapayName}
-                    onChange={(e) => setEditInstapayName(e.target.value)}
-                    placeholder="SHEIN Concierge Egypt"
-                    className="w-full px-3.5 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl focus:bg-white"
-                  />
-                </div>
-              </div>
+              <button
+                type="button"
+                onClick={() => setSettingsTab('support')}
+                className={`px-4 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
+                  settingsTab === 'support'
+                    ? 'bg-white text-purple-700 shadow-xs border border-purple-200'
+                    : 'text-neutral-600 hover:bg-white/60'
+                }`}
+              >
+                <Phone className="w-4 h-4 text-purple-600" />
+                <span>أرقام الدعم والتواصل</span>
+              </button>
 
-              <div className="pt-2 border-t border-neutral-100 space-y-3">
-                <h5 className="font-black text-neutral-950 text-sm">Vodafone Cash Target Wallet</h5>
-                <div>
-                  <label className="block font-bold text-neutral-700 mb-1">
-                    Vodafone Cash Mobile Number
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={editVodafoneNumber}
-                    onChange={(e) => setEditVodafoneNumber(e.target.value)}
-                    placeholder="010XXXXXXXX"
-                    className="w-full px-3.5 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl focus:bg-white font-mono font-bold"
-                  />
-                </div>
-              </div>
+              <button
+                type="button"
+                onClick={() => setSettingsTab('sections')}
+                className={`px-4 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
+                  settingsTab === 'sections'
+                    ? 'bg-white text-purple-700 shadow-xs border border-purple-200'
+                    : 'text-neutral-600 hover:bg-white/60'
+                }`}
+              >
+                <Layout className="w-4 h-4 text-purple-600" />
+                <span>تعديل السكاشن الحالية</span>
+              </button>
 
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-neutral-200">
-                <button
-                  type="button"
-                  onClick={() => setSettingsOpen(false)}
-                  className="px-4 py-2 font-bold text-neutral-500 hover:bg-neutral-100 rounded-xl transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={savingSettings}
-                  className="px-6 py-2.5 bg-neutral-950 hover:bg-neutral-800 disabled:opacity-50 text-white font-black rounded-xl shadow-md transition-all cursor-pointer"
-                >
-                  {savingSettings ? 'Saving...' : 'Save Configuration'}
-                </button>
+              <button
+                type="button"
+                onClick={() => setSettingsTab('custom_sections')}
+                className={`px-4 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
+                  settingsTab === 'custom_sections'
+                    ? 'bg-white text-purple-700 shadow-xs border border-purple-200'
+                    : 'text-neutral-600 hover:bg-white/60'
+                }`}
+              >
+                <Layers className="w-4 h-4 text-purple-600" />
+                <span>السكاشن المخصصة ({editCustomSections.length})</span>
+              </button>
+            </div>
+
+            {/* Modal Scrollable Body */}
+            <form onSubmit={handleSaveSettings} className="overflow-y-auto flex-1 p-6 space-y-6 text-xs text-neutral-800">
+              {/* TAB 1: PAYMENTS & WALLETS */}
+              {settingsTab === 'payments' && (
+                <div className="space-y-6 animate-in fade-in duration-200">
+                  {/* Dynamic Fee & Shipping */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-5 bg-neutral-50 rounded-2xl border border-neutral-200/80">
+                    <div>
+                      <label className="block font-black text-neutral-800 mb-1">
+                        نسبة الرسوم والعمولة الافتراضية (%)
+                      </label>
+                      <div className="relative">
+                        <Percent className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          required
+                          value={editFeePercent}
+                          onChange={(e) => setEditFeePercent(Number(e.target.value))}
+                          className="w-full pl-10 pr-3.5 py-2.5 bg-white border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-600 font-black text-sm"
+                        />
+                      </div>
+                      <p className="text-[11px] text-neutral-500 mt-1">تطبق على إجمالي سلة شي إن المستخرجة.</p>
+                    </div>
+
+                    <div>
+                      <label className="block font-black text-neutral-800 mb-1">
+                        رسوم الشحن الثابتة (جنيه مصري)
+                      </label>
+                      <div className="relative">
+                        <Truck className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
+                        <input
+                          type="number"
+                          min={0}
+                          value={editFlatShippingFee}
+                          onChange={(e) => setEditFlatShippingFee(Number(e.target.value))}
+                          className="w-full pl-10 pr-3.5 py-2.5 bg-white border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-600 font-black text-sm"
+                        />
+                      </div>
+                      <p className="text-[11px] text-neutral-500 mt-1">اجعلها 0 لو الشحن مجاني داخل مصر.</p>
+                    </div>
+                  </div>
+
+                  {/* Toggle: Payment details in Support Modal */}
+                  <div className="p-5 rounded-2xl border-2 border-purple-200 bg-gradient-to-r from-purple-50/70 via-white to-purple-50/30 flex items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-black text-neutral-950 text-sm">
+                          إظهار سكشن بيانات وطرق الدفع في نافذة الدعم (Support Modal)
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700">
+                          مطلوب من الإدارة
+                        </span>
+                      </div>
+                      <p className="text-xs text-neutral-500">
+                        عند التفعيل، تظهر أرقام الحسابات وطرق التحويل داخل نافذة الدعم الفني. عند التعطيل يتم إخفاؤها تماماً من نافذة الدعم.
+                      </p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={editShowPaymentInSupport}
+                        onChange={(e) => setEditShowPaymentInSupport(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-12 h-6 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                    </label>
+                  </div>
+
+                  {/* InstaPay Target Account */}
+                  <div className="p-5 rounded-2xl border border-neutral-200 space-y-4">
+                    <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-xl bg-purple-100 text-[#7C3AED] flex items-center justify-center font-bold">
+                          <CreditCard className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <h4 className="font-black text-neutral-950 text-sm">حساب إنستاباي (InstaPay)</h4>
+                          <p className="text-[11px] text-neutral-400">تفعيل واستقبال المدفوعات اللحظية في مصر</p>
+                        </div>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={editEnableInstapay}
+                          onChange={(e) => setEditEnableInstapay(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                      </label>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block font-bold text-neutral-700 mb-1">
+                          عنوان الدفع اللحظي (IPA Address)
+                        </label>
+                        <input
+                          type="text"
+                          value={editInstapayAddress}
+                          onChange={(e) => setEditInstapayAddress(e.target.value)}
+                          placeholder="username@instapay"
+                          className="w-full px-3.5 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl focus:bg-white font-mono font-bold"
+                        />
+                      </div>
+                      <div>
+                        <label className="block font-bold text-neutral-700 mb-1">
+                          اسم صاحب الحساب المعروض للعميل
+                        </label>
+                        <input
+                          type="text"
+                          value={editInstapayName}
+                          onChange={(e) => setEditInstapayName(e.target.value)}
+                          placeholder="SHEIN Concierge Egypt"
+                          className="w-full px-3.5 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl focus:bg-white"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Vodafone Cash Target Wallet */}
+                  <div className="p-5 rounded-2xl border border-neutral-200 space-y-4">
+                    <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center font-bold">
+                          <Wallet className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <h4 className="font-black text-neutral-950 text-sm">محفظة فودافون كاش (Vodafone Cash)</h4>
+                          <p className="text-[11px] text-neutral-400">تحويل كاش عبر رقم الهاتف وإرفاق السكرين شوت</p>
+                        </div>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={editEnableVodafoneCash}
+                          onChange={(e) => setEditEnableVodafoneCash(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-rose-600"></div>
+                      </label>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block font-bold text-neutral-700 mb-1">
+                          رقم محفظة فودافون كاش
+                        </label>
+                        <input
+                          type="text"
+                          value={editVodafoneNumber}
+                          onChange={(e) => setEditVodafoneNumber(e.target.value)}
+                          placeholder="01284947782"
+                          className="w-full px-3.5 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl focus:bg-white font-mono font-bold"
+                        />
+                      </div>
+                      <div>
+                        <label className="block font-bold text-neutral-700 mb-1">
+                          تعليمات التحويل للعميل
+                        </label>
+                        <input
+                          type="text"
+                          value={editVodafoneInstructions}
+                          onChange={(e) => setEditVodafoneInstructions(e.target.value)}
+                          placeholder="أرسل المبلغ للرقم أعلاه عبر فودافون كاش ثم أرفق لقطة الشاشة"
+                          className="w-full px-3.5 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl focus:bg-white"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Secondary Wallet (Optional) */}
+                  <div className="p-5 rounded-2xl border border-neutral-200 space-y-4 bg-neutral-50/50">
+                    <div className="flex items-center gap-2 pb-2 border-b border-neutral-200/60">
+                      <Wallet className="w-4 h-4 text-amber-600" />
+                      <h4 className="font-black text-neutral-950 text-sm">محفظة كاش إضافية (اختياري)</h4>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block font-bold text-neutral-700 mb-1">
+                          اسم المحفظة الإضافية (مثل: اتصالات كاش / أورنج كاش)
+                        </label>
+                        <input
+                          type="text"
+                          value={editSecondaryWalletName}
+                          onChange={(e) => setEditSecondaryWalletName(e.target.value)}
+                          placeholder="اتصالات كاش / أورنج كاش"
+                          className="w-full px-3.5 py-2.5 bg-white border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-600"
+                        />
+                      </div>
+                      <div>
+                        <label className="block font-bold text-neutral-700 mb-1">
+                          رقم المحفظة الإضافية
+                        </label>
+                        <input
+                          type="text"
+                          value={editSecondaryWalletNumber}
+                          onChange={(e) => setEditSecondaryWalletNumber(e.target.value)}
+                          placeholder="012XXXXXXXX"
+                          className="w-full px-3.5 py-2.5 bg-white border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-600 font-mono font-bold"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 2: SUPPORT & CONTACTS */}
+              {settingsTab === 'support' && (
+                <div className="space-y-6 animate-in fade-in duration-200">
+                  <div className="p-5 bg-gradient-to-r from-blue-50/60 to-purple-50/60 rounded-2xl border border-blue-200/60 flex items-center gap-3">
+                    <Phone className="w-5 h-5 text-blue-600 shrink-0" />
+                    <div>
+                      <h4 className="font-black text-neutral-950 text-sm">بيانات الدعم الفني وخدمة العملاء</h4>
+                      <p className="text-xs text-neutral-500">تظهر هذه الأرقام في نافذة الدعم وفي أسفل كل فاتورة لعملائك في مصر.</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block font-bold text-neutral-700 mb-1">
+                        رقم الهاتف / الخط الساخن المباشر
+                      </label>
+                      <div className="relative">
+                        <Phone className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
+                        <input
+                          type="text"
+                          value={editSupportPhone}
+                          onChange={(e) => setEditSupportPhone(e.target.value)}
+                          placeholder="+20 128 494 7782"
+                          className="w-full pl-10 pr-3.5 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl focus:bg-white font-mono font-bold"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-neutral-700 mb-1">
+                        رقم محادثة الواتساب (WhatsApp Direct Chat)
+                      </label>
+                      <div className="relative">
+                        <MessageCircle className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-500" />
+                        <input
+                          type="text"
+                          value={editSupportWhatsapp}
+                          onChange={(e) => setEditSupportWhatsapp(e.target.value)}
+                          placeholder="+201284947782"
+                          className="w-full pl-10 pr-3.5 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl focus:bg-white font-mono font-bold"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-neutral-700 mb-1">
+                        البريد الإلكتروني المخصص للدعم (Email)
+                      </label>
+                      <div className="relative">
+                        <Mail className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
+                        <input
+                          type="email"
+                          value={editSupportEmail}
+                          onChange={(e) => setEditSupportEmail(e.target.value)}
+                          placeholder="gamallahmedd01@gmail.com"
+                          className="w-full pl-10 pr-3.5 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl focus:bg-white font-bold"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-neutral-700 mb-1">
+                        مواعيد وساعات العمل
+                      </label>
+                      <div className="relative">
+                        <Clock className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
+                        <input
+                          type="text"
+                          value={editSupportHours}
+                          onChange={(e) => setEditSupportHours(e.target.value)}
+                          placeholder="يومياً من ٩:٠٠ صباحاً حتى ١١:٠٠ مساءً"
+                          className="w-full pl-10 pr-3.5 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl focus:bg-white"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 3: EDIT EXISTING BUILT-IN SECTIONS */}
+              {settingsTab === 'sections' && (
+                <div className="space-y-6 animate-in fade-in duration-200">
+                  {/* Announcement Bar */}
+                  <div className="p-5 rounded-2xl border border-neutral-200 space-y-4">
+                    <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
+                      <div>
+                        <h4 className="font-black text-neutral-950 text-sm">شريط الإعلانات العلوي (Announcement Bar)</h4>
+                        <p className="text-[11px] text-neutral-400">يظهر بأعلى كل صفحات الموقع لجذب انتباه العملاء بالعروض</p>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={editAnnouncementEnabled}
+                          onChange={(e) => setEditAnnouncementEnabled(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                      </label>
+                    </div>
+
+                    {editAnnouncementEnabled && (
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block font-bold text-neutral-700 mb-1">نص الإعلان</label>
+                          <input
+                            type="text"
+                            value={editAnnouncementText}
+                            onChange={(e) => setEditAnnouncementText(e.target.value)}
+                            placeholder="خدمة SHEIN Concierge — رسوم خدمة 20%، متاح الدفع عبر InstaPay أو فودافون كاش"
+                            className="w-full px-3.5 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl focus:bg-white font-bold"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-bold text-neutral-700 mb-1">لون شريط الإعلان</label>
+                          <div className="flex items-center gap-2">
+                            {[
+                              { key: 'purple', label: 'بنفسجي متدرج', bg: 'bg-purple-600' },
+                              { key: 'amber', label: 'عنبري مميز', bg: 'bg-amber-500' },
+                              { key: 'emerald', label: 'زمردي أخضر', bg: 'bg-emerald-600' },
+                              { key: 'rose', label: 'وردي / أحمر', bg: 'bg-rose-600' },
+                            ].map((col) => (
+                              <button
+                                key={col.key}
+                                type="button"
+                                onClick={() => setEditAnnouncementBg(col.key as any)}
+                                className={`px-3 py-1.5 rounded-xl border flex items-center gap-1.5 cursor-pointer font-bold ${
+                                  editAnnouncementBg === col.key
+                                    ? 'border-neutral-900 bg-neutral-100 font-black'
+                                    : 'border-neutral-200 hover:bg-neutral-50'
+                                }`}
+                              >
+                                <span className={`w-3 h-3 rounded-full ${col.bg}`} />
+                                <span>{col.label}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Hero Section Texts */}
+                  <div className="p-5 rounded-2xl border border-neutral-200 space-y-4">
+                    <h4 className="font-black text-neutral-950 text-sm pb-2 border-b border-neutral-100">
+                      سكشن الواجهة الرئيسي (Hero Section)
+                    </h4>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block font-bold text-neutral-700 mb-1">الوسم العلوي (Hero Badge)</label>
+                        <input
+                          type="text"
+                          value={editHeroBadge}
+                          onChange={(e) => setEditHeroBadge(e.target.value)}
+                          placeholder="الخدمة الرسمية والأسرع في مصر"
+                          className="w-full px-3.5 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl focus:bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block font-bold text-neutral-700 mb-1">العنوان الرئيسي (Hero Title)</label>
+                        <input
+                          type="text"
+                          value={editHeroTitle}
+                          onChange={(e) => setEditHeroTitle(e.target.value)}
+                          placeholder="استخرج سلة شي إن الخاصة بك وادفع بالجنيه المصري"
+                          className="w-full px-3.5 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl focus:bg-white font-bold"
+                        />
+                      </div>
+                      <div>
+                        <label className="block font-bold text-neutral-700 mb-1">الوصف الفرعي (Hero Subtitle)</label>
+                        <textarea
+                          rows={2}
+                          value={editHeroSubtitle}
+                          onChange={(e) => setEditHeroSubtitle(e.target.value)}
+                          placeholder="الصق رابط سلة المشاركة، نتحقق من المقاسات والأسعار، وادفع بأمان عبر إنستاباي أو فودافون كاش."
+                          className="w-full px-3.5 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl focus:bg-white"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Trust Metrics Toggle */}
+                  <div className="p-5 rounded-2xl border border-neutral-200 flex items-center justify-between">
+                    <div>
+                      <h4 className="font-black text-neutral-950 text-sm">شريط الضمانات وسرعة الشحن (Trust Metrics Bar)</h4>
+                      <p className="text-[11px] text-neutral-400">الكروت الأربعة الموجودة أسفل كارت استخراج السلة (فحص دقيق، خصوصية، توصيل)</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editTrustMetricsEnabled}
+                        onChange={(e) => setEditTrustMetricsEnabled(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                    </label>
+                  </div>
+
+                  {/* How it works 3 steps */}
+                  <div className="p-5 rounded-2xl border border-neutral-200 space-y-4">
+                    <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
+                      <div>
+                        <h4 className="font-black text-neutral-950 text-sm">سكشن "كيف تعمل خدمة SHEIN Concierge؟"</h4>
+                        <p className="text-[11px] text-neutral-400">تعديل أو إخفاء الخطوات الثلاثة في الصفحة الرئيسية</p>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={editHowItWorksEnabled}
+                          onChange={(e) => setEditHowItWorksEnabled(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                      </label>
+                    </div>
+
+                    {editHowItWorksEnabled && (
+                      <div className="space-y-4 pt-2">
+                        <div className="p-4 bg-neutral-50 rounded-xl space-y-2">
+                          <span className="font-black text-purple-700">الخطوة 1:</span>
+                          <input
+                            type="text"
+                            value={editStep1Title}
+                            onChange={(e) => setEditStep1Title(e.target.value)}
+                            placeholder="عنوان الخطوة الأولى"
+                            className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg font-bold"
+                          />
+                          <input
+                            type="text"
+                            value={editStep1Desc}
+                            onChange={(e) => setEditStep1Desc(e.target.value)}
+                            placeholder="شرح الخطوة الأولى"
+                            className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg text-xs"
+                          />
+                        </div>
+
+                        <div className="p-4 bg-neutral-50 rounded-xl space-y-2">
+                          <span className="font-black text-purple-700">الخطوة 2:</span>
+                          <input
+                            type="text"
+                            value={editStep2Title}
+                            onChange={(e) => setEditStep2Title(e.target.value)}
+                            placeholder="عنوان الخطوة الثانية"
+                            className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg font-bold"
+                          />
+                          <input
+                            type="text"
+                            value={editStep2Desc}
+                            onChange={(e) => setEditStep2Desc(e.target.value)}
+                            placeholder="شرح الخطوة الثانية"
+                            className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg text-xs"
+                          />
+                        </div>
+
+                        <div className="p-4 bg-neutral-50 rounded-xl space-y-2">
+                          <span className="font-black text-purple-700">الخطوة 3:</span>
+                          <input
+                            type="text"
+                            value={editStep3Title}
+                            onChange={(e) => setEditStep3Title(e.target.value)}
+                            placeholder="عنوان الخطوة الثالثة"
+                            className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg font-bold"
+                          />
+                          <input
+                            type="text"
+                            value={editStep3Desc}
+                            onChange={(e) => setEditStep3Desc(e.target.value)}
+                            placeholder="شرح الخطوة الثالثة"
+                            className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg text-xs"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 4: CUSTOM SECTIONS BUILDER */}
+              {settingsTab === 'custom_sections' && (
+                <div className="space-y-6 animate-in fade-in duration-200">
+                  <div className="flex items-center justify-between p-5 bg-purple-50/60 rounded-2xl border border-purple-200/60">
+                    <div>
+                      <h4 className="font-black text-neutral-950 text-sm">إضافة سكاشن مخصصة للموقع (Dynamic Sections)</h4>
+                      <p className="text-xs text-neutral-500">
+                        يمكنك إضافة بنرات إعلانية، كروت مميزات، نصوص أو أسئلة شائعة تظهر في الصفحة الرئيسية.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowNewSectionModal(true)}
+                      className="px-4 py-2.5 bg-neutral-950 hover:bg-neutral-800 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm cursor-pointer"
+                    >
+                      <Plus className="w-4 h-4 text-purple-300" />
+                      <span>إضافة سكشن جديد</span>
+                    </button>
+                  </div>
+
+                  {/* List of existing custom sections */}
+                  {editCustomSections.length === 0 ? (
+                    <div className="p-12 text-center border-2 border-dashed border-neutral-200 rounded-2xl space-y-3">
+                      <Layers className="w-10 h-10 text-neutral-300 mx-auto" />
+                      <p className="font-bold text-neutral-500">لا توجد سكاشن مخصصة مضافة حالياً.</p>
+                      <button
+                        type="button"
+                        onClick={() => setShowNewSectionModal(true)}
+                        className="px-4 py-2 bg-purple-600 text-white font-bold rounded-xl text-xs cursor-pointer hover:bg-purple-700"
+                      >
+                        + اضغط هنا لإنشاء أول سكشن
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {editCustomSections.map((sec, idx) => (
+                        <div
+                          key={sec.id || idx}
+                          className="p-4 bg-white rounded-2xl border border-neutral-200 shadow-xs flex items-center justify-between gap-4"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-purple-100 text-[#7C3AED] flex items-center justify-center font-black text-sm">
+                              {idx + 1}
+                            </div>
+                            <div className="text-start">
+                              <div className="flex items-center gap-2">
+                                <h5 className="font-black text-neutral-950 text-sm">{sec.title}</h5>
+                                <span className="text-[10px] bg-neutral-100 text-neutral-600 px-2 py-0.5 rounded-full font-bold uppercase">
+                                  {sec.type}
+                                </span>
+                                <span className="text-[10px] bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full font-bold">
+                                  الموضع: {sec.position === 'top' ? 'أعلى الصفحة' : sec.position === 'middle' ? 'وسط الصفحة' : 'أسفل الصفحة'}
+                                </span>
+                              </div>
+                              {sec.subtitle && (
+                                <p className="text-xs text-neutral-500 line-clamp-1">{sec.subtitle}</p>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-3 shrink-0">
+                            {/* Toggle Enabled */}
+                            <label className="relative inline-flex items-center cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={sec.enabled}
+                                onChange={() => handleToggleCustomSection(sec.id)}
+                                className="sr-only peer"
+                              />
+                              <div className="w-10 h-5 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-600"></div>
+                            </label>
+
+                            {/* Delete Button */}
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteCustomSection(sec.id)}
+                              className="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
+                              title="حذف السكشن"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Nested Modal: Add New Custom Section */}
+                  {showNewSectionModal && (
+                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in">
+                      <div className="relative w-full max-w-xl bg-white rounded-3xl shadow-2xl border border-neutral-200 overflow-hidden flex flex-col max-h-[85vh]">
+                        <div className="p-5 bg-neutral-50 border-b border-neutral-200 flex items-center justify-between">
+                          <h4 className="font-black text-neutral-950 text-base">إنشاء سكشن جديد مخصص</h4>
+                          <button
+                            type="button"
+                            onClick={() => setShowNewSectionModal(false)}
+                            className="p-1.5 text-neutral-400 hover:text-neutral-700 rounded-full"
+                          >
+                            <X className="w-5 h-5" />
+                          </button>
+                        </div>
+
+                        <div className="overflow-y-auto p-5 space-y-4 text-xs">
+                          <div>
+                            <label className="block font-bold text-neutral-700 mb-1">عنوان السكشن الرئيسي *</label>
+                            <input
+                              type="text"
+                              required
+                              value={newSecTitle}
+                              onChange={(e) => setNewSecTitle(e.target.value)}
+                              placeholder="مثال: مميزات الشحن والتوصيل السريع"
+                              className="w-full px-3.5 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl font-bold focus:bg-white"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                              <label className="block font-bold text-neutral-700 mb-1">وصف السكشن (اختياري)</label>
+                              <input
+                                type="text"
+                                value={newSecSubtitle}
+                                onChange={(e) => setNewSecSubtitle(e.target.value)}
+                                placeholder="شرح تفصيلي لما يقدمه السكشن"
+                                className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-xl focus:bg-white"
+                              />
+                            </div>
+                            <div>
+                              <label className="block font-bold text-neutral-700 mb-1">الوسم المميز (Badge)</label>
+                              <input
+                                type="text"
+                                value={newSecBadge}
+                                onChange={(e) => setNewSecBadge(e.target.value)}
+                                placeholder="مثال: عرض خاص / ضمان 100%"
+                                className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-xl focus:bg-white"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div>
+                              <label className="block font-bold text-neutral-700 mb-1">نوع السكشن</label>
+                              <select
+                                value={newSecType}
+                                onChange={(e) => setNewSecType(e.target.value as any)}
+                                className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-xl focus:bg-white font-bold"
+                              >
+                                <option value="cards">كروت مميزات (Cards)</option>
+                                <option value="banner">بانر عريض (Banner)</option>
+                                <option value="text">نص وإرشادات (Text)</option>
+                                <option value="faq">أسئلة شائعة (FAQ)</option>
+                              </select>
+                            </div>
+
+                            <div>
+                              <label className="block font-bold text-neutral-700 mb-1">موضع السكشن</label>
+                              <select
+                                value={newSecPosition}
+                                onChange={(e) => setNewSecPosition(e.target.value as any)}
+                                className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-xl focus:bg-white font-bold"
+                              >
+                                <option value="top">أعلى الصفحة (تحت الـ Hero)</option>
+                                <option value="middle">وسط الصفحة</option>
+                                <option value="bottom">أسفل الصفحة</option>
+                              </select>
+                            </div>
+
+                            <div>
+                              <label className="block font-bold text-neutral-700 mb-1">لون السكشن (Theme)</label>
+                              <select
+                                value={newSecTheme}
+                                onChange={(e) => setNewSecTheme(e.target.value as any)}
+                                className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-xl focus:bg-white font-bold"
+                              >
+                                <option value="purple">بنفسجي (Purple)</option>
+                                <option value="amber">عنبري (Amber)</option>
+                                <option value="emerald">زمردي (Emerald)</option>
+                                <option value="glass">زجاجي ناعم (Glass)</option>
+                                <option value="dark">داكن فخم (Dark)</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          {/* Dynamic Content by Type */}
+                          {newSecType === 'cards' && (
+                            <div className="p-4 bg-neutral-50 rounded-2xl border border-neutral-200 space-y-3">
+                              <div className="flex items-center justify-between">
+                                <span className="font-black text-neutral-900">كروت السكشن ({newSecCards.length})</span>
+                              </div>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                <input
+                                  type="text"
+                                  value={cardTitle}
+                                  onChange={(e) => setCardTitle(e.target.value)}
+                                  placeholder="عنوان الكارت"
+                                  className="px-3 py-2 bg-white border border-neutral-200 rounded-xl font-bold"
+                                />
+                                <input
+                                  type="text"
+                                  value={cardDesc}
+                                  onChange={(e) => setCardDesc(e.target.value)}
+                                  placeholder="وصف الكارت"
+                                  className="px-3 py-2 bg-white border border-neutral-200 rounded-xl"
+                                />
+                                <div className="flex items-center gap-1.5">
+                                  <select
+                                    value={cardIcon}
+                                    onChange={(e) => setCardIcon(e.target.value)}
+                                    className="px-2 py-2 bg-white border border-neutral-200 rounded-xl font-bold flex-1"
+                                  >
+                                    <option value="ShieldCheck">درع أمان</option>
+                                    <option value="Truck">شاحنة شحن</option>
+                                    <option value="CreditCard">بطاقة دفع</option>
+                                    <option value="Sparkles">بريق ونجوم</option>
+                                    <option value="Heart">قلب ومفضلة</option>
+                                    <option value="Clock">ساعة وسرعة</option>
+                                    <option value="HelpCircle">سؤال واستفسار</option>
+                                  </select>
+                                  <button
+                                    type="button"
+                                    onClick={handleAddCardToNewSection}
+                                    className="px-3 py-2 bg-purple-600 text-white rounded-xl font-bold cursor-pointer"
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                              </div>
+
+                              {newSecCards.length > 0 && (
+                                <div className="space-y-1.5 pt-2">
+                                  {newSecCards.map((c) => (
+                                    <div
+                                      key={c.id}
+                                      className="flex items-center justify-between p-2 bg-white rounded-lg border text-xs"
+                                    >
+                                      <div>
+                                        <span className="font-bold text-neutral-900">{c.title}: </span>
+                                        <span className="text-neutral-500">{c.desc}</span>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleRemoveCard(c.id)}
+                                        className="text-rose-500 hover:text-rose-700 font-bold px-1"
+                                      >
+                                        ×
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {newSecType !== 'cards' && (
+                            <div>
+                              <label className="block font-bold text-neutral-700 mb-1">
+                                {newSecType === 'faq'
+                                  ? 'الأسئلة والأجوبة (اكتب السؤال في سطر، والجواب في السطر التالي، واترك سطر فارغ بين كل سؤال)'
+                                  : 'محتوى السكشن (نص المقال أو رسالة البانر)'}
+                              </label>
+                              <textarea
+                                rows={4}
+                                value={newSecContent}
+                                onChange={(e) => setNewSecContent(e.target.value)}
+                                placeholder={
+                                  newSecType === 'faq'
+                                    ? 'س: كم تستغرق مدة الشحن إلى مصر؟\nج: تستغرق الشحنة من ٧ إلى ١٠ أيام عمل.\n\nس: هل يمكن الدفع عند الاستلام؟\nج: نوفر الدفع المسبق الآمن بالجنيه عبر إنستاباي وفودافون كاش.'
+                                    : 'اكتب تفاصيل ومحتوى هذا السكشن هنا...'
+                                }
+                                className="w-full px-3.5 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl focus:bg-white font-mono text-xs"
+                              />
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="p-4 bg-neutral-100 flex items-center justify-end gap-2 border-t">
+                          <button
+                            type="button"
+                            onClick={() => setShowNewSectionModal(false)}
+                            className="px-4 py-2 font-bold text-neutral-500"
+                          >
+                            إلغاء
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleAddCustomSection}
+                            className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl cursor-pointer"
+                          >
+                            إضافة السكشن للقائمة
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Bottom Actions Bar */}
+              <div className="flex items-center justify-between gap-3 pt-5 border-t border-neutral-200 mt-6 sticky bottom-0 bg-white/95 backdrop-blur-md py-3">
+                <div className="text-[11px] text-neutral-500">
+                  سيتم تطبيق التعديلات فورياً على جميع صفحات وزوار الموقع عند الحفظ.
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSettingsOpen(false)}
+                    className="px-5 py-2.5 font-bold text-neutral-500 hover:bg-neutral-100 rounded-xl transition-colors cursor-pointer"
+                  >
+                    إلغاء
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingSettings}
+                    className="px-7 py-2.5 bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-700 hover:from-purple-700 hover:to-indigo-800 disabled:opacity-50 text-white font-black rounded-xl shadow-md shadow-purple-500/25 transition-all cursor-pointer flex items-center gap-2"
+                  >
+                    {savingSettings ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span>جاري الحفظ...</span>
+                      </>
+                    ) : (
+                      <span>حفظ جميع الإعدادات والتعديلات</span>
+                    )}
+                  </button>
+                </div>
               </div>
             </form>
           </div>
