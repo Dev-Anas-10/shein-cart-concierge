@@ -536,8 +536,8 @@ export default function AdminAnalyticsPage() {
               <div className="p-4 rounded-2xl bg-purple-50/70 dark:bg-purple-950/20 border border-purple-200/60 dark:border-purple-900/40 space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center font-bold">
-                      <CreditCard className="w-4 h-4" />
+                    <div className="w-8 h-8 rounded-xl bg-white dark:bg-[#1a1626] p-1 border border-purple-200 dark:border-purple-800 flex items-center justify-center shrink-0">
+                      <img src="/images/instapay.png" alt="InstaPay" className="w-full h-full object-contain" />
                     </div>
                     <div>
                       <h4 className="font-black text-sm text-neutral-900 dark:text-white">InstaPay (إنستاباي)</h4>
@@ -562,8 +562,8 @@ export default function AdminAnalyticsPage() {
               <div className="p-4 rounded-2xl bg-rose-50/70 dark:bg-rose-950/20 border border-rose-200/60 dark:border-rose-900/40 space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-xl bg-rose-600 text-white flex items-center justify-center font-bold">
-                      <Wallet className="w-4 h-4" />
+                    <div className="w-8 h-8 rounded-xl bg-white dark:bg-[#1a1626] p-0.5 border border-rose-200 dark:border-rose-800 flex items-center justify-center shrink-0">
+                      <img src="/images/vodafone-cash.png" alt="Vodafone Cash" className="w-full h-full object-contain" />
                     </div>
                     <div>
                       <h4 className="font-black text-sm text-neutral-900 dark:text-white">فودافون كاش ومحافظ المحمول</h4>

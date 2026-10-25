@@ -184,14 +184,19 @@ export default function HomePage() {
                 className="grid grid-cols-2 md:grid-cols-4 gap-3 py-2"
               >
                 <motion.div {...interactiveFeedback} className="p-4 rounded-2xl bg-white/70 dark:bg-[#14111d]/70 backdrop-blur-md border border-neutral-200/60 dark:border-[#2a243a] flex items-center gap-3 cursor-pointer">
-                  <div className="w-9 h-9 rounded-xl bg-purple-100/70 dark:bg-purple-950/60 text-[#8B5CF6] flex items-center justify-center shrink-0">
-                    <CreditCard className="w-4 h-4" />
+                  <div className="flex items-center -space-x-1.5 shrink-0">
+                    <div className="w-8 h-8 rounded-xl bg-white dark:bg-[#1b1726] p-1 border border-purple-200/80 dark:border-purple-800/80 shadow-xs flex items-center justify-center overflow-hidden">
+                      <img src="/images/instapay.png" alt="InstaPay" className="w-full h-full object-contain" />
+                    </div>
+                    <div className="w-8 h-8 rounded-xl bg-white dark:bg-[#1b1726] p-0.5 border border-rose-200/80 dark:border-rose-800/80 shadow-xs flex items-center justify-center overflow-hidden">
+                      <img src="/images/vodafone-cash.png" alt="Vodafone Cash" className="w-full h-full object-contain" />
+                    </div>
                   </div>
                   <div>
                     <h4 className="text-xs font-black text-neutral-900 dark:text-white leading-tight">
-                      {settings?.enableInstapay ? 'InstaPay & Wallets' : 'Mobile Wallets'}
+                      {settings?.enableInstapay ? (dir === 'rtl' ? 'إنستاباي وفودافون كاش' : 'InstaPay & Vodafone') : 'Mobile Wallets'}
                     </h4>
-                    <p className="text-[10px] text-neutral-400 dark:text-neutral-500">{dir === 'rtl' ? 'دفع بالجنيه المصري' : 'Pay in Egyptian EGP'}</p>
+                    <p className="text-[10px] text-neutral-400 dark:text-neutral-500">{dir === 'rtl' ? 'دفع فوري بالجنيه المصري' : 'Instant EGP Transfer'}</p>
                   </div>
                 </motion.div>
 

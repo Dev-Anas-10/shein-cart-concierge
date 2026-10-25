@@ -64,9 +64,7 @@ export function FullPageLoginCard({ onGuestContinue }: FullPageLoginCardProps) {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Google Identity Services (GIS)
-  const googleBtnContainerRef = useRef<HTMLDivElement>(null);
-  const [gsiLoaded, setGsiLoaded] = useState(false);
+
 
   const handleCredentialResponse = async (response: any) => {
     if (!response?.credential) return;
@@ -128,60 +126,6 @@ export function FullPageLoginCard({ onGuestContinue }: FullPageLoginCardProps) {
     }
   };
 
-  useEffect(() => {
-    if (role !== 'user' || showGmailInput) return;
-
-    const clientId =
-      process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ||
-      '392409310054-et01pph0ao3gt9mfjaq8equ5rh2coa05.apps.googleusercontent.com';
-
-    const initGsi = () => {
-      if (typeof window === 'undefined' || !window.google?.accounts?.id) return;
-      try {
-        window.google.accounts.id.initialize({
-          client_id: clientId,
-          callback: handleCredentialResponse,
-          auto_select: false,
-          cancel_on_tap_outside: true,
-        });
-
-        if (googleBtnContainerRef.current) {
-          googleBtnContainerRef.current.innerHTML = '';
-          window.google.accounts.id.renderButton(googleBtnContainerRef.current, {
-            type: 'standard',
-            theme: theme === 'dark' ? 'filled_black' : 'outline',
-            size: 'large',
-            text: 'continue_with',
-            shape: 'pill',
-            width: 320,
-            logo_alignment: 'left',
-          });
-          setGsiLoaded(true);
-        }
-      } catch (err) {
-        console.warn('GSI render note:', err);
-      }
-    };
-
-    if (window.google?.accounts?.id) {
-      initGsi();
-    } else {
-      const scriptId = 'google-gsi-client-fullpage';
-      let script = document.getElementById(scriptId) as HTMLScriptElement | null;
-      if (!script) {
-        script = document.createElement('script');
-        script.id = scriptId;
-        script.src = 'https://accounts.google.com/gsi/client';
-        script.async = true;
-        script.defer = true;
-        script.onload = initGsi;
-        document.body.appendChild(script);
-      } else {
-        script.addEventListener('load', initGsi);
-      }
-    }
-  }, [role, showGmailInput, theme]);
-
   const handleGoogleSignInPopup = () => {
     setError(null);
     setGoogleLoading(true);
@@ -197,6 +141,16 @@ export function FullPageLoginCard({ onGuestContinue }: FullPageLoginCardProps) {
         redirectUrl
       )}`;
 
+      // On mobile devices, redirect directly instead of popup for a seamless full-screen login
+      const isMobile =
+        typeof window !== 'undefined' &&
+        (window.innerWidth < 768 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
+
+      if (isMobile) {
+        window.location.href = authUrl;
+        return;
+      }
+
       const width = 500;
       const height = 650;
       const left = window.screenX + Math.max(0, (window.outerWidth - width) / 2);
@@ -209,13 +163,8 @@ export function FullPageLoginCard({ onGuestContinue }: FullPageLoginCardProps) {
       );
 
       if (!popup || popup.closed || typeof popup.closed === 'undefined') {
-        setShowGmailInput(true);
-        setError(
-          isRtl
-            ? 'تم حظر النافذة المنبثقة من متصفحك. يرجى إدخال بريدك أدناه.'
-            : 'Popup blocked. Please allow popups or enter your email below.'
-        );
-        setGoogleLoading(false);
+        // If popup was blocked by browser, redirect smoothly
+        window.location.href = authUrl;
         return;
       }
 
@@ -501,37 +450,29 @@ export function FullPageLoginCard({ onGuestContinue }: FullPageLoginCardProps) {
               </div>
             ) : (
               <div className="space-y-2.5">
-                {/* Google Identity Services Rendered Official Button */}
-                <div className="flex flex-col items-center justify-center min-h-[44px]">
-                  <div
-                    style={{ colorScheme: 'light' }}
-                    className="w-full flex justify-center items-center google-gsi-wrapper"
-                  >
-                    <div
-                      ref={googleBtnContainerRef}
-                      className="flex justify-center rounded-full overflow-hidden"
-                      style={{ minHeight: '44px' }}
-                    />
-                  </div>
-
-                  {/* Fallback button if GSI is still rendering */}
-                  {!gsiLoaded && (
-                    <button
-                      type="button"
-                      onClick={handleGoogleSignInPopup}
-                      disabled={googleLoading}
-                      className="w-full flex items-center justify-center gap-3 py-3 px-4 border border-neutral-300 dark:border-[#2a2538] rounded-2xl bg-white dark:bg-[#1e1a29] hover:bg-neutral-50 dark:hover:bg-[#282236] text-neutral-800 dark:text-neutral-100 font-bold text-xs transition-all shadow-xs cursor-pointer"
-                    >
-                      <svg className="w-4 h-4" viewBox="0 0 24 24">
-                        <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
-                        <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
-                        <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
-                        <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
-                      </svg>
-                      <span>{googleLoading ? (isRtl ? 'جاري فتح شاشة Google...' : 'Opening Google...') : 'Continue with Google'}</span>
-                    </button>
+                {/* Responsive Google Capsule Button - Never clipped, generous padding */}
+                <button
+                  type="button"
+                  onClick={handleGoogleSignInPopup}
+                  disabled={googleLoading}
+                  className="w-full flex items-center justify-center gap-3 py-3 px-5 border border-neutral-300 dark:border-[#2f2742] rounded-full bg-white dark:bg-[#1a1626] hover:bg-neutral-50 dark:hover:bg-[#251f35] text-neutral-800 dark:text-neutral-100 font-bold text-xs transition-all shadow-xs active:scale-[0.99] cursor-pointer"
+                >
+                  {googleLoading ? (
+                    <div className="w-4 h-4 border-2 border-[#8B5CF6] border-t-transparent rounded-full animate-spin shrink-0" />
+                  ) : (
+                    <svg className="w-4.5 h-4.5 shrink-0" viewBox="0 0 24 24">
+                      <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
+                      <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
+                      <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
+                      <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+                    </svg>
                   )}
-                </div>
+                  <span>
+                    {googleLoading
+                      ? (isRtl ? 'جاري الاتصال بـ Google...' : 'Connecting to Google...')
+                      : (isRtl ? 'المتابعة باستخدام حساب Google' : 'Continue with Google')}
+                  </span>
+                </button>
 
                 <div className="text-center">
                   <button
@@ -720,6 +661,23 @@ export function FullPageLoginCard({ onGuestContinue }: FullPageLoginCardProps) {
             </button>
           </div>
         )}
+
+        {/* Payment Methods Trust Bar */}
+        <div className="mt-5 pt-3.5 border-t border-neutral-100 dark:border-[#201b2d] flex items-center justify-center gap-2.5 flex-wrap">
+          <span className="text-[10px] font-semibold text-neutral-400 dark:text-neutral-500">
+            {isRtl ? 'دفع آمن بالجنيه المصري عبر' : 'Secure payment in EGP via'}
+          </span>
+          <div className="flex items-center gap-1.5">
+            <div className="h-6 px-2 py-0.5 rounded-lg bg-white dark:bg-[#1a1626] border border-neutral-200/80 dark:border-[#2f2742] shadow-2xs flex items-center gap-1">
+              <img src="/images/instapay.png" alt="InstaPay" className="h-3.5 w-auto object-contain" />
+              <span className="text-[10px] font-bold text-neutral-700 dark:text-neutral-300">InstaPay</span>
+            </div>
+            <div className="h-6 px-2 py-0.5 rounded-lg bg-white dark:bg-[#1a1626] border border-neutral-200/80 dark:border-[#2f2742] shadow-2xs flex items-center gap-1">
+              <img src="/images/vodafone-cash.png" alt="Vodafone Cash" className="h-3.5 w-auto object-contain" />
+              <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400">Vodafone</span>
+            </div>
+          </div>
+        </div>
       </motion.div>
     </div>
   );

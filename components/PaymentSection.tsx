@@ -140,8 +140,8 @@ export function PaymentSection({ order, settings, onPaymentSubmitted }: PaymentS
                 : 'border-neutral-200/80 bg-neutral-50/50 hover:bg-neutral-100/70'
             }`}
           >
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-700 text-white flex items-center justify-center font-black text-base shadow-md shadow-purple-600/30 flex-shrink-0">
-              IP
+            <div className="w-12 h-12 rounded-2xl bg-white p-1.5 border border-purple-200 shadow-md shadow-purple-600/10 flex items-center justify-center shrink-0">
+              <img src="/images/instapay.png" alt="InstaPay" className="w-full h-full object-contain" />
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between">
@@ -164,8 +164,8 @@ export function PaymentSection({ order, settings, onPaymentSubmitted }: PaymentS
                 : 'border-neutral-200/80 bg-neutral-50/50 hover:bg-neutral-100/70'
             }`}
           >
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-rose-600 to-red-700 text-white flex items-center justify-center font-black text-base shadow-md shadow-rose-600/30 flex-shrink-0">
-              VF
+            <div className="w-12 h-12 rounded-2xl bg-white p-1 border border-rose-200 shadow-md shadow-rose-600/10 flex items-center justify-center shrink-0">
+              <img src="/images/vodafone-cash.png" alt="Vodafone Cash" className="w-full h-full object-contain" />
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between">
@@ -184,7 +184,12 @@ export function PaymentSection({ order, settings, onPaymentSubmitted }: PaymentS
           {method === 'instapay' ? (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-neutral-600">InstaPay Payment Address (IPA):</span>
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-white p-1 border border-purple-200 shadow-2xs flex items-center justify-center">
+                    <img src="/images/instapay.png" alt="InstaPay" className="w-full h-full object-contain" />
+                  </div>
+                  <span className="text-xs font-bold text-neutral-700">InstaPay Payment Address (IPA):</span>
+                </div>
                 <button
                   type="button"
                   onClick={() => handleCopy(settings.instapayAddress, 'ipa')}
@@ -210,7 +215,12 @@ export function PaymentSection({ order, settings, onPaymentSubmitted }: PaymentS
           ) : (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-neutral-600">Vodafone Cash Wallet Number:</span>
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-white p-0.5 border border-rose-200 shadow-2xs flex items-center justify-center">
+                    <img src="/images/vodafone-cash.png" alt="Vodafone Cash" className="w-full h-full object-contain" />
+                  </div>
+                  <span className="text-xs font-bold text-neutral-700">Vodafone Cash Wallet Number:</span>
+                </div>
                 <button
                   type="button"
                   onClick={() => handleCopy(settings.vodafoneCashNumber, 'vfc')}
