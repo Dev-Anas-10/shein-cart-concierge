@@ -736,7 +736,7 @@ export default function AdminDashboardPage() {
                             <div key={idx} className="w-8 h-10 rounded-lg overflow-hidden border border-neutral-200 dark:border-[#2f2742] shadow-xs bg-purple-50 dark:bg-purple-950/40 shrink-0">
                               <SafeImage
                                 src={it.image}
-                                alt=""
+                                alt={it.name || 'Order item'}
                                 className="w-full h-full object-cover"
                               />
                             </div>
@@ -944,7 +944,7 @@ export default function AdminDashboardPage() {
                           <div className="w-16 h-20 rounded-2xl overflow-hidden border border-neutral-200 bg-white shadow-xs shrink-0">
                             <SafeImage
                               src={item.image}
-                              alt=""
+                              alt={item.name}
                               className="w-full h-full object-cover"
                             />
                           </div>
