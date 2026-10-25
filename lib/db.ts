@@ -10,6 +10,7 @@ import fs from 'fs';
 import path from 'path';
 import { Order, SystemSettings, User, GoodItem } from './types';
 import { RELIABLE_FASHION_IMAGES } from './shein-extractor';
+import { getSupabase } from './supabase';
 
 /* ─────────────────────────────── Types ─────────────────────────────── */
 
@@ -227,6 +228,57 @@ async function saveToRedis(data: DatabaseSchema): Promise<void> {
   }
 }
 
+/* ────────────────────────── Supabase Layer ───────────────────────── */
+
+async function loadFromSupabase(): Promise<DatabaseSchema | null> {
+  const sb = getSupabase();
+  if (!sb) return null;
+  try {
+    const { data: orders, error } = await sb
+      .from('orders')
+      .select('*');
+
+    if (!error && orders && orders.length > 0) {
+      return {
+        users: DEFAULT_USERS,
+        orders: orders as Order[],
+        settings: DEFAULT_SETTINGS,
+      };
+    }
+  } catch (err) {
+    console.warn('[Supabase] Read note:', err);
+  }
+  return null;
+}
+
+async function syncOrderToSupabase(order: Order): Promise<void> {
+  const sb = getSupabase();
+  if (!sb) return;
+  try {
+    await sb.from('orders').upsert({
+      id: order.id,
+      user_id: order.userId,
+      user_name: order.userName,
+      user_email: order.userEmail,
+      user_phone: order.userPhone,
+      items: order.items,
+      items_count: order.itemsCount,
+      items_subtotal: order.itemsSubtotal,
+      dynamic_fee_percent: order.dynamicFeePercent,
+      dynamic_fee_amount: order.dynamicFeeAmount,
+      total_cash: order.totalCash,
+      currency: order.currency,
+      status: order.status,
+      payment: order.payment,
+      admin_comment: order.adminComment,
+      created_at: order.createdAt,
+      updated_at: order.updatedAt,
+    });
+  } catch (err) {
+    console.warn('[Supabase] Upsert note:', err);
+  }
+}
+
 /* ──────────────────────────── File-based Layer ────────────────────── */
 
 const LOCAL_DB_PATH = path.join(process.cwd(), 'data', 'db.json');
@@ -430,6 +482,7 @@ export const db = {
       data.orders.unshift(order);
     }
     await persistDb(data);
+    await syncOrderToSupabase(order);
     return order;
   },
 
@@ -461,6 +514,7 @@ export const db = {
 
     data.orders[index] = updated;
     await persistDb(data);
+    await syncOrderToSupabase(updated);
     return updated;
   },
 
