@@ -25,21 +25,6 @@ export function AuthModal({ isOpen, onClose, defaultRole = 'user' }: AuthModalPr
 
   if (!isOpen) return null;
 
-  const handleFillCredentials = (asRole: 'user' | 'admin') => {
-    if (asRole === 'admin') {
-      setEmail('admin@sheinextract.com');
-      setPassword('admin123456');
-      setRole('admin');
-      setMode('signin');
-    } else {
-      setEmail('sara@example.com');
-      setPassword('user123456');
-      setRole('user');
-      setMode('signin');
-    }
-    setError(null);
-  };
-
   const handleGoogleSignIn = async () => {
     setLoading(true);
     setError(null);
@@ -161,27 +146,6 @@ export function AuthModal({ isOpen, onClose, defaultRole = 'user' }: AuthModalPr
               </button>
             </div>
           )}
-
-          {/* Quick Demo Fill Buttons */}
-          <div className="mb-5 flex items-center justify-between text-xs bg-amber-50/80 border border-amber-200 rounded-2xl p-3">
-            <span className="text-amber-900 font-extrabold text-[11px]">Instant Demo:</span>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => handleFillCredentials('user')}
-                className="px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-950 font-bold rounded-lg text-[11px] transition-colors cursor-pointer"
-              >
-                Customer (Sara)
-              </button>
-              <button
-                type="button"
-                onClick={() => handleFillCredentials('admin')}
-                className="px-2.5 py-1 bg-rose-100 hover:bg-rose-200 text-rose-950 font-bold rounded-lg text-[11px] transition-colors cursor-pointer"
-              >
-                Admin Manager
-              </button>
-            </div>
-          </div>
 
           {/* Google Sign In for Customer */}
           {role === 'user' && (

@@ -9,7 +9,7 @@ interface RouteContext {
 export async function POST(req: NextRequest, context: RouteContext) {
   try {
     const { id } = await context.params;
-    const order = db.getOrderById(id);
+    const order = await db.getOrderById(id);
 
     if (!order) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
       submittedAt: new Date().toISOString(),
     };
 
-    const updated = db.updateOrder(id, {
+    const updated = await db.updateOrder(id, {
       payment,
       status: 'PAYMENT_UNDER_REVIEW',
     });

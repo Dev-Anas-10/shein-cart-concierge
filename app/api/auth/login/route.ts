@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
     }
 
-    const user = db.getUserByEmail(email);
+    const user = await db.getUserByEmail(email);
 
     if (!user) {
       return NextResponse.json({ error: 'No account found with this email' }, { status: 404 });

@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
     const status = searchParams.get('status') || undefined;
     const search = searchParams.get('search') || undefined;
 
-    const orders = db.getOrders({ userId, status, search });
+    const orders = await db.getOrders({ userId, status, search });
     return NextResponse.json({ success: true, data: orders });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Failed to fetch orders' }, { status: 500 });
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const settings = db.getSettings();
+    const settings = await db.getSettings();
     const feePercent = typeof dynamicFeePercent === 'number' ? dynamicFeePercent : (settings.dynamicFeePercent || 20);
 
     // Calculate totals accurately
@@ -79,12 +79,12 @@ export async function POST(req: NextRequest) {
       shippingFee,
       totalCash,
       currency: 'EGP',
-      status: 'PENDING_APPROVAL', // Starts as pending approval
+      status: 'PENDING_APPROVAL',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
 
-    const saved = db.createOrder(newOrder);
+    const saved = await db.createOrder(newOrder);
 
     return NextResponse.json({ success: true, data: saved }, { status: 201 });
   } catch (err: any) {

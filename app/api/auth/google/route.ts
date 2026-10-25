@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
       body.avatar ||
       `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(email)}`;
 
-    let user = db.getUserByEmail(email);
+    let user = await db.getUserByEmail(email);
 
     if (!user) {
       // Create user if signing in with Google for the first time
@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
         phone: body.phone || '01000000000',
         createdAt: new Date().toISOString(),
       };
-      user = db.createUser(newUser);
+      user = await db.createUser(newUser);
     }
 
     const { password, ...safeUser } = user;

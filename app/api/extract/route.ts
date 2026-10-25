@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Get current dynamic fee percent configured in settings
-    const settings = db.getSettings();
+    const settings = await db.getSettings();
     const dynamicFeePercent = typeof body.dynamicFeePercent === 'number'
       ? body.dynamicFeePercent
       : settings.dynamicFeePercent || 20;

@@ -13,7 +13,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const existing = db.getUserByEmail(email);
+    if (password.length < 6) {
+      return NextResponse.json(
+        { error: 'Password must be at least 6 characters' },
+        { status: 400 }
+      );
+    }
+
+    const existing = await db.getUserByEmail(email);
     if (existing) {
       return NextResponse.json(
         { error: 'An account with this email already exists' },
@@ -32,7 +39,7 @@ export async function POST(req: NextRequest) {
       createdAt: new Date().toISOString(),
     };
 
-    const saved = db.createUser(newUser);
+    const saved = await db.createUser(newUser);
 
     return NextResponse.json({ success: true, data: saved }, { status: 201 });
   } catch (err: any) {

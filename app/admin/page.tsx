@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Order, GoodItem, SystemSettings, OrderStatus } from '@/lib/types';
 import { useAuth } from '@/lib/auth-context';
 import { Navbar } from '@/components/Navbar';
@@ -14,21 +14,18 @@ import {
   XCircle,
   ExternalLink,
   MessageSquare,
-  Settings,
   Eye,
-  User,
-  Phone,
   FileCheck,
   Percent,
   Check,
   X,
   CreditCard,
   RefreshCw,
-  Sparkles,
   Maximize2,
   Sliders,
-  DollarSign,
   TrendingUp,
+  AlertTriangle,
+  CheckCheck,
 } from 'lucide-react';
 
 const PRESET_ITEM_COMMENTS = [
@@ -39,13 +36,62 @@ const PRESET_ITEM_COMMENTS = [
   'Low stock - prioritizing fulfillment',
 ];
 
+/* ─────────────── Inline Toast ─────────────── */
+interface Toast {
+  id: string;
+  type: 'success' | 'error' | 'info';
+  message: string;
+}
+
+function ToastContainer({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id: string) => void }) {
+  return (
+    <div className="fixed bottom-6 right-6 z-[200] flex flex-col gap-2 max-w-sm w-full pointer-events-none">
+      {toasts.map((t) => (
+        <div
+          key={t.id}
+          className={`flex items-start gap-3 px-4 py-3.5 rounded-2xl shadow-xl border text-sm font-semibold pointer-events-auto animate-in slide-in-from-bottom-3 ${
+            t.type === 'success'
+              ? 'bg-emerald-600 text-white border-emerald-700'
+              : t.type === 'error'
+              ? 'bg-rose-600 text-white border-rose-700'
+              : 'bg-neutral-900 text-white border-neutral-700'
+          }`}
+        >
+          {t.type === 'success' && <CheckCheck className="w-4 h-4 mt-0.5 shrink-0" />}
+          {t.type === 'error' && <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />}
+          {t.type === 'info' && <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />}
+          <span className="flex-1 leading-snug">{t.message}</span>
+          <button onClick={() => onDismiss(t.id)} className="shrink-0 opacity-70 hover:opacity-100">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ─────────────── Main Component ─────────────── */
+
 export default function AdminDashboardPage() {
-  const { user, switchRole } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const [authOpen, setAuthOpen] = useState(false);
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [settings, setSettings] = useState<SystemSettings | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Toast notifications
+  const [toasts, setToasts] = useState<Toast[]>([]);
+
+  const addToast = useCallback((type: Toast['type'], message: string) => {
+    const id = `toast-${Date.now()}-${Math.random()}`;
+    setToasts((prev) => [...prev, { id, type, message }]);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
+  }, []);
+
+  const dismissToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
 
   // Filters
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
@@ -88,6 +134,7 @@ export default function AdminDashboardPage() {
       }
     } catch (err) {
       console.error('Failed to load admin data:', err);
+      addToast('error', 'Failed to load data. Please refresh.');
     } finally {
       setLoading(false);
     }
@@ -95,7 +142,15 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Prompt login if not signed in and auth check is done
+  useEffect(() => {
+    if (!authLoading && !user) {
+      setAuthOpen(true);
+    }
+  }, [authLoading, user]);
 
   const openReviewModal = (order: Order) => {
     setSelectedOrder(order);
@@ -141,6 +196,7 @@ export default function AdminDashboardPage() {
     paymentStatus?: 'VERIFIED' | 'REJECTED'
   ) => {
     if (!selectedOrder) return;
+    if (updating) return;
     setUpdating(true);
 
     try {
@@ -167,14 +223,28 @@ export default function AdminDashboardPage() {
       const resJson = await res.json();
       if (!res.ok) throw new Error(resJson.error || 'Failed to update order');
 
-      // Update in state
+      // Update orders list AND selected order in state
+      const updatedOrder: Order = resJson.data;
       setOrders((prev) =>
-        prev.map((o) => (o.id === selectedOrder.id ? resJson.data : o))
+        prev.map((o) => (o.id === selectedOrder.id ? updatedOrder : o))
       );
-      setSelectedOrder(resJson.data);
-      alert('Order updated successfully!');
+      setSelectedOrder(updatedOrder);
+      // Sync review items with saved state
+      setReviewItems(JSON.parse(JSON.stringify(updatedOrder.items)));
+
+      const actionLabel = newStatus
+        ? newStatus === 'APPROVED_PENDING_PAYMENT'
+          ? 'Order approved ✓ — Customer can now pay'
+          : newStatus === 'REJECTED'
+          ? 'Order rejected'
+          : newStatus === 'PAID'
+          ? 'Payment confirmed — Order marked as Paid ✓'
+          : 'Order updated'
+        : 'Notes & pricing saved ✓';
+
+      addToast('success', actionLabel);
     } catch (err: any) {
-      alert(err.message);
+      addToast('error', err.message || 'Update failed. Please try again.');
     } finally {
       setUpdating(false);
     }
@@ -199,9 +269,9 @@ export default function AdminDashboardPage() {
       if (!res.ok) throw new Error(json.error || 'Failed to update settings');
       setSettings(json.data);
       setSettingsOpen(false);
-      alert('Dynamic pricing & payment settings saved!');
+      addToast('success', 'Settings saved successfully!');
     } catch (err: any) {
-      alert(err.message);
+      addToast('error', err.message);
     } finally {
       setSavingSettings(false);
     }
@@ -232,23 +302,56 @@ export default function AdminDashboardPage() {
     return true;
   });
 
+  // ── Guard: show login prompt if not authenticated ──
+  if (!authLoading && !user) {
+    return (
+      <div className="min-h-screen bg-neutral-100/60">
+        <Navbar onOpenAuth={() => setAuthOpen(true)} />
+        <div className="flex flex-col items-center justify-center min-h-[70vh] gap-6">
+          <div className="p-8 bg-white rounded-3xl border border-neutral-200 shadow-xl text-center max-w-md">
+            <ShieldCheck className="w-12 h-12 text-rose-600 mx-auto mb-4" />
+            <h2 className="text-2xl font-black text-neutral-950 mb-2">Admin Access Required</h2>
+            <p className="text-neutral-500 text-sm mb-6">
+              Please sign in with your admin account to access the dashboard.
+            </p>
+            <button
+              onClick={() => setAuthOpen(true)}
+              className="w-full py-3 bg-neutral-950 hover:bg-rose-600 text-white font-extrabold rounded-2xl transition-colors"
+            >
+              Sign In as Admin
+            </button>
+          </div>
+        </div>
+        <AuthModal isOpen={authOpen} onClose={() => setAuthOpen(false)} defaultRole="admin" />
+      </div>
+    );
+  }
+
+  // ── Guard: show access denied if logged in but not admin ──
+  if (!authLoading && user && user.role !== 'admin') {
+    return (
+      <div className="min-h-screen bg-neutral-100/60">
+        <Navbar onOpenAuth={() => setAuthOpen(true)} />
+        <div className="flex flex-col items-center justify-center min-h-[70vh] gap-6">
+          <div className="p-8 bg-white rounded-3xl border border-rose-200 shadow-xl text-center max-w-md">
+            <AlertTriangle className="w-12 h-12 text-rose-600 mx-auto mb-4" />
+            <h2 className="text-2xl font-black text-neutral-950 mb-2">Access Denied</h2>
+            <p className="text-neutral-500 text-sm mb-2">
+              Your account (<strong>{user.email}</strong>) does not have admin privileges.
+            </p>
+            <p className="text-neutral-400 text-xs">Contact your supervisor to request access.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-neutral-100/60 pb-20">
       <Navbar onOpenAuth={() => setAuthOpen(true)} />
 
-      {/* Role Alert if viewing as customer */}
-      {user?.role !== 'admin' && (
-        <div className="bg-gradient-to-r from-rose-600 to-red-600 text-white py-3 px-4 text-center text-xs font-bold flex items-center justify-center gap-3 shadow-md">
-          <AlertCircle className="w-4 h-4" />
-          <span>You are currently in Preview Mode. Switch to Admin role to submit official reviews.</span>
-          <button
-            onClick={() => switchRole('admin')}
-            className="px-3.5 py-1 bg-white text-rose-700 font-black rounded-lg shadow-xs hover:bg-neutral-100 transition-colors cursor-pointer"
-          >
-            Activate Admin Role
-          </button>
-        </div>
-      )}
+      {/* Toast Notifications */}
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-8">
         {/* Title Bar */}
@@ -264,7 +367,7 @@ export default function AdminDashboardPage() {
               </span>
             </div>
             <h1 className="text-3xl sm:text-4xl font-black text-neutral-950 tracking-tight">
-              Order Review & Dynamic Pricing Hub
+              Order Review &amp; Dynamic Pricing Hub
             </h1>
             <p className="text-xs sm:text-sm text-neutral-500">
               Accurately review extracted SHEIN goods, modify individual item pricing, add per-good notes, unlock InstaPay / Vodafone Cash payments, and confirm receipts.
@@ -277,7 +380,7 @@ export default function AdminDashboardPage() {
               className="px-4 py-2.5 bg-white hover:bg-neutral-50 text-neutral-800 border border-neutral-200 rounded-2xl text-xs font-extrabold transition-all flex items-center gap-2 shadow-xs cursor-pointer active:scale-95"
             >
               <Sliders className="w-4 h-4 text-neutral-600" />
-              Dynamic Fee & Wallets
+              Dynamic Fee &amp; Wallets
             </button>
 
             <button
@@ -336,7 +439,7 @@ export default function AdminDashboardPage() {
             <div className="text-2xl font-black text-emerald-600">
               {totalVolumeEgp.toLocaleString()} <span className="text-xs">EGP</span>
             </div>
-            <div className="text-[11px] text-emerald-700 font-medium mt-1">{completedCount} Orders Completed</div>
+            <div className="text-[11px] text-emerald-700 font-medium mt-1">{completedCount} Completed</div>
           </div>
         </div>
 
@@ -345,11 +448,11 @@ export default function AdminDashboardPage() {
           <div className="flex flex-wrap items-center gap-1.5 w-full md:w-auto">
             {[
               { key: 'ALL', label: 'All Orders' },
-              { key: 'PENDING_APPROVAL', label: 'Pending Approval' },
-              { key: 'APPROVED_PENDING_PAYMENT', label: 'Awaiting Payment' },
-              { key: 'PAYMENT_UNDER_REVIEW', label: 'Verify Receipt' },
-              { key: 'PAID', label: 'Paid & Processing' },
-              { key: 'REJECTED', label: 'Rejected' },
+              { key: 'PENDING_APPROVAL', label: '🟡 Pending Approval' },
+              { key: 'APPROVED_PENDING_PAYMENT', label: '🔵 Awaiting Payment' },
+              { key: 'PAYMENT_UNDER_REVIEW', label: '🟣 Verify Receipt' },
+              { key: 'PAID', label: '🟢 Paid' },
+              { key: 'REJECTED', label: '🔴 Rejected' },
             ].map((tab) => (
               <button
                 key={tab.key}
@@ -361,6 +464,16 @@ export default function AdminDashboardPage() {
                 }`}
               >
                 {tab.label}
+                {tab.key === 'PENDING_APPROVAL' && pendingApprovalCount > 0 && (
+                  <span className="ml-1.5 px-1.5 py-0.5 bg-amber-500 text-white rounded-full text-[10px] font-black">
+                    {pendingApprovalCount}
+                  </span>
+                )}
+                {tab.key === 'PAYMENT_UNDER_REVIEW' && paymentReviewCount > 0 && (
+                  <span className="ml-1.5 px-1.5 py-0.5 bg-purple-500 text-white rounded-full text-[10px] font-black">
+                    {paymentReviewCount}
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -392,7 +505,14 @@ export default function AdminDashboardPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100 text-xs">
-                {filteredOrders.length === 0 ? (
+                {loading ? (
+                  <tr>
+                    <td colSpan={6} className="py-14 text-center text-neutral-400 font-medium">
+                      <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-neutral-300" />
+                      Loading orders...
+                    </td>
+                  </tr>
+                ) : filteredOrders.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="py-14 text-center text-neutral-400 font-medium">
                       No orders found matching this filter.
@@ -447,36 +567,7 @@ export default function AdminDashboardPage() {
                       </td>
 
                       <td className="py-5 px-6">
-                        {order.status === 'PENDING_APPROVAL' && (
-                          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-black bg-amber-100 text-amber-900 border border-amber-300 animate-pulse">
-                            <Clock className="w-3.5 h-3.5 text-amber-600" />
-                            Pending Review
-                          </span>
-                        )}
-                        {order.status === 'APPROVED_PENDING_PAYMENT' && (
-                          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-black bg-blue-100 text-blue-900 border border-blue-200">
-                            <CreditCard className="w-3.5 h-3.5 text-blue-600" />
-                            Awaiting Payment
-                          </span>
-                        )}
-                        {order.status === 'PAYMENT_UNDER_REVIEW' && (
-                          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-black bg-purple-100 text-purple-900 border border-purple-300">
-                            <FileCheck className="w-3.5 h-3.5 text-purple-600" />
-                            Verify Receipt
-                          </span>
-                        )}
-                        {order.status === 'PAID' && (
-                          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-black bg-emerald-100 text-emerald-900 border border-emerald-300">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                            Paid & Processing
-                          </span>
-                        )}
-                        {order.status === 'REJECTED' && (
-                          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-black bg-rose-100 text-rose-900 border border-rose-300">
-                            <XCircle className="w-3.5 h-3.5 text-rose-600" />
-                            Rejected
-                          </span>
-                        )}
+                        <StatusBadge status={order.status} />
                       </td>
 
                       <td className="py-5 px-6 text-right">
@@ -488,7 +579,7 @@ export default function AdminDashboardPage() {
                           className="px-4 py-2 bg-neutral-950 hover:bg-rose-600 text-white font-extrabold rounded-2xl text-xs transition-colors shadow-xs inline-flex items-center gap-1.5 cursor-pointer active:scale-95"
                         >
                           <Eye className="w-3.5 h-3.5" />
-                          Accurate Review
+                          {order.status === 'PENDING_APPROVAL' ? 'Review & Approve' : 'Open Review'}
                         </button>
                       </td>
                     </tr>
@@ -500,7 +591,7 @@ export default function AdminDashboardPage() {
         </div>
       </main>
 
-      {/* ACCURATE ORDER REVIEW MODAL (DRAWER) */}
+      {/* ACCURATE ORDER REVIEW MODAL */}
       {selectedOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-md animate-in fade-in">
           <div className="relative w-full max-w-4xl max-h-[92vh] bg-white rounded-3xl shadow-2xl border border-neutral-200 flex flex-col overflow-hidden">
@@ -514,6 +605,7 @@ export default function AdminDashboardPage() {
                   <span className="font-mono text-lg font-black text-neutral-950">
                     Order #{selectedOrder.id}
                   </span>
+                  <StatusBadge status={selectedOrder.status} />
                 </div>
                 <p className="text-xs text-neutral-500 mt-1">
                   Customer: <strong>{selectedOrder.userName}</strong> ({selectedOrder.userPhone || selectedOrder.userEmail}) • Placed: {new Date(selectedOrder.createdAt).toLocaleString()}
@@ -546,7 +638,7 @@ export default function AdminDashboardPage() {
                 </a>
               </div>
 
-              {/* PAYMENT RECEIPT VERIFICATION BOX (If user uploaded receipt) */}
+              {/* PAYMENT RECEIPT VERIFICATION BOX */}
               {selectedOrder.payment && (
                 <div className="p-6 rounded-3xl bg-gradient-to-br from-purple-50 to-indigo-50 border-2 border-purple-300 space-y-4">
                   <div className="flex items-center justify-between">
@@ -556,9 +648,6 @@ export default function AdminDashboardPage() {
                         Payment Proof Receipt Submitted ({selectedOrder.payment.method.toUpperCase()})
                       </h4>
                     </div>
-                    <span className="text-xs font-bold text-purple-800 bg-purple-200/80 px-3 py-1 rounded-full">
-                      Status: {selectedOrder.status}
-                    </span>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
@@ -611,21 +700,27 @@ export default function AdminDashboardPage() {
                     </div>
                   )}
 
+                  {selectedOrder.payment.adminNote && (
+                    <div className="p-3 bg-white/60 rounded-xl border border-purple-200 text-xs text-neutral-600">
+                      <strong>Previous Admin Note:</strong> {selectedOrder.payment.adminNote}
+                    </div>
+                  )}
+
                   <div className="flex flex-wrap items-center gap-3 pt-2">
                     <button
                       type="button"
                       disabled={updating}
                       onClick={() => handleUpdateOrder('PAID', 'VERIFIED')}
-                      className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl text-xs flex items-center gap-1.5 shadow-md cursor-pointer active:scale-95"
+                      className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-extrabold rounded-xl text-xs flex items-center gap-1.5 shadow-md cursor-pointer active:scale-95"
                     >
                       <Check className="w-4 h-4" />
-                      Confirm Payment (Mark as Paid & Fulfill)
+                      {updating ? 'Processing...' : 'Confirm Payment (Mark as Paid & Fulfill)'}
                     </button>
                     <button
                       type="button"
                       disabled={updating}
                       onClick={() => handleUpdateOrder('APPROVED_PENDING_PAYMENT', 'REJECTED')}
-                      className="px-4 py-2.5 bg-rose-100 hover:bg-rose-200 text-rose-800 font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer"
+                      className="px-4 py-2.5 bg-rose-100 hover:bg-rose-200 disabled:opacity-50 text-rose-800 font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer"
                     >
                       <X className="w-4 h-4" />
                       Reject Receipt (Ask User to Re-upload)
@@ -659,7 +754,7 @@ export default function AdminDashboardPage() {
                             className="w-16 h-20 object-cover rounded-2xl border border-neutral-200 bg-white shadow-xs"
                           />
                           <div>
-                            <h5 className="font-extrabold text-neutral-950 text-xs sm:text-sm line-clamp-1">{item.name}</h5>
+                            <h5 className="font-extrabold text-neutral-950 text-xs sm:text-sm line-clamp-2">{item.name}</h5>
                             <div className="flex flex-wrap gap-2 text-[11px] text-neutral-500 mt-1">
                               {item.color && <span>Color: <strong>{item.color}</strong></span>}
                               {item.size && <span>Size: <strong>{item.size}</strong></span>}
@@ -680,7 +775,7 @@ export default function AdminDashboardPage() {
                               onChange={(e) =>
                                 handleItemFieldChange(idx, 'originalPrice', e.target.value)
                               }
-                              className="w-24 px-3 py-1.5 text-xs font-black bg-white border border-neutral-200 rounded-xl text-right"
+                              className="w-24 px-3 py-1.5 text-xs font-black bg-white border border-neutral-200 rounded-xl text-right focus:outline-none focus:ring-1 focus:ring-rose-500"
                             />
                           </div>
                           <div>
@@ -694,7 +789,7 @@ export default function AdminDashboardPage() {
                               onChange={(e) =>
                                 handleItemFieldChange(idx, 'quantity', e.target.value)
                               }
-                              className="w-16 px-3 py-1.5 text-xs font-black bg-white border border-neutral-200 rounded-xl text-center"
+                              className="w-16 px-3 py-1.5 text-xs font-black bg-white border border-neutral-200 rounded-xl text-center focus:outline-none focus:ring-1 focus:ring-rose-500"
                             />
                           </div>
                           <div className="text-right min-w-[70px]">
@@ -712,7 +807,7 @@ export default function AdminDashboardPage() {
                       <div className="pt-2 border-t border-neutral-200/60">
                         <label className="block text-[11px] font-bold text-rose-800 mb-1 flex items-center gap-1.5">
                           <MessageSquare className="w-3.5 h-3.5 text-rose-600" />
-                          Comment for this Good (Visible to customer on their order page):
+                          Comment for this Good (Visible to customer):
                         </label>
                         <input
                           type="text"
@@ -753,7 +848,7 @@ export default function AdminDashboardPage() {
                     max={100}
                     value={reviewDynamicFee}
                     onChange={(e) => setReviewDynamicFee(Number(e.target.value) || 0)}
-                    className="w-20 px-3 py-1.5 text-xs font-black bg-white/10 text-white border border-white/20 rounded-xl text-center"
+                    className="w-20 px-3 py-1.5 text-xs font-black bg-white/10 text-white border border-white/20 rounded-xl text-center focus:outline-none"
                   />
                   <span className="text-xs text-neutral-400 font-bold">%</span>
                 </div>
@@ -809,30 +904,48 @@ export default function AdminDashboardPage() {
                   type="button"
                   disabled={updating}
                   onClick={() => handleUpdateOrder()}
-                  className="px-4 py-2.5 bg-neutral-200 hover:bg-neutral-300 text-neutral-800 font-black text-xs rounded-xl transition-colors cursor-pointer"
+                  className="px-4 py-2.5 bg-neutral-200 hover:bg-neutral-300 disabled:opacity-50 text-neutral-800 font-black text-xs rounded-xl transition-colors cursor-pointer"
                 >
-                  Save Notes & Recalculate
+                  {updating ? 'Saving...' : 'Save Notes & Recalculate'}
                 </button>
 
-                <button
-                  type="button"
-                  disabled={updating}
-                  onClick={() => handleUpdateOrder('REJECTED')}
-                  className="px-4 py-2.5 bg-rose-100 hover:bg-rose-200 text-rose-800 font-bold text-xs rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer"
-                >
-                  <XCircle className="w-4 h-4" />
-                  Reject Order
-                </button>
+                {selectedOrder.status !== 'REJECTED' && (
+                  <button
+                    type="button"
+                    disabled={updating}
+                    onClick={() => handleUpdateOrder('REJECTED')}
+                    className="px-4 py-2.5 bg-rose-100 hover:bg-rose-200 disabled:opacity-50 text-rose-800 font-bold text-xs rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <XCircle className="w-4 h-4" />
+                    Reject Order
+                  </button>
+                )}
 
-                <button
-                  type="button"
-                  disabled={updating}
-                  onClick={() => handleUpdateOrder('APPROVED_PENDING_PAYMENT')}
-                  className="px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-black text-xs rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer active:scale-95"
-                >
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>Approve & Unlock Payment</span>
-                </button>
+                {(selectedOrder.status === 'PENDING_APPROVAL' || selectedOrder.status === 'REJECTED') && (
+                  <button
+                    type="button"
+                    disabled={updating}
+                    onClick={() => handleUpdateOrder('APPROVED_PENDING_PAYMENT')}
+                    className="px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 disabled:opacity-50 text-white font-black text-xs rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer active:scale-95"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>{updating ? 'Processing...' : 'Approve & Unlock Payment'}</span>
+                  </button>
+                )}
+
+                {selectedOrder.status === 'APPROVED_PENDING_PAYMENT' && (
+                  <div className="flex items-center gap-2 px-4 py-2.5 bg-blue-50 text-blue-700 rounded-xl border border-blue-200 text-xs font-bold">
+                    <CreditCard className="w-4 h-4" />
+                    Awaiting customer payment
+                  </div>
+                )}
+
+                {selectedOrder.status === 'PAID' && (
+                  <div className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-200 text-xs font-bold">
+                    <CheckCircle2 className="w-4 h-4" />
+                    Order paid & fulfilled
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -931,7 +1044,7 @@ export default function AdminDashboardPage() {
                 <button
                   type="submit"
                   disabled={savingSettings}
-                  className="px-6 py-2.5 bg-neutral-950 hover:bg-neutral-800 text-white font-black rounded-xl shadow-md transition-all cursor-pointer"
+                  className="px-6 py-2.5 bg-neutral-950 hover:bg-neutral-800 disabled:opacity-50 text-white font-black rounded-xl shadow-md transition-all cursor-pointer"
                 >
                   {savingSettings ? 'Saving...' : 'Save Configuration'}
                 </button>
@@ -943,5 +1056,60 @@ export default function AdminDashboardPage() {
 
       <AuthModal isOpen={authOpen} onClose={() => setAuthOpen(false)} defaultRole="admin" />
     </div>
+  );
+}
+
+/* ─────────────── Status Badge Component ─────────────── */
+function StatusBadge({ status }: { status: OrderStatus }) {
+  const map: Record<OrderStatus, { label: string; className: string; icon: React.ReactNode }> = {
+    PENDING_APPROVAL: {
+      label: 'Pending Review',
+      className: 'bg-amber-100 text-amber-900 border-amber-300 animate-pulse',
+      icon: <Clock className="w-3.5 h-3.5 text-amber-600" />,
+    },
+    APPROVED_PENDING_PAYMENT: {
+      label: 'Awaiting Payment',
+      className: 'bg-blue-100 text-blue-900 border-blue-200',
+      icon: <CreditCard className="w-3.5 h-3.5 text-blue-600" />,
+    },
+    PAYMENT_UNDER_REVIEW: {
+      label: 'Verify Receipt',
+      className: 'bg-purple-100 text-purple-900 border-purple-300',
+      icon: <FileCheck className="w-3.5 h-3.5 text-purple-600" />,
+    },
+    PAID: {
+      label: 'Paid & Processing',
+      className: 'bg-emerald-100 text-emerald-900 border-emerald-300',
+      icon: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />,
+    },
+    PROCESSING: {
+      label: 'Processing',
+      className: 'bg-emerald-100 text-emerald-900 border-emerald-300',
+      icon: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />,
+    },
+    SHIPPED: {
+      label: 'Shipped',
+      className: 'bg-sky-100 text-sky-900 border-sky-300',
+      icon: <CheckCircle2 className="w-3.5 h-3.5 text-sky-600" />,
+    },
+    COMPLETED: {
+      label: 'Completed',
+      className: 'bg-neutral-100 text-neutral-700 border-neutral-300',
+      icon: <CheckCircle2 className="w-3.5 h-3.5 text-neutral-500" />,
+    },
+    REJECTED: {
+      label: 'Rejected',
+      className: 'bg-rose-100 text-rose-900 border-rose-300',
+      icon: <XCircle className="w-3.5 h-3.5 text-rose-600" />,
+    },
+  };
+
+  const cfg = map[status] ?? map.PENDING_APPROVAL;
+
+  return (
+    <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-black border ${cfg.className}`}>
+      {cfg.icon}
+      {cfg.label}
+    </span>
   );
 }

@@ -9,7 +9,7 @@ interface RouteContext {
 export async function GET(req: NextRequest, context: RouteContext) {
   try {
     const { id } = await context.params;
-    const order = db.getOrderById(id);
+    const order = await db.getOrderById(id);
 
     if (!order) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
 export async function PATCH(req: NextRequest, context: RouteContext) {
   try {
     const { id } = await context.params;
-    const existing = db.getOrderById(id);
+    const existing = await db.getOrderById(id);
 
     if (!existing) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
@@ -90,7 +90,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       }
     }
 
-    const updated = db.updateOrder(id, updates);
+    const updated = await db.updateOrder(id, updates);
 
     return NextResponse.json({ success: true, data: updated });
   } catch (err: any) {
@@ -102,7 +102,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
 export async function DELETE(req: NextRequest, context: RouteContext) {
   try {
     const { id } = await context.params;
-    const ok = db.deleteOrder(id);
+    const ok = await db.deleteOrder(id);
     if (!ok) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }

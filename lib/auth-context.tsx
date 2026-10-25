@@ -8,7 +8,6 @@ interface AuthContextType {
   isLoading: boolean;
   login: (user: User) => void;
   logout: () => void;
-  switchRole: (role: 'user' | 'admin') => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -16,28 +15,9 @@ const AuthContext = createContext<AuthContextType>({
   isLoading: true,
   login: () => {},
   logout: () => {},
-  switchRole: () => {},
 });
 
-const DEFAULT_USER: User = {
-  id: 'user-sara',
-  name: 'Sara Ahmed',
-  email: 'sara@example.com',
-  role: 'user',
-  phone: '01019283746',
-  avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
-  createdAt: new Date().toISOString(),
-};
-
-const DEFAULT_ADMIN: User = {
-  id: 'user-admin',
-  name: 'Admin Supervisor',
-  email: 'admin@sheinextract.com',
-  role: 'admin',
-  phone: '+20 100 000 0000',
-  avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-  createdAt: new Date().toISOString(),
-};
+const SESSION_KEY = 'shein_user_session';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -45,16 +25,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     try {
-      const stored = localStorage.getItem('shein_user_session');
+      const stored = localStorage.getItem(SESSION_KEY);
       if (stored) {
-        setUser(JSON.parse(stored));
-      } else {
-        // Default to demo user for smooth testing
-        setUser(DEFAULT_USER);
-        localStorage.setItem('shein_user_session', JSON.stringify(DEFAULT_USER));
+        const parsed = JSON.parse(stored);
+        // Validate stored session has required fields
+        if (parsed?.id && parsed?.email && parsed?.role) {
+          setUser(parsed);
+        }
       }
-    } catch (e) {
-      setUser(DEFAULT_USER);
+    } catch {
+      localStorage.removeItem(SESSION_KEY);
     } finally {
       setIsLoading(false);
     }
@@ -62,21 +42,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = (newUser: User) => {
     setUser(newUser);
-    localStorage.setItem('shein_user_session', JSON.stringify(newUser));
+    localStorage.setItem(SESSION_KEY, JSON.stringify(newUser));
   };
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('shein_user_session');
-  };
-
-  const switchRole = (role: 'user' | 'admin') => {
-    const target = role === 'admin' ? DEFAULT_ADMIN : DEFAULT_USER;
-    login(target);
+    localStorage.removeItem(SESSION_KEY);
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, switchRole }}>
+    <AuthContext.Provider value={{ user, isLoading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

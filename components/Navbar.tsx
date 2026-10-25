@@ -7,18 +7,13 @@ import { useAuth } from '@/lib/auth-context';
 import {
   ShoppingBag,
   ShieldCheck,
-  User,
   LogOut,
-  Sparkles,
-  ArrowRightLeft,
   LogIn,
-  Layers,
-  ChevronRight,
 } from 'lucide-react';
 
 export function Navbar({ onOpenAuth }: { onOpenAuth?: () => void }) {
   const pathname = usePathname();
-  const { user, logout, switchRole } = useAuth();
+  const { user, logout } = useAuth();
 
   return (
     <header className="sticky top-0 z-40 w-full">
@@ -35,7 +30,7 @@ export function Navbar({ onOpenAuth }: { onOpenAuth?: () => void }) {
             </span>
             <span className="hidden sm:inline text-neutral-500">|</span>
             <span className="hidden sm:inline text-neutral-400">
-              Instant Extraction, 20% Dynamic Markup & Direct InstaPay / Vodafone Cash Settlements
+              Instant Extraction, 20% Dynamic Markup &amp; Direct InstaPay / Vodafone Cash Settlements
             </span>
           </div>
 
@@ -65,7 +60,7 @@ export function Navbar({ onOpenAuth }: { onOpenAuth?: () => void }) {
                   </span>
                 </div>
                 <p className="text-[11px] text-neutral-400 font-medium tracking-tight mt-1">
-                  Cart Extraction & Financial Gateway
+                  Cart Extraction &amp; Financial Gateway
                 </p>
               </div>
             </Link>
@@ -84,63 +79,38 @@ export function Navbar({ onOpenAuth }: { onOpenAuth?: () => void }) {
                 Extract Cart
               </Link>
 
-              <Link
-                href="/orders"
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center gap-1.5 ${
-                  pathname.startsWith('/orders')
-                    ? 'bg-white text-neutral-900 shadow-sm shadow-black/5 font-extrabold'
-                    : 'text-neutral-600 hover:text-neutral-900 hover:bg-white/50'
-                }`}
-              >
-                My Orders
-              </Link>
+              {user && (
+                <Link
+                  href="/orders"
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center gap-1.5 ${
+                    pathname.startsWith('/orders')
+                      ? 'bg-white text-neutral-900 shadow-sm shadow-black/5 font-extrabold'
+                      : 'text-neutral-600 hover:text-neutral-900 hover:bg-white/50'
+                  }`}
+                >
+                  My Orders
+                </Link>
+              )}
 
-              <Link
-                href="/admin"
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center gap-1.5 ${
-                  pathname.startsWith('/admin')
-                    ? 'bg-rose-600 text-white shadow-sm shadow-rose-600/30 font-extrabold'
-                    : 'text-neutral-600 hover:text-rose-600 hover:bg-rose-50/60'
-                }`}
-              >
-                <ShieldCheck className="w-3.5 h-3.5" />
-                Admin Dashboard
-                {user?.role === 'admin' && (
+              {user?.role === 'admin' && (
+                <Link
+                  href="/admin"
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center gap-1.5 ${
+                    pathname.startsWith('/admin')
+                      ? 'bg-rose-600 text-white shadow-sm shadow-rose-600/30 font-extrabold'
+                      : 'text-neutral-600 hover:text-rose-600 hover:bg-rose-50/60'
+                  }`}
+                >
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  Admin Dashboard
                   <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
-                )}
-              </Link>
+                </Link>
+              )}
             </nav>
           </div>
 
           {/* Right Controls */}
           <div className="flex items-center gap-4">
-            {/* Quick Role Switcher for instant testing */}
-            <div className="hidden sm:flex items-center bg-neutral-100 p-1 rounded-2xl border border-neutral-200">
-              <button
-                onClick={() => switchRole('user')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                  user?.role === 'user'
-                    ? 'bg-white text-neutral-900 shadow-xs font-extrabold'
-                    : 'text-neutral-500 hover:text-neutral-800'
-                }`}
-              >
-                <User className="w-3.5 h-3.5" />
-                Customer
-              </button>
-
-              <button
-                onClick={() => switchRole('admin')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                  user?.role === 'admin'
-                    ? 'bg-rose-600 text-white shadow-xs font-extrabold'
-                    : 'text-neutral-500 hover:text-rose-600'
-                }`}
-              >
-                <ShieldCheck className="w-3.5 h-3.5" />
-                Admin
-              </button>
-            </div>
-
             {user ? (
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2.5 pl-3 border-l border-neutral-200">
@@ -155,7 +125,7 @@ export function Navbar({ onOpenAuth }: { onOpenAuth?: () => void }) {
                   <div className="hidden lg:block text-left text-xs">
                     <p className="font-extrabold text-neutral-900 leading-tight">{user.name}</p>
                     <p className="text-neutral-400 text-[10px] uppercase font-bold tracking-wider mt-0.5">
-                      {user.role === 'admin' ? 'Supervisor' : 'Verified Buyer'}
+                      {user.role === 'admin' ? '🛡 Supervisor' : '✓ Verified Buyer'}
                     </p>
                   </div>
                 </div>
@@ -174,7 +144,7 @@ export function Navbar({ onOpenAuth }: { onOpenAuth?: () => void }) {
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-extrabold bg-neutral-950 text-white hover:bg-neutral-800 transition-all shadow-md active:scale-95"
               >
                 <LogIn className="w-4 h-4" />
-                Sign In
+                Sign In / Register
               </button>
             )}
           </div>
