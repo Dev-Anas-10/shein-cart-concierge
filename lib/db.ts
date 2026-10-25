@@ -230,17 +230,68 @@ async function saveToRedis(data: DatabaseSchema): Promise<void> {
 
 /* ────────────────────────── Supabase Layer ───────────────────────── */
 
+function mapRowToOrder(row: any): Order {
+  return {
+    id: String(row.id),
+    userId: String(row.user_id ?? row.userId ?? ''),
+    userName: String(row.user_name ?? row.userName ?? ''),
+    userEmail: String(row.user_email ?? row.userEmail ?? ''),
+    userPhone: String(row.user_phone ?? row.userPhone ?? ''),
+    shippingAddress: row.shipping_address ?? row.shippingAddress ?? undefined,
+    rawInput: String(row.raw_input ?? row.rawInput ?? ''),
+    extractedLink: String(row.extracted_link ?? row.extractedLink ?? ''),
+    cartShareCode: row.cart_share_code ?? row.cartShareCode ?? undefined,
+    cartGroupId: row.cart_group_id ?? row.cartGroupId ?? undefined,
+    cartCoverImage: row.cart_cover_image ?? row.cartCoverImage ?? undefined,
+    items: Array.isArray(row.items) ? row.items : [],
+    itemsCount: Number(row.items_count ?? row.itemsCount ?? (Array.isArray(row.items) ? row.items.length : 0)),
+    itemsSubtotal: Number(row.items_subtotal ?? row.itemsSubtotal ?? 0),
+    dynamicFeePercent: Number(row.dynamic_fee_percent ?? row.dynamicFeePercent ?? 20),
+    dynamicFeeAmount: Number(row.dynamic_fee_amount ?? row.dynamicFeeAmount ?? 0),
+    shippingFee: Number(row.shipping_fee ?? row.shippingFee ?? 0),
+    totalCash: Number(row.total_cash ?? row.totalCash ?? 0),
+    currency: String(row.currency ?? 'EGP'),
+    status: row.status ?? 'PENDING_APPROVAL',
+    adminComment: row.admin_comment ?? row.adminComment ?? undefined,
+    payment: row.payment ?? undefined,
+    reviewedBy: row.reviewed_by ?? row.reviewedBy ?? undefined,
+    reviewedAt: row.reviewed_at ?? row.reviewedAt ?? undefined,
+    createdAt: row.created_at ?? row.createdAt ?? new Date().toISOString(),
+    updatedAt: row.updated_at ?? row.updatedAt ?? new Date().toISOString(),
+  };
+}
+
+function mapRowToUser(row: any): User & { password?: string } {
+  return {
+    id: String(row.id),
+    name: String(row.name),
+    email: String(row.email).toLowerCase(),
+    password: row.password ?? undefined,
+    role: (row.role === 'admin' ? 'admin' : 'user'),
+    phone: row.phone ?? '',
+    avatar: row.avatar ?? `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(row.name || 'User')}`,
+    createdAt: row.created_at ?? row.createdAt ?? new Date().toISOString(),
+  };
+}
+
 async function loadFromSupabase(): Promise<DatabaseSchema | null> {
   const sb = getSupabase();
   if (!sb) return null;
   try {
     const [ordersRes, usersRes] = await Promise.all([
-      sb.from('orders').select('*'),
+      sb.from('orders').select('*').order('created_at', { ascending: false }),
       sb.from('users').select('*'),
     ]);
 
-    const orders = ordersRes.data && ordersRes.data.length > 0 ? (ordersRes.data as Order[]) : DEFAULT_ORDERS;
-    const users = usersRes.data && usersRes.data.length > 0 ? usersRes.data : DEFAULT_USERS;
+    if (usersRes.error) {
+      console.warn('[Supabase] Users read error:', usersRes.error.message);
+    }
+    if (ordersRes.error) {
+      console.warn('[Supabase] Orders read error:', ordersRes.error.message);
+    }
+
+    const users = usersRes.data && usersRes.data.length > 0 ? usersRes.data.map(mapRowToUser) : DEFAULT_USERS;
+    const orders = ordersRes.data && ordersRes.data.length > 0 ? ordersRes.data.map(mapRowToOrder) : DEFAULT_ORDERS;
 
     return {
       users,
@@ -249,8 +300,8 @@ async function loadFromSupabase(): Promise<DatabaseSchema | null> {
     };
   } catch (err) {
     console.warn('[Supabase] Read note:', err);
+    return null;
   }
-  return null;
 }
 
 async function syncUserToSupabase(user: User & { password?: string }): Promise<void> {
@@ -269,6 +320,8 @@ async function syncUserToSupabase(user: User & { password?: string }): Promise<v
     });
     if (error) {
       console.warn('[Supabase] User upsert note:', error.message);
+    } else {
+      console.log('[Supabase] User synced successfully:', user.email);
     }
   } catch (err) {
     console.warn('[Supabase] User upsert exception:', err);
@@ -279,27 +332,48 @@ async function syncOrderToSupabase(order: Order): Promise<void> {
   const sb = getSupabase();
   if (!sb) return;
   try {
-    await sb.from('orders').upsert({
+    const { error } = await sb.from('orders').upsert({
       id: order.id,
       user_id: order.userId,
       user_name: order.userName,
       user_email: order.userEmail,
       user_phone: order.userPhone,
+      shipping_address: order.shippingAddress || null,
+      raw_input: order.rawInput,
+      extracted_link: order.extractedLink,
       items: order.items,
       items_count: order.itemsCount,
       items_subtotal: order.itemsSubtotal,
       dynamic_fee_percent: order.dynamicFeePercent,
       dynamic_fee_amount: order.dynamicFeeAmount,
+      shipping_fee: order.shippingFee || 0,
       total_cash: order.totalCash,
-      currency: order.currency,
+      currency: order.currency || 'EGP',
       status: order.status,
-      payment: order.payment,
-      admin_comment: order.adminComment,
+      admin_comment: order.adminComment || null,
+      payment: order.payment || null,
+      reviewed_by: order.reviewedBy || null,
+      reviewed_at: order.reviewedAt || null,
       created_at: order.createdAt,
       updated_at: order.updatedAt,
     });
+    if (error) {
+      console.warn('[Supabase] Order upsert error:', error.message);
+    } else {
+      console.log('[Supabase] Order synced successfully:', order.id);
+    }
   } catch (err) {
     console.warn('[Supabase] Upsert note:', err);
+  }
+}
+
+async function deleteOrderFromSupabase(id: string): Promise<void> {
+  const sb = getSupabase();
+  if (!sb) return;
+  try {
+    await sb.from('orders').delete().eq('id', id);
+  } catch (err) {
+    console.warn('[Supabase] Delete note:', err);
   }
 }
 
@@ -383,24 +457,32 @@ function defaultDb(): DatabaseSchema {
 
 /* ────────────────────────── Public async API ───────────────────────── */
 
-async function ensureDb(): Promise<DatabaseSchema> {
-  if (memoryDb) return memoryDb;
+async function ensureDb(forceRefresh = false): Promise<DatabaseSchema> {
+  if (memoryDb && !forceRefresh) return memoryDb;
 
-  // 1. Try Redis
+  // 1. Try Supabase (primary source of truth for multi-user sync)
+  const fromSupabase = await loadFromSupabase();
+  if (fromSupabase) {
+    memoryDb = fromSupabase;
+    saveToFile(memoryDb);
+    return memoryDb;
+  }
+
+  // 2. Try Redis
   const fromRedis = await loadFromRedis();
   if (fromRedis) {
     memoryDb = fromRedis;
     return memoryDb;
   }
 
-  // 2. Try file
+  // 3. Try file
   const fromFile = loadFromFile();
   if (fromFile) {
     memoryDb = fromFile;
     return memoryDb;
   }
 
-  // 3. Defaults
+  // 4. Defaults
   memoryDb = defaultDb();
   await persistDb(memoryDb);
   return memoryDb;
@@ -418,15 +500,56 @@ async function persistDb(data: DatabaseSchema): Promise<void> {
 
 export const db = {
   getUsers: async (): Promise<(User & { password?: string })[]> => {
+    const sb = getSupabase();
+    if (sb) {
+      try {
+        const { data, error } = await sb.from('users').select('*');
+        if (data && !error && data.length > 0) {
+          return data.map(mapRowToUser);
+        }
+      } catch (err) {
+        console.warn('[DB] Supabase getUsers fallback:', err);
+      }
+    }
     return (await ensureDb()).users;
   },
 
   getUserByEmail: async (email: string): Promise<(User & { password?: string }) | undefined> => {
     const lower = email.toLowerCase().trim();
+    const sb = getSupabase();
+    if (sb) {
+      try {
+        const { data, error } = await sb.from('users').select('*').eq('email', lower).maybeSingle();
+        if (data && !error) {
+          const mapped = mapRowToUser(data);
+          const currentData = await ensureDb();
+          const idx = currentData.users.findIndex((u) => u.email.toLowerCase() === lower);
+          if (idx >= 0) {
+            currentData.users[idx] = mapped;
+          } else {
+            currentData.users.push(mapped);
+          }
+          return mapped;
+        }
+      } catch (err) {
+        console.warn('[DB] Supabase user lookup fallback:', err);
+      }
+    }
     return (await ensureDb()).users.find((u) => u.email.toLowerCase() === lower);
   },
 
   getUserById: async (id: string): Promise<(User & { password?: string }) | undefined> => {
+    const sb = getSupabase();
+    if (sb) {
+      try {
+        const { data, error } = await sb.from('users').select('*').eq('id', id).maybeSingle();
+        if (data && !error) {
+          return mapRowToUser(data);
+        }
+      } catch (err) {
+        console.warn('[DB] Supabase getUserById fallback:', err);
+      }
+    }
     return (await ensureDb()).users.find((u) => u.id === id);
   },
 
@@ -457,9 +580,49 @@ export const db = {
     status?: string;
     search?: string;
   }): Promise<Order[]> => {
+    const sb = getSupabase();
+    if (sb) {
+      try {
+        let query = sb.from('orders').select('*').order('created_at', { ascending: false });
+        if (filter?.status && filter.status !== 'ALL') {
+          query = query.eq('status', filter.status);
+        }
+        const { data, error } = await query;
+        if (data && !error) {
+          let list = data.map(mapRowToOrder);
+          if (filter?.userId || filter?.userEmail || filter?.userPhone) {
+            list = list.filter((o) => {
+              if (filter.userId && o.userId === filter.userId) return true;
+              if (
+                filter.userEmail &&
+                o.userEmail &&
+                o.userEmail.toLowerCase() === filter.userEmail.toLowerCase()
+              )
+                return true;
+              if (filter.userPhone && o.userPhone && o.userPhone === filter.userPhone) return true;
+              return false;
+            });
+          }
+          if (filter?.search) {
+            const q = filter.search.toLowerCase();
+            list = list.filter(
+              (o) =>
+                o.id.toLowerCase().includes(q) ||
+                o.userName.toLowerCase().includes(q) ||
+                o.userEmail.toLowerCase().includes(q) ||
+                o.userPhone.toLowerCase().includes(q) ||
+                o.extractedLink.toLowerCase().includes(q)
+            );
+          }
+          return list;
+        }
+      } catch (err) {
+        console.warn('[DB] Supabase getOrders fallback:', err);
+      }
+    }
+
     let list = (await ensureDb()).orders;
 
-    // Filter by user if specified (matches userId, userEmail, or userPhone)
     if (filter?.userId || filter?.userEmail || filter?.userPhone) {
       list = list.filter((o) => {
         if (filter.userId && o.userId === filter.userId) return true;
@@ -494,12 +657,22 @@ export const db = {
   },
 
   getOrderById: async (id: string): Promise<Order | undefined> => {
+    const sb = getSupabase();
+    if (sb) {
+      try {
+        const { data, error } = await sb.from('orders').select('*').eq('id', id).maybeSingle();
+        if (data && !error) {
+          return mapRowToOrder(data);
+        }
+      } catch (err) {
+        console.warn('[DB] Supabase getOrderById fallback:', err);
+      }
+    }
     return (await ensureDb()).orders.find((o) => o.id === id);
   },
 
   createOrder: async (order: Order): Promise<Order> => {
     const data = await ensureDb();
-    // Check if order already exists
     const existingIndex = data.orders.findIndex((o) => o.id === order.id);
     if (existingIndex >= 0) {
       data.orders[existingIndex] = order;
@@ -523,7 +696,6 @@ export const db = {
       updatedAt: new Date().toISOString(),
     };
 
-    // Recalculate subtotal and total cash if items changed
     if (updates.items) {
       const subtotal = updates.items.reduce((s, it) => s + it.subtotal, 0);
       const feePercent = updates.dynamicFeePercent ?? current.dynamicFeePercent;
@@ -547,11 +719,12 @@ export const db = {
     const data = await ensureDb();
     const lenBefore = data.orders.length;
     data.orders = data.orders.filter((o) => o.id !== id);
+    await deleteOrderFromSupabase(id);
     if (data.orders.length !== lenBefore) {
       await persistDb(data);
       return true;
     }
-    return false;
+    return true;
   },
 
   invalidateCache: () => {
