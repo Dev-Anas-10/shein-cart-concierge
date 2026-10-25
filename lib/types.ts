@@ -95,6 +95,7 @@ export interface SystemSettings {
   vodafoneCashNumber: string;    // e.g. '01012345678'
   vodafoneCashInstructions: string;
   supportPhone: string;
+  supportEmail?: string;
   announcementText?: string;
 }
 

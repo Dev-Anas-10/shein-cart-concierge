@@ -97,6 +97,7 @@ export interface Translations {
   vodafoneTitle: string;
   phoneHotline: string;
   whatsappChat: string;
+  emailSupport: string;
   copySuccess: string;
   close: string;
 }
@@ -201,6 +202,7 @@ const TRANSLATIONS: Record<Language, Translations> = {
     vodafoneTitle: 'محفظة فودافون كاش الرسمية',
     phoneHotline: 'الخط الساخن والمكالمات',
     whatsappChat: 'محادثة مباشرة عبر واتساب',
+    emailSupport: 'البريد الإلكتروني للدعم الفني',
     copySuccess: 'تم النسخ بنجاح!',
     close: 'إغلاق',
   },
@@ -303,6 +305,7 @@ const TRANSLATIONS: Record<Language, Translations> = {
     vodafoneTitle: 'Official Vodafone Cash Number',
     phoneHotline: 'Customer Service Hotline',
     whatsappChat: 'Direct WhatsApp Support',
+    emailSupport: 'Official Support Email',
     copySuccess: 'Copied to clipboard!',
     close: 'Close',
   },

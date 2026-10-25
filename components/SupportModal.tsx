@@ -11,12 +11,14 @@ import {
   Check,
   Clock,
   ExternalLink,
+  Mail,
 } from 'lucide-react';
 
 interface SupportModalProps {
   isOpen: boolean;
   onClose: () => void;
   supportPhone?: string;
+  supportEmail?: string;
   vodafoneNumber?: string;
   instapayAddress?: string;
 }
@@ -24,8 +26,9 @@ interface SupportModalProps {
 export function SupportModal({
   isOpen,
   onClose,
-  supportPhone = '+20 109 876 5432',
-  vodafoneNumber = '01098765432',
+  supportPhone = '+20 128 494 7782',
+  supportEmail = 'gamallahmedd01@gmail.com',
+  vodafoneNumber = '01284947782',
   instapayAddress = 'shein.orders@instapay',
 }: SupportModalProps) {
   const { t, dir } = useThemeLang();
@@ -129,6 +132,43 @@ export function SupportModal({
                 title="Copy phone"
               >
                 {copiedField === 'phone' ? (
+                  <Check className="w-3.5 h-3.5 text-emerald-600" />
+                ) : (
+                  <Copy className="w-3.5 h-3.5" />
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Email Support Contact */}
+          <div className="p-4 rounded-2xl border border-neutral-100 dark:border-[#2a2538] bg-neutral-50 dark:bg-[#1a1722] flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                <Mail className="w-5 h-5" />
+              </div>
+              <div className="text-start">
+                <h4 className="font-extrabold text-neutral-900 dark:text-white text-sm">
+                  {t.emailSupport}
+                </h4>
+                <p className="font-mono text-xs text-neutral-700 dark:text-neutral-300 font-bold" dir="ltr">
+                  {supportEmail}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <a
+                href={`mailto:${supportEmail}`}
+                className="px-3 py-1.5 rounded-xl bg-white dark:bg-[#221e2d] border border-neutral-200 dark:border-[#2a2538] text-xs font-bold text-neutral-800 dark:text-neutral-200 hover:bg-neutral-100"
+              >
+                {dir === 'rtl' ? 'إرسال' : 'Email'}
+              </a>
+              <button
+                type="button"
+                onClick={() => handleCopy(supportEmail, 'email')}
+                className="p-1.5 rounded-xl bg-white dark:bg-[#221e2d] border border-neutral-200 dark:border-[#2a2538] text-neutral-500 hover:text-neutral-900 dark:hover:text-white cursor-pointer"
+                title="Copy email"
+              >
+                {copiedField === 'email' ? (
                   <Check className="w-3.5 h-3.5 text-emerald-600" />
                 ) : (
                   <Copy className="w-3.5 h-3.5" />

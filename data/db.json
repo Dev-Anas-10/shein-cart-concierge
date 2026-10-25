@@ -154,9 +154,10 @@
     "currency": "EGP",
     "instapayAddress": "shein.orders@instapay",
     "instapayAccountName": "SHEIN Concierge Egypt",
-    "vodafoneCashNumber": "01098765432",
+    "vodafoneCashNumber": "01284947782",
     "vodafoneCashInstructions": "أرسل المبلغ المطلوب إلى الرقم أعلاه عبر فودافون كاش، ثم أرفق لقطة الشاشة لتأكيد الدفع.",
-    "supportPhone": "+20 109 876 5432",
+    "supportPhone": "+20 128 494 7782",
+    "supportEmail": "gamallahmedd01@gmail.com",
     "announcementText": "خدمة SHEIN Concierge — رسوم خدمة 20%، متاح الدفع عبر InstaPay أو فودافون كاش."
   }
 }
