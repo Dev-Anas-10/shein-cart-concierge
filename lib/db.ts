@@ -31,8 +31,9 @@ const DEFAULT_SETTINGS: SystemSettings = {
   usdToEgpRate: 50.0,
   showPaymentInSupport: true,
   enableInstapay: true,
-  instapayAddress: 'shein.orders@instapay',
-  instapayAccountName: 'SHEIN Concierge Egypt',
+  instapayAddress: 'anasashraf10@instapay',
+  instapayAccountName: 'anasashraf10',
+  instapayPaymentUrl: 'https://ipn.eg/S/anasashraf10/instapay/6OaEAR',
   enableVodafoneCash: true,
   vodafoneCashNumber: '01284947782',
   vodafoneCashInstructions:

@@ -506,8 +506,8 @@
     "usdToEgpRate": 50,
     "showPaymentInSupport": true,
     "enableInstapay": true,
-    "instapayAddress": "shein.orders@instapay",
-    "instapayAccountName": "SHEIN Concierge Egypt",
+    "instapayAddress": "anasashraf10@instapay",
+    "instapayAccountName": "anasashraf10",
     "enableVodafoneCash": true,
     "vodafoneCashNumber": "01284947782",
     "vodafoneCashInstructions": "أرسل المبلغ المطلوب إلى الرقم أعلاه عبر فودافون كاش، ثم أرفق لقطة الشاشة لتأكيد الدفع.",
@@ -563,6 +563,7 @@
         ],
         "createdAt": "2026-10-25T15:20:24.387Z"
       }
-    ]
+    ],
+    "instapayPaymentUrl": "https://ipn.eg/S/anasashraf10/instapay/6OaEAR"
   }
 }

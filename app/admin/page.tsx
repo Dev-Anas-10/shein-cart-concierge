@@ -140,6 +140,7 @@ export default function AdminDashboardPage() {
   const [editEnableInstapay, setEditEnableInstapay] = useState(true);
   const [editInstapayAddress, setEditInstapayAddress] = useState('');
   const [editInstapayName, setEditInstapayName] = useState('');
+  const [editInstapayUrl, setEditInstapayUrl] = useState('');
   const [editEnableVodafoneCash, setEditEnableVodafoneCash] = useState(true);
   const [editVodafoneNumber, setEditVodafoneNumber] = useState('');
   const [editVodafoneInstructions, setEditVodafoneInstructions] = useState('');
@@ -206,6 +207,7 @@ export default function AdminDashboardPage() {
         setEditEnableInstapay(s.enableInstapay ?? true);
         setEditInstapayAddress(s.instapayAddress ?? '');
         setEditInstapayName(s.instapayAccountName ?? '');
+        setEditInstapayUrl(s.instapayPaymentUrl ?? 'https://ipn.eg/S/anasashraf10/instapay/6OaEAR');
         setEditEnableVodafoneCash(s.enableVodafoneCash ?? true);
         setEditVodafoneNumber(s.vodafoneCashNumber ?? '');
         setEditVodafoneInstructions(s.vodafoneCashInstructions ?? '');
@@ -377,6 +379,7 @@ export default function AdminDashboardPage() {
         enableInstapay: editEnableInstapay,
         instapayAddress: editInstapayAddress.trim(),
         instapayAccountName: editInstapayName.trim(),
+        instapayPaymentUrl: editInstapayUrl.trim(),
         enableVodafoneCash: editEnableVodafoneCash,
         vodafoneCashNumber: editVodafoneNumber.trim(),
         vodafoneCashInstructions: editVodafoneInstructions.trim(),
@@ -1615,29 +1618,45 @@ export default function AdminDashboardPage() {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="block font-bold text-neutral-700 mb-1">
+                        <label className="block font-bold text-neutral-700 dark:text-neutral-300 text-xs mb-1">
                           عنوان الدفع اللحظي (IPA Address)
                         </label>
                         <input
                           type="text"
                           value={editInstapayAddress}
                           onChange={(e) => setEditInstapayAddress(e.target.value)}
-                          placeholder="username@instapay"
-                          className="w-full px-3.5 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl focus:bg-white font-mono font-bold"
+                          placeholder="anasashraf10@instapay"
+                          className="w-full px-3.5 py-2.5 bg-neutral-50 dark:bg-[#1a1626] border border-neutral-200 dark:border-[#2f2742] rounded-xl focus:bg-white dark:focus:bg-[#14111d] font-mono font-bold text-xs"
                         />
                       </div>
                       <div>
-                        <label className="block font-bold text-neutral-700 mb-1">
+                        <label className="block font-bold text-neutral-700 dark:text-neutral-300 text-xs mb-1">
                           اسم صاحب الحساب المعروض للعميل
                         </label>
                         <input
                           type="text"
                           value={editInstapayName}
                           onChange={(e) => setEditInstapayName(e.target.value)}
-                          placeholder="SHEIN Concierge Egypt"
-                          className="w-full px-3.5 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl focus:bg-white"
+                          placeholder="anasashraf10"
+                          className="w-full px-3.5 py-2.5 bg-neutral-50 dark:bg-[#1a1626] border border-neutral-200 dark:border-[#2f2742] rounded-xl focus:bg-white dark:focus:bg-[#14111d] text-xs font-bold"
                         />
                       </div>
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-neutral-700 dark:text-neutral-300 text-xs mb-1">
+                        رابط الدفع المباشر لإنستاباي (InstaPay Link / ipn.eg)
+                      </label>
+                      <input
+                        type="url"
+                        value={editInstapayUrl}
+                        onChange={(e) => setEditInstapayUrl(e.target.value)}
+                        placeholder="https://ipn.eg/S/anasashraf10/instapay/6OaEAR"
+                        className="w-full px-3.5 py-2.5 bg-neutral-50 dark:bg-[#1a1626] border border-neutral-200 dark:border-[#2f2742] rounded-xl focus:bg-white dark:focus:bg-[#14111d] font-mono text-xs"
+                      />
+                      <p className="text-[11px] text-neutral-500 mt-1">
+                        الرابط يفتح تطبيق InstaPay على هاتف العميل مباشرة لتحويل المبلغ لحسابك دون إدخال يدوي.
+                      </p>
                     </div>
                   </div>
 

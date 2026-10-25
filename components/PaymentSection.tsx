@@ -16,6 +16,7 @@ import {
   HelpCircle,
   Sparkles,
   Zap,
+  ExternalLink,
 } from 'lucide-react';
 
 interface PaymentSectionProps {
@@ -164,33 +165,65 @@ export function PaymentSection({ order, settings, onPaymentSubmitted }: PaymentS
         <div className="mt-6 p-6 rounded-3xl bg-neutral-50 border border-neutral-200/80 space-y-4">
           {method === 'instapay' ? (
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-lg bg-white p-1 border border-purple-200 shadow-2xs flex items-center justify-center">
+              {/* Direct InstaPay Link Button */}
+              <a
+                href={settings.instapayPaymentUrl || 'https://ipn.eg/S/anasashraf10/instapay/6OaEAR'}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full py-4 px-5 bg-gradient-to-r from-purple-700 via-purple-600 to-indigo-700 hover:from-purple-800 hover:to-indigo-800 text-white font-black rounded-2xl shadow-lg shadow-purple-600/25 hover:shadow-xl transition-all flex items-center justify-between group active:scale-[0.99] border border-purple-400/30"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-white p-1.5 flex items-center justify-center shrink-0 shadow-md">
                     <img src="/images/instapay.png" alt="InstaPay" className="w-full h-full object-contain" />
                   </div>
-                  <span className="text-xs font-bold text-neutral-700">InstaPay Payment Address (IPA):</span>
+                  <div className="text-right">
+                    <div className="flex items-center gap-2">
+                      <span className="block text-sm sm:text-base font-black">اضغط الرابط لإرسال نقود عبر إنستاباي</span>
+                      <span className="text-[9px] bg-white/20 text-white px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                        Direct Link
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-purple-100 font-medium block mt-0.5">
+                      فتح تطبيق InstaPay مباشرة على هاتفك للتحويل فوراً
+                    </span>
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => handleCopy(settings.instapayAddress, 'ipa')}
-                  className="px-3.5 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm active:scale-95 cursor-pointer"
-                >
-                  {copiedField === 'ipa' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                  <span>{copiedField === 'ipa' ? 'Copied to Clipboard' : 'Copy Address'}</span>
-                </button>
-              </div>
+                <div className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-xl text-xs font-bold border border-white/30 transition-all shrink-0">
+                  <span>فتح التطبيق</span>
+                  <ExternalLink className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                </div>
+              </a>
 
-              <div className="bg-white p-4 rounded-2xl border border-neutral-200 font-mono text-lg font-black text-neutral-900 tracking-tight flex items-center justify-between shadow-inner">
-                <span>{settings.instapayAddress}</span>
-                <span className="text-xs font-normal text-purple-600 bg-purple-50 px-2 py-1 rounded-md">
-                  Verified IPA
-                </span>
-              </div>
+              {/* InstaPay IPA Details Card */}
+              <div className="p-4 rounded-2xl bg-white border border-purple-100/80 shadow-xs space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-lg bg-purple-50 p-1 flex items-center justify-center">
+                      <img src="/images/instapay.png" alt="InstaPay" className="w-full h-full object-contain" />
+                    </div>
+                    <span className="text-xs font-bold text-neutral-700">عنوان الدفع اللحظي (IPA):</span>
+                  </div>
+                  <span className="text-[10px] font-black tracking-wide text-purple-700 bg-purple-50 border border-purple-200/60 px-2.5 py-0.5 rounded-full">
+                    Powered by InstaPay
+                  </span>
+                </div>
 
-              <div className="flex items-center justify-between text-xs text-neutral-600">
-                <span>Recipient Account Name:</span>
-                <strong className="text-neutral-950">{settings.instapayAccountName}</strong>
+                <div className="bg-neutral-50 p-3.5 rounded-xl border border-neutral-200 font-mono text-base sm:text-lg font-black text-neutral-900 tracking-tight flex items-center justify-between shadow-inner">
+                  <span dir="ltr">{settings.instapayAddress || 'anasashraf10@instapay'}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(settings.instapayAddress || 'anasashraf10@instapay', 'ipa')}
+                    className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm active:scale-95 cursor-pointer"
+                  >
+                    {copiedField === 'ipa' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedField === 'ipa' ? 'تم النسخ ✓' : 'نسخ العنوان'}</span>
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between text-xs text-neutral-600 pt-1 border-t border-neutral-100">
+                  <span>اسم صاحب الحساب:</span>
+                  <strong className="text-neutral-950 font-bold">{settings.instapayAccountName || 'anasashraf10'}</strong>
+                </div>
               </div>
             </div>
           ) : (

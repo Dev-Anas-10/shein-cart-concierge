@@ -26,6 +26,7 @@ interface SupportModalProps {
   supportHours?: string;
   vodafoneNumber?: string;
   instapayAddress?: string;
+  instapayPaymentUrl?: string;
   showPaymentInSupport?: boolean;
   enableInstapay?: boolean;
   enableVodafoneCash?: boolean;
@@ -42,6 +43,7 @@ export function SupportModal({
   supportHours: propHours,
   vodafoneNumber: propVodafone,
   instapayAddress: propInstapay,
+  instapayPaymentUrl: propInstapayUrl,
   showPaymentInSupport: propShowPayment,
   enableInstapay: propEnableInstapay,
   enableVodafoneCash: propEnableVodafone,
@@ -89,7 +91,9 @@ export function SupportModal({
     propEnableVodafone ?? settings?.enableVodafoneCash ?? true;
 
   const instapayAddress =
-    propInstapay ?? settings?.instapayAddress ?? 'shein.orders@instapay';
+    propInstapay ?? settings?.instapayAddress ?? 'anasashraf10@instapay';
+  const instapayPaymentUrl =
+    propInstapayUrl ?? settings?.instapayPaymentUrl ?? 'https://ipn.eg/S/anasashraf10/instapay/6OaEAR';
   const vodafoneNumber =
     propVodafone ?? settings?.vodafoneCashNumber ?? '01284947782';
   const secondaryWallet =
@@ -261,13 +265,26 @@ export function SupportModal({
                       {instapayAddress}
                     </span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => handleCopy(instapayAddress, 'instapay')}
-                    className="text-[11px] font-bold text-[#7C3AED] dark:text-purple-400 hover:underline flex items-center gap-1 cursor-pointer shrink-0"
-                  >
-                    {copiedField === 'instapay' ? 'تم النسخ ✓' : (dir === 'rtl' ? 'نسخ' : 'Copy')}
-                  </button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {instapayPaymentUrl && (
+                      <a
+                        href={instapayPaymentUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-2 py-1 rounded-lg bg-purple-100 dark:bg-purple-950/60 text-[#7C3AED] dark:text-purple-300 font-bold text-[10px] hover:bg-purple-200 transition-colors flex items-center gap-1"
+                      >
+                        <span>{dir === 'rtl' ? 'إرسال نقود' : 'Send'}</span>
+                        <ExternalLink className="w-2.5 h-2.5" />
+                      </a>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleCopy(instapayAddress, 'instapay')}
+                      className="text-[11px] font-bold text-[#7C3AED] dark:text-purple-400 hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      {copiedField === 'instapay' ? 'تم النسخ ✓' : (dir === 'rtl' ? 'نسخ' : 'Copy')}
+                    </button>
+                  </div>
                 </div>
               )}
 

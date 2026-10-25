@@ -159,8 +159,9 @@ export interface SystemSettings {
   // Payment Options & Details
   showPaymentInSupport: boolean;      // Toggle payment section in support modal
   enableInstapay: boolean;            // Enable/disable InstaPay
-  instapayAddress: string;            // e.g. 'shein.orders@instapay'
-  instapayAccountName: string;        // e.g. 'SHEIN Concierge Egypt'
+  instapayAddress: string;            // e.g. 'anasashraf10@instapay'
+  instapayAccountName: string;        // e.g. 'anasashraf10'
+  instapayPaymentUrl?: string;        // e.g. 'https://ipn.eg/S/anasashraf10/instapay/6OaEAR'
   enableVodafoneCash: boolean;        // Enable/disable Vodafone Cash
   vodafoneCashNumber: string;         // e.g. '01284947782'
   vodafoneCashInstructions: string;
