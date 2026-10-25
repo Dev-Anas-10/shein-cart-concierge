@@ -106,10 +106,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem(SESSION_KEY);
+    try {
+      localStorage.removeItem(SESSION_KEY);
+      sessionStorage.clear();
+    } catch {}
     const sb = getSupabase();
     if (sb) {
       sb.auth.signOut().catch(() => {});
+    }
+    if (typeof window !== 'undefined') {
+      window.location.href = '/';
     }
   };
 

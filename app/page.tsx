@@ -50,6 +50,8 @@ export default function HomePage() {
     // 2. Fetch orders ONLY if logged in (strict privacy)
     if (!user) {
       setRecentOrders([]);
+      setGuestMode(false);
+      setExtractedData(null);
       return;
     }
 
