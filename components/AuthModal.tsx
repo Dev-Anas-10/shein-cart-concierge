@@ -125,6 +125,83 @@ export function AuthModal({ isOpen, onClose, defaultRole = 'user' }: AuthModalPr
     setError(null);
     setGoogleLoading(true);
 
+    const clientId =
+      process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ||
+      '392409310054-et01pph0ao3gt9mfjaq8equ5rh2coa05.apps.googleusercontent.com';
+
+    // 1. Direct Google Identity Services (GIS) Token Client - Initiated directly from app domain, never showing supabase domain
+    if (typeof window !== 'undefined' && window.google?.accounts?.oauth2) {
+      try {
+        const tokenClient = window.google.accounts.oauth2.initTokenClient({
+          client_id: clientId,
+          scope: 'email profile openid',
+          callback: async (tokenResponse: any) => {
+            if (tokenResponse?.error) {
+              console.warn('Google Token Client response note:', tokenResponse);
+              setGoogleLoading(false);
+              return;
+            }
+
+            if (tokenResponse?.access_token) {
+              try {
+                const userRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                  headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
+                });
+                const googleProfile = await userRes.json();
+
+                if (!googleProfile?.email) {
+                  throw new Error('Could not retrieve email from Google');
+                }
+
+                const cleanEmail = googleProfile.email.toLowerCase();
+                const detectedName = googleProfile.name || cleanEmail.split('@')[0];
+                const avatar =
+                  googleProfile.picture ||
+                  `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(detectedName)}`;
+
+                const res = await fetch('/api/auth/google', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    email: cleanEmail,
+                    name: detectedName,
+                    avatar,
+                  }),
+                });
+
+                const data = await res.json();
+                if (res.ok && data.data) {
+                  login(data.data);
+                } else {
+                  login({
+                    id: `google-${googleProfile.sub || Date.now()}`,
+                    name: detectedName,
+                    email: cleanEmail,
+                    avatar,
+                    role: 'user',
+                    createdAt: new Date().toISOString(),
+                  });
+                }
+
+                onClose();
+              } catch (fetchErr: any) {
+                console.error('Error fetching Google userinfo:', fetchErr);
+                setError(fetchErr.message || 'Failed to complete Google Sign In');
+              } finally {
+                setGoogleLoading(false);
+              }
+            }
+          },
+        });
+
+        tokenClient.requestAccessToken({ prompt: 'select_account' });
+        return;
+      } catch (err: any) {
+        console.warn('Direct Google Token Client fallback note:', err);
+      }
+    }
+
+    // 2. Fallback to Supabase OAuth popup if GIS script was blocked
     try {
       const redirectOrigin =
         typeof window !== 'undefined'
