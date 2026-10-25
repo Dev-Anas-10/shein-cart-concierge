@@ -203,8 +203,16 @@ export default function OrderDetailsPage() {
                 {t.totalCashLabel}
               </span>
               <span className="text-2xl sm:text-3xl font-black text-neutral-950 dark:text-white tracking-tight font-mono">
-                {order.totalCash.toLocaleString()}{' '}
-                <span className="text-xs font-black text-[#8B5CF6]">EGP</span>
+                {order.totalCash > 0 ? (
+                  <>
+                    {order.totalCash.toLocaleString()}{' '}
+                    <span className="text-xs font-black text-[#8B5CF6]">EGP</span>
+                  </>
+                ) : (
+                  <span className="text-sm font-bold text-amber-600 dark:text-amber-400">
+                    {isRtl ? 'قيد تسعير المشرف' : 'Pending Admin Pricing'}
+                  </span>
+                )}
               </span>
             </div>
           </div>

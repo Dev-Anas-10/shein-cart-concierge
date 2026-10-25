@@ -26,6 +26,8 @@ interface CartExtractorCardProps {
 export function CartExtractorCard({ onExtracted, currentDynamicFeePercent }: CartExtractorCardProps) {
   const { t, dir } = useThemeLang();
   const [inputText, setInputText] = useState('');
+  const [estimatedSubtotal, setEstimatedSubtotal] = useState('');
+  const [estimatedItemsCount, setEstimatedItemsCount] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [detectedUrl, setDetectedUrl] = useState<string | null>(null);
@@ -66,8 +68,10 @@ export function CartExtractorCard({ onExtracted, currentDynamicFeePercent }: Car
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          text: inputText,
+          text: inputText.trim(),
           dynamicFeePercent: currentDynamicFeePercent,
+          estimatedSubtotal: estimatedSubtotal ? Number(estimatedSubtotal) : undefined,
+          estimatedItemsCount: estimatedItemsCount ? Number(estimatedItemsCount) : undefined,
         }),
       });
 
@@ -180,6 +184,45 @@ export function CartExtractorCard({ onExtracted, currentDynamicFeePercent }: Car
             </span>
           </div>
         </div>
+
+        {/* Optional Customer Self-Reporting for Exact Total & Item Count */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+          <div className="space-y-1 text-start">
+            <label className="text-[11px] font-bold text-neutral-700 dark:text-neutral-300">
+              {dir === 'rtl' ? 'إجمالي السلة في شي إن (جنيه مصري) — اختياري' : 'SHEIN Cart Subtotal in EGP — Optional'}
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="any"
+              value={estimatedSubtotal}
+              onChange={(e) => setEstimatedSubtotal(e.target.value)}
+              placeholder={dir === 'rtl' ? 'مثال: 1250 (أو اتركه فارغاً للمشرف)' : 'e.g. 1250 (or leave blank for admin)'}
+              className="w-full px-3.5 py-2.5 text-xs bg-[#FAFAFC] dark:bg-[#191524] border border-neutral-200/90 dark:border-[#2f2742] rounded-xl focus:outline-none focus:border-[#8B5CF6] font-mono text-neutral-900 dark:text-white"
+            />
+          </div>
+
+          <div className="space-y-1 text-start">
+            <label className="text-[11px] font-bold text-neutral-700 dark:text-neutral-300">
+              {dir === 'rtl' ? 'عدد قطع السلة — اختياري' : 'Number of Items — Optional'}
+            </label>
+            <input
+              type="number"
+              min="1"
+              step="1"
+              value={estimatedItemsCount}
+              onChange={(e) => setEstimatedItemsCount(e.target.value)}
+              placeholder={dir === 'rtl' ? 'مثال: 3 قطع' : 'e.g. 3 items'}
+              className="w-full px-3.5 py-2.5 text-xs bg-[#FAFAFC] dark:bg-[#191524] border border-neutral-200/90 dark:border-[#2f2742] rounded-xl focus:outline-none focus:border-[#8B5CF6] font-mono text-neutral-900 dark:text-white"
+            />
+          </div>
+        </div>
+
+        <p className="text-[11px] text-neutral-400 dark:text-neutral-500 text-start leading-relaxed">
+          {dir === 'rtl'
+            ? '💡 يمكنك كتابة إجمالي السلة الظاهر لديك في تطبيق شي إن لحساب التكلفة الفورية، أو تركه فارغاً ليقوم المشرف بفتح الرابط وتأكيد السعر المعتمد مع أفضل كوبونات خصم.'
+            : '💡 You can enter your cart total for instant calculation, or leave it blank for our supervisor to verify prices & discounts directly on SHEIN.'}
+        </p>
 
         {/* Scraped URL Feedback with Framer Motion AnimatePresence */}
         <AnimatePresence>

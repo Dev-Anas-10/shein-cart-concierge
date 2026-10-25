@@ -267,9 +267,30 @@ export function ExtractedGoodsView({
                         </span>
                       )}
                     </div>
-                    <div className="text-xs font-black text-neutral-900 dark:text-white pt-1">
-                      {item.originalPrice.toLocaleString()} EGP{' '}
-                      <span className="text-neutral-400 font-normal">{isRtl ? '/ للقطعة' : '/ unit'}</span>
+                    <div className="pt-2 flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-bold text-neutral-600 dark:text-neutral-400">
+                        {isRtl ? 'إجمالي السلة على شي إن:' : 'SHEIN Cart Total:'}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="number"
+                          min="0"
+                          value={item.originalPrice || ''}
+                          onChange={(e) => {
+                            const val = Number(e.target.value) || 0;
+                            setItems((prev) =>
+                              prev.map((it) =>
+                                it.id === item.id
+                                  ? { ...it, originalPrice: val, subtotal: val * it.quantity }
+                                  : it
+                              )
+                            );
+                          }}
+                          placeholder={isRtl ? '0 (سيحدده المشرف)' : '0 (Admin will set)'}
+                          className="w-28 px-2.5 py-1 text-xs font-mono font-black bg-neutral-100 dark:bg-[#1f1a2c] border border-neutral-300 dark:border-[#2f2742] rounded-lg text-neutral-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-purple-500"
+                        />
+                        <span className="text-xs font-black text-purple-600 dark:text-purple-400">EGP</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -347,8 +368,16 @@ export function ExtractedGoodsView({
                     {isRtl ? 'المبلغ الإجمالي بالجنيه' : 'Total Cash Required'}
                   </span>
                   <span className="text-2xl font-black text-neutral-950 dark:text-white">
-                    {totalCash.toLocaleString()}{' '}
-                    <span className="text-xs font-bold text-neutral-500">EGP</span>
+                    {totalCash > 0 ? (
+                      <>
+                        {totalCash.toLocaleString()}{' '}
+                        <span className="text-xs font-bold text-neutral-500">EGP</span>
+                      </>
+                    ) : (
+                      <span className="text-sm font-black text-amber-600 dark:text-amber-400">
+                        {isRtl ? 'يحدده المشرف بعد فحص الرابط' : 'Set by admin upon review'}
+                      </span>
+                    )}
                   </span>
                 </div>
               </div>

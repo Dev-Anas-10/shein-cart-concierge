@@ -148,7 +148,9 @@ export async function scrapeSheinLinkMetadata(url: string): Promise<SheinPageMet
  */
 export async function extractSheinGoods(
   rawInput: string,
-  dynamicFeePercent: number = 20
+  dynamicFeePercent: number = 20,
+  estimatedSubtotal?: number,
+  estimatedItemsCount?: number
 ): Promise<ExtractedCartResult> {
   const extractedLink = extractSheinUrl(rawInput);
   if (!extractedLink) {
@@ -157,66 +159,48 @@ export async function extractSheinGoods(
 
   const meta = await scrapeSheinLinkMetadata(extractedLink);
 
-  // Derive products from the cart share with guaranteed working high-resolution images
+  const subtotal = typeof estimatedSubtotal === 'number' && !isNaN(estimatedSubtotal) && estimatedSubtotal > 0
+    ? Math.round(estimatedSubtotal)
+    : 0;
+
+  const count = typeof estimatedItemsCount === 'number' && !isNaN(estimatedItemsCount) && estimatedItemsCount > 0
+    ? Math.round(estimatedItemsCount)
+    : 1;
+
+  // Real, genuine cart package representation based on customer's actual SHEIN link
+  const cartTitle = meta.title && !meta.title.includes('I found some great items') && meta.title !== 'SHEIN Shopping Cart Items'
+    ? meta.title
+    : 'سلة مشتريات شي إن المجمعة (SHEIN Cart)';
+
   const items: GoodItem[] = [
     {
-      id: 'item-1',
-      name: 'SHEIN Frenchy Solid Notch Neck Long Sleeve Top & Trousers Set',
-      image: meta.image && meta.image !== RELIABLE_FASHION_IMAGES[0]
-        ? meta.image
-        : RELIABLE_FASHION_IMAGES[0],
+      id: `shein-cart-${Date.now()}`,
+      name: cartTitle,
+      image: meta.image || RELIABLE_FASHION_IMAGES[0],
       originalUrl: extractedLink,
-      sku: 'sz240819129532890',
-      color: 'Mocha Brown',
-      size: 'M',
-      originalPrice: 650,
+      sku: meta.shc ? `SHC: ${meta.shc}` : (meta.groupId ? `GROUP: ${meta.groupId}` : 'SHEIN-CART'),
+      color: 'حسب اختياراتك في السلة',
+      size: count > 1 ? `${count} قطع مختلفة` : 'حسب اختياراتك في السلة',
+      originalPrice: subtotal,
       currency: 'EGP',
       quantity: 1,
-      subtotal: 650,
-      status: 'available',
-    },
-    {
-      id: 'item-2',
-      name: 'SHEIN EZwear Casual Drop Shoulder Ribbed Knit Cardigan',
-      image: RELIABLE_FASHION_IMAGES[1],
-      originalUrl: extractedLink,
-      sku: 'sw23080447382910',
-      color: 'Oatmeal Beige',
-      size: 'L',
-      originalPrice: 420,
-      currency: 'EGP',
-      quantity: 1,
-      subtotal: 420,
-      status: 'available',
-    },
-    {
-      id: 'item-3',
-      name: 'SHEIN Minimalist Quilted Shoulder Crossbody Bag With Chain',
-      image: RELIABLE_FASHION_IMAGES[2],
-      originalUrl: extractedLink,
-      sku: 'sg2310118837190',
-      color: 'Classic Black',
-      size: 'One Size',
-      originalPrice: 380,
-      currency: 'EGP',
-      quantity: 1,
-      subtotal: 380,
+      subtotal: subtotal,
       status: 'available',
     },
   ];
 
   const itemsSubtotal = items.reduce((sum, item) => sum + item.subtotal, 0);
-  const dynamicFeeAmount = Math.round(itemsSubtotal * (dynamicFeePercent / 100));
+  const dynamicFeeAmount = itemsSubtotal > 0 ? Math.round(itemsSubtotal * (dynamicFeePercent / 100)) : 0;
   const totalCash = itemsSubtotal + dynamicFeeAmount;
 
   return {
     rawInput,
     extractedLink,
-    title: meta.title,
-    description: meta.description,
+    title: cartTitle,
+    description: meta.description || 'سلة مشترياتك المشتركة من تطبيق شي إن، جاهزة للتسعير والمراجعة والتوصيل.',
     coverImage: meta.image || RELIABLE_FASHION_IMAGES[0],
-    shareCode: meta.shc || '2_RNmYr2Mxf4g',
-    groupId: meta.groupId || '912245215',
+    shareCode: meta.shc || 'SHEIN-CART',
+    groupId: meta.groupId || '',
     items,
     itemsSubtotal,
     dynamicFeePercent,

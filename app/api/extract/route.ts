@@ -31,7 +31,24 @@ export async function POST(req: NextRequest) {
       ? body.dynamicFeePercent
       : settings.dynamicFeePercent || 20;
 
-    const extracted = await extractSheinGoods(rawInput, dynamicFeePercent);
+    const estimatedSubtotal = typeof body.estimatedSubtotal === 'number'
+      ? body.estimatedSubtotal
+      : (typeof body.estimatedSubtotal === 'string' && !isNaN(Number(body.estimatedSubtotal)))
+      ? Number(body.estimatedSubtotal)
+      : undefined;
+
+    const estimatedItemsCount = typeof body.estimatedItemsCount === 'number'
+      ? body.estimatedItemsCount
+      : (typeof body.estimatedItemsCount === 'string' && !isNaN(Number(body.estimatedItemsCount)))
+      ? Number(body.estimatedItemsCount)
+      : undefined;
+
+    const extracted = await extractSheinGoods(
+      rawInput,
+      dynamicFeePercent,
+      estimatedSubtotal,
+      estimatedItemsCount
+    );
 
     return NextResponse.json({
       success: true,
