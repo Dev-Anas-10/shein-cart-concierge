@@ -41,9 +41,14 @@ export default function HomePage() {
       })
       .catch((err) => console.error(err));
 
-    // 2. Fetch orders and merge with client-saved orders
-    const clientSaved = getClientOrders();
-    fetch('/api/orders')
+    // 2. Fetch orders ONLY if logged in (strict privacy)
+    if (!user) {
+      setRecentOrders([]);
+      return;
+    }
+
+    const clientSaved = getClientOrders(user.id, user.email);
+    fetch(`/api/orders?userId=${encodeURIComponent(user.id)}&userEmail=${encodeURIComponent(user.email || '')}`)
       .then((r) => r.json())
       .then((data) => {
         if (data.success) {
@@ -58,7 +63,7 @@ export default function HomePage() {
           setRecentOrders(clientSaved.slice(0, 3));
         }
       });
-  }, []);
+  }, [user]);
 
   const handleOrderCreated = (orderId: string) => {
     router.push(`/orders/${orderId}`);
@@ -90,8 +95,8 @@ export default function HomePage() {
               currentDynamicFeePercent={settings?.dynamicFeePercent || 20}
             />
 
-            {/* Latest Orders / Activity Section (Inspired directly by Screen 2) */}
-            {recentOrders.length > 0 && (
+            {/* Latest Orders / Activity Section (Visible only when user is logged in) */}
+            {user && recentOrders.length > 0 && (
               <div className="space-y-4 pt-2">
                 <div className="flex items-center justify-between px-1">
                   <h3 className="font-extrabold text-neutral-900 text-lg">

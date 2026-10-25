@@ -118,7 +118,7 @@ export default function AdminDashboardPage() {
     setLoading(true);
     try {
       const [ordersRes, settingsRes] = await Promise.all([
-        fetch('/api/orders'),
+        fetch('/api/orders?admin=true'),
         fetch('/api/settings'),
       ]);
 

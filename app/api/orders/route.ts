@@ -11,6 +11,13 @@ export async function GET(req: NextRequest) {
     const status = searchParams.get('status') || undefined;
     const search = searchParams.get('search') || undefined;
 
+    const isAdmin = searchParams.get('admin') === 'true';
+
+    // Privacy & Multi-user isolation: If neither user identity nor admin flag is provided, return empty array!
+    if (!userId && !userEmail && !userPhone && !isAdmin) {
+      return NextResponse.json({ success: true, data: [] });
+    }
+
     const orders = await db.getOrders({ userId, userEmail, userPhone, status, search });
     return NextResponse.json({ success: true, data: orders });
   } catch (err: any) {

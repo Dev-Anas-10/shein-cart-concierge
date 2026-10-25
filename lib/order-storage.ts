@@ -2,13 +2,23 @@ import { Order } from './types';
 
 const CLIENT_ORDERS_KEY = 'shein_concierge_client_orders';
 
-export function getClientOrders(): Order[] {
+export function getClientOrders(filterUserId?: string, filterEmail?: string): Order[] {
   if (typeof window === 'undefined') return [];
+  // For privacy, if no user is specified, return nothing!
+  if (!filterUserId && !filterEmail) return [];
+
   try {
     const raw = localStorage.getItem(CLIENT_ORDERS_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+
+    const lowerEmail = filterEmail?.toLowerCase().trim();
+    return parsed.filter((o: Order) => {
+      if (filterUserId && o.userId === filterUserId) return true;
+      if (lowerEmail && o.userEmail && o.userEmail.toLowerCase().trim() === lowerEmail) return true;
+      return false;
+    });
   } catch (err) {
     console.warn('Error reading client orders:', err);
     return [];
@@ -18,14 +28,15 @@ export function getClientOrders(): Order[] {
 export function saveClientOrder(order: Order): void {
   if (typeof window === 'undefined') return;
   try {
-    const current = getClientOrders();
-    const existingIdx = current.findIndex((o) => o.id === order.id);
+    const raw = localStorage.getItem(CLIENT_ORDERS_KEY);
+    const current: Order[] = raw ? JSON.parse(raw) : [];
+    const existingIdx = Array.isArray(current) ? current.findIndex((o) => o.id === order.id) : -1;
     let updated: Order[];
     if (existingIdx >= 0) {
       updated = [...current];
       updated[existingIdx] = order;
     } else {
-      updated = [order, ...current];
+      updated = [order, ...(Array.isArray(current) ? current : [])];
     }
     localStorage.setItem(CLIENT_ORDERS_KEY, JSON.stringify(updated));
   } catch (err) {

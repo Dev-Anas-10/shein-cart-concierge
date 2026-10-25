@@ -20,6 +20,9 @@ import {
   ArrowRight,
   RefreshCw,
   Sparkles,
+  Lock,
+  User,
+  ShieldCheck,
 } from 'lucide-react';
 
 export default function UserOrdersPage() {
@@ -29,13 +32,17 @@ export default function UserOrdersPage() {
   const [loading, setLoading] = useState(true);
 
   const fetchOrders = async () => {
+    // Strict multi-user privacy: Never fetch or show orders if not logged in!
+    if (!user) {
+      setOrders([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
-    const clientSaved = getClientOrders();
+    const clientSaved = getClientOrders(user.id, user.email);
     try {
-      let url = '/api/orders';
-      if (user?.id) {
-        url = `/api/orders?userId=${encodeURIComponent(user.id)}&userEmail=${encodeURIComponent(user.email || '')}`;
-      }
+      const url = `/api/orders?userId=${encodeURIComponent(user.id)}&userEmail=${encodeURIComponent(user.email || '')}`;
       const res = await fetch(url);
       const json = await res.json();
       if (json.success) {
@@ -94,9 +101,42 @@ export default function UserOrdersPage() {
           </div>
         </div>
 
-        {/* Orders List */}
+        {/* Orders List / Login Gate */}
         <div className="space-y-3.5">
-          {loading ? (
+          {!user ? (
+            <div className="bg-white rounded-[32px] p-10 sm:p-14 text-center border border-neutral-100 shadow-[0_4px_24px_rgb(0,0,0,0.03)] space-y-6 max-w-lg mx-auto">
+              <div className="w-18 h-18 rounded-3xl bg-[#F5EDFF] text-[#8B5CF6] flex items-center justify-center mx-auto shadow-xs">
+                <Lock className="w-9 h-9" />
+              </div>
+              <div className="space-y-2">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#F5EDFF] text-[#8B5CF6] text-[11px] font-black uppercase tracking-wider">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>حماية الخصوصية والمعاملات</span>
+                </div>
+                <h3 className="text-2xl font-black text-neutral-900 tracking-tight">
+                  تسجيل الدخول مطلوب لعرض طلباتك
+                </h3>
+                <p className="text-xs sm:text-sm text-neutral-500 max-w-sm mx-auto leading-relaxed">
+                  للحفاظ على خصوصية معاملاتك وأمان بياناتك، يرجى تسجيل الدخول أو إنشاء حساب لعرض ومتابعة شحناتك السابقة.
+                </p>
+              </div>
+              <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+                <button
+                  onClick={() => setAuthOpen(true)}
+                  className="w-full sm:w-auto px-7 py-3.5 bg-[#8B5CF6] hover:bg-[#7C3AED] text-white rounded-2xl text-xs font-black shadow-md shadow-purple-500/20 transition-all active:scale-95 cursor-pointer inline-flex items-center justify-center gap-2"
+                >
+                  <User className="w-4 h-4" />
+                  <span>تسجيل الدخول / إنشاء حساب</span>
+                </button>
+                <Link
+                  href="/"
+                  className="w-full sm:w-auto px-6 py-3.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded-2xl text-xs font-bold transition-all text-center"
+                >
+                  الرئيسية
+                </Link>
+              </div>
+            </div>
+          ) : loading ? (
             <div className="bg-white rounded-[32px] p-14 text-center border border-neutral-100 shadow-[0_4px_24px_rgb(0,0,0,0.03)] text-neutral-500">
               <div className="w-8 h-8 border-3 border-[#8B5CF6] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
               <p className="text-xs font-bold uppercase tracking-wider text-neutral-400">Loading your orders...</p>
