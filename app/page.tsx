@@ -11,6 +11,7 @@ import { Navbar } from '@/components/Navbar';
 import { CartExtractorCard } from '@/components/CartExtractorCard';
 import { ExtractedGoodsView } from '@/components/ExtractedGoodsView';
 import { AuthModal } from '@/components/AuthModal';
+import { FullPageLoginCard } from '@/components/FullPageLoginCard';
 import { getClientOrders, mergeAndDeduplicateOrders } from '@/lib/order-storage';
 import { SafeImage } from '@/components/SafeImage';
 import {
@@ -28,8 +29,9 @@ import {
 
 export default function HomePage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
   const { t, dir } = useThemeLang();
+  const [guestMode, setGuestMode] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [extractedData, setExtractedData] = useState<ExtractedCartResult | null>(null);
   const [settings, setSettings] = useState<SystemSettings | null>(null);
@@ -89,6 +91,18 @@ export default function HomePage() {
     hidden: { opacity: 0, y: 16 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.45, ease: [0.16, 1, 0.3, 1] as const } },
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#0A0713] flex items-center justify-center">
+        <div className="w-9 h-9 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user && !guestMode) {
+    return <FullPageLoginCard onGuestContinue={() => setGuestMode(true)} />;
+  }
 
   return (
     <div className="min-h-screen bg-[#FBFBFC] dark:bg-[#0c0a0f] text-neutral-900 dark:text-white pb-24 transition-colors relative overflow-hidden">
