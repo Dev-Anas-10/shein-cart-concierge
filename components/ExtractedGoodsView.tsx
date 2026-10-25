@@ -311,16 +311,6 @@ export function ExtractedGoodsView({
                         <span className="text-sm font-black text-purple-700 dark:text-purple-300 font-mono">
                           {item.originalPrice.toLocaleString()} EGP
                         </span>
-                        {item.sourcePrice && (
-                          <span className="text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 font-mono bg-neutral-100 dark:bg-[#1c1728] px-2 py-0.5 rounded-md border border-neutral-200/50 dark:border-[#2b243b]">
-                            {item.sourcePrice} {item.sourceCurrency || 'SAR'}
-                            {item.sourceOriginalPrice && item.sourceOriginalPrice !== item.sourcePrice && (
-                              <span className="line-through text-neutral-400 mx-1 text-[10px]">
-                                {item.sourceOriginalPrice}
-                              </span>
-                            )}
-                          </span>
-                        )}
                       </div>
 
                       {item.originalUrl && (
@@ -395,15 +385,17 @@ export function ExtractedGoodsView({
                 </span>
               </div>
 
-              <div className="flex items-center justify-between text-neutral-600 dark:text-neutral-300">
-                <span className="flex items-center gap-1.5">
-                  <Percent className="w-3.5 h-3.5 text-[#8B5CF6]" />
-                  <span>{isRtl ? `رسوم خدمة Concierge (${data.dynamicFeePercent}%)` : `Dynamic Concierge Fee (${data.dynamicFeePercent}%)`}</span>
-                </span>
-                <span className="font-black text-[#7C3AED] dark:text-purple-300 font-mono">
-                  +{dynamicFeeAmount.toLocaleString()} EGP
-                </span>
-              </div>
+              {(data.dynamicFeePercent || 0) > 0 && dynamicFeeAmount > 0 && (
+                <div className="flex items-center justify-between text-neutral-600 dark:text-neutral-300">
+                  <span className="flex items-center gap-1.5">
+                    <Percent className="w-3.5 h-3.5 text-[#8B5CF6]" />
+                    <span>{isRtl ? `رسوم خدمة Concierge (${data.dynamicFeePercent}%)` : `Dynamic Concierge Fee (${data.dynamicFeePercent}%)`}</span>
+                  </span>
+                  <span className="font-black text-[#7C3AED] dark:text-purple-300 font-mono">
+                    +{dynamicFeeAmount.toLocaleString()} EGP
+                  </span>
+                </div>
+              )}
 
               <div className="pt-3 border-t border-neutral-100 dark:border-[#221c2d] flex items-center justify-between">
                 <div>

@@ -111,44 +111,56 @@ export async function resolveSheinLink(inputUrl: string): Promise<ResolvedTarget
 
   const firstHtml = await firstRes.text();
 
-  // 1. Check for deeplink: <input id="deeplink" value="sheinlink://applink/share_receiver?data=...">
-  const dlMatch = firstHtml.match(/id=["']deeplink["']\s+value=["']([^"']+)["']/i);
-  if (dlMatch && dlMatch[1]) {
-    const rawDl = dlMatch[1].replace(/&amp;/g, '&');
-    const dataMatch = rawDl.match(/data=([^&]+)/);
-    if (dataMatch && dataMatch[1]) {
-      try {
-        const decoded = JSON.parse(decodeURIComponent(dataMatch[1]));
-        if (decoded.group_id) gid = String(decoded.group_id);
-        if (decoded.shc) shc = decoded.shc;
-        if (decoded.local_country) country = decoded.local_country;
-      } catch (err) {
-        // ignore parse error
+  // Parse all input tags to extract deeplink or appjump url regardless of attribute ordering
+  const inputTags = firstHtml.match(/<input\b[^>]*>/gi) || [];
+  let appjump: string | null = null;
+
+  for (const tag of inputTags) {
+    // 1. Deeplink: <input id="deeplink" value="sheinlink://applink/share_receiver?data=...">
+    if (/\bid=["']deeplink["']/i.test(tag)) {
+      const vm = tag.match(/\bvalue=["']([^"']+)["']/i);
+      if (vm && vm[1]) {
+        const rawDl = vm[1].replace(/&amp;/g, '&');
+        const dataMatch = rawDl.match(/data=([^&]+)/);
+        if (dataMatch && dataMatch[1]) {
+          try {
+            const decoded = JSON.parse(decodeURIComponent(dataMatch[1]));
+            if (decoded.group_id) gid = String(decoded.group_id);
+            if (decoded.shc) shc = decoded.shc;
+            if (decoded.local_country) country = decoded.local_country;
+          } catch (err) {
+            // ignore parse error
+          }
+        }
+      }
+    }
+
+    // 2. Appjump: <input id="url" value="...">
+    if (/\bid=["']url["']/i.test(tag) && !appjump) {
+      const vm = tag.match(/\bvalue=["']([^"']+)["']/i);
+      if (vm && vm[1]) {
+        appjump = vm[1].replace(/&amp;/g, '&');
       }
     }
   }
 
-  // 2. If not found in deeplink, check for appjump URL: <input id="url" value="...">
-  if (!gid) {
-    const urlMatch = firstHtml.match(/id=["']url["']\s+value=["']([^"']+)["']/i);
-    if (urlMatch && urlMatch[1]) {
-      const appjump = urlMatch[1].replace(/&amp;/g, '&');
-      try {
-        const jumpRes = await fetch(appjump, {
-          headers: { 'User-Agent': MOBILE_UA, Accept: 'text/html,*/*' },
-        });
-        if (jumpRes.ok) {
-          const jumpHtml = await jumpRes.text();
-          const shareInfoMatch = jumpHtml.match(/var\s+shareInfo\s*=\s*(\{[\s\S]*?\})\s*;/);
-          if (shareInfoMatch && shareInfoMatch[1]) {
-            const info = JSON.parse(shareInfoMatch[1]);
-            gid = String(info.id || info.shareId || '');
-            if (info.localcountry) country = String(info.localcountry);
-          }
+  // If gid not in deeplink, fetch appjump URL
+  if (!gid && appjump) {
+    try {
+      const jumpRes = await fetch(appjump, {
+        headers: { 'User-Agent': MOBILE_UA, Accept: 'text/html,*/*' },
+      });
+      if (jumpRes.ok) {
+        const jumpHtml = await jumpRes.text();
+        const shareInfoMatch = jumpHtml.match(/var\s+shareInfo\s*=\s*(\{[\s\S]*?\})\s*;/);
+        if (shareInfoMatch && shareInfoMatch[1]) {
+          const info = JSON.parse(shareInfoMatch[1]);
+          gid = String(info.id || info.shareId || '');
+          if (info.localcountry) country = String(info.localcountry);
         }
-      } catch (err) {
-        console.warn('Failed to resolve appjump URL:', err);
       }
+    } catch (err) {
+      console.warn('Failed to resolve appjump URL:', err);
     }
   }
 
@@ -268,10 +280,11 @@ export async function scrapeSheinLinkMetadata(url: string): Promise<SheinPageMet
  */
 export async function extractSheinGoods(
   rawInput: string,
-  dynamicFeePercent: number = 20,
+  dynamicFeePercent: number = 0,
   estimatedSubtotal?: number,
   estimatedItemsCount?: number,
-  sarToEgpRate: number = 13.5
+  sarToEgpRate: number = 15.0,
+  profitMarginPercent: number = 10.0
 ): Promise<ExtractedCartResult> {
   const extractedLink = extractSheinUrl(rawInput);
   if (!extractedLink) {
@@ -307,17 +320,20 @@ export async function extractSheinGoods(
       };
     });
 
-    // 4. Map to GoodItem[] in EGP
+    // 4. Map to GoodItem[] in EGP using Dynamic Formula: (SAR Price * Exchange Rate) + Profit Margin %
     const items: GoodItem[] = sheinProducts.map((sp) => {
       const { color, size } = parseVariantAttr(sp.selected_variant);
       const saleNum = parseFloat(sp.sale_price) || 0;
-      const egpPrice = Math.round(saleNum * sarToEgpRate);
+      
+      // Dynamic Pricing: e.g. 10 SAR * 15 EGP = 150 EGP + 10% profit margin = 165 EGP
+      const baseEgp = saleNum * sarToEgpRate;
+      const egpPrice = Math.round(baseEgp * (1 + profitMarginPercent / 100));
 
       return {
         id: sp.goods_id,
         name: sp.name,
         image: sp.image,
-        originalUrl: `https://www.shein.com/product-p-${sp.goods_id}.html`,
+        originalUrl: `https://m.shein.com/ar/product-p-${sp.goods_id}.html`,
         sku: sp.sku_code || sp.goods_sn,
         color,
         size,
@@ -333,7 +349,8 @@ export async function extractSheinGoods(
     });
 
     const itemsSubtotal = items.reduce((sum, item) => sum + item.subtotal, 0);
-    const dynamicFeeAmount = Math.round(itemsSubtotal * (dynamicFeePercent / 100));
+    // Dynamic fee is already baked into each product's price, keep 0 to avoid double charging
+    const dynamicFeeAmount = dynamicFeePercent > 0 ? Math.round(itemsSubtotal * (dynamicFeePercent / 100)) : 0;
     const totalCash = itemsSubtotal + dynamicFeeAmount;
 
     return {

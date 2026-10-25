@@ -131,8 +131,10 @@ export default function AdminDashboardPage() {
   const [settingsTab, setSettingsTab] = useState<'payments' | 'support' | 'sections' | 'custom_sections'>('payments');
   const [savingSettings, setSavingSettings] = useState(false);
 
-  // 1. Payments & Wallets
-  const [editFeePercent, setEditFeePercent] = useState(20);
+  // 1. Dynamic Pricing & Currency
+  const [editSarToEgpRate, setEditSarToEgpRate] = useState(15.0);
+  const [editProfitMarginPercent, setEditProfitMarginPercent] = useState(10.0);
+  const [editFeePercent, setEditFeePercent] = useState(0);
   const [editFlatShippingFee, setEditFlatShippingFee] = useState(0);
   const [editShowPaymentInSupport, setEditShowPaymentInSupport] = useState(true);
   const [editEnableInstapay, setEditEnableInstapay] = useState(true);
@@ -196,7 +198,9 @@ export default function AdminDashboardPage() {
       if (settingsJson.success) {
         const s: SystemSettings = settingsJson.data;
         setSettings(s);
-        setEditFeePercent(s.dynamicFeePercent ?? 20);
+        setEditFeePercent(s.dynamicFeePercent ?? 0);
+        setEditSarToEgpRate(s.sarToEgpRate ?? 15.0);
+        setEditProfitMarginPercent(s.profitMarginPercent ?? 10.0);
         setEditFlatShippingFee(s.flatShippingFee ?? 0);
         setEditShowPaymentInSupport(s.showPaymentInSupport ?? true);
         setEditEnableInstapay(s.enableInstapay ?? true);
@@ -365,7 +369,9 @@ export default function AdminDashboardPage() {
     setSavingSettings(true);
     try {
       const payload: Partial<SystemSettings> = {
-        dynamicFeePercent: Number(editFeePercent) || 20,
+        dynamicFeePercent: Number(editFeePercent) || 0,
+        sarToEgpRate: Number(editSarToEgpRate) || 15.0,
+        profitMarginPercent: Number(editProfitMarginPercent) ?? 10.0,
         flatShippingFee: Number(editFlatShippingFee) || 0,
         showPaymentInSupport: editShowPaymentInSupport,
         enableInstapay: editEnableInstapay,
@@ -1100,6 +1106,11 @@ export default function AdminDashboardPage() {
                                 {item.color && <span>Color: <strong>{item.color}</strong></span>}
                                 {item.size && <span>Size: <strong>{item.size}</strong></span>}
                                 {item.sku && <span className="font-mono">{item.sku}</span>}
+                                {item.sourcePrice && (
+                                  <span className="px-2 py-0.5 rounded-md bg-purple-100 text-purple-800 font-mono font-bold text-[10px] border border-purple-200">
+                                    المتجر السعودي: {item.sourcePrice} {item.sourceCurrency || 'SAR'}
+                                  </span>
+                                )}
                               </div>
 
                               {/* Reject / Approve Product Toggle Button */}
@@ -1418,6 +1429,90 @@ export default function AdminDashboardPage() {
               {/* TAB 1: PAYMENTS & WALLETS */}
               {settingsTab === 'payments' && (
                 <div className="space-y-6 animate-in fade-in duration-200">
+                  {/* Dynamic Pricing Engine (Admin Only) */}
+                  <div className="p-5 bg-gradient-to-br from-purple-50/90 via-white to-purple-50/40 rounded-3xl border-2 border-purple-200 shadow-xs space-y-4">
+                    <div className="flex items-center justify-between pb-2 border-b border-purple-100">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full bg-purple-600 animate-pulse" />
+                          <h4 className="font-black text-neutral-950 text-sm">
+                            محرك التسعير الديناميكي لمنتجات شي إن (Dynamic Pricing Engine)
+                          </h4>
+                        </div>
+                        <p className="text-[11px] text-neutral-500 mt-0.5">
+                          تحديد سعر صرف الريال وهامش الربح المطلوب — يتم احتساب السعر بالجنيه تلقائياً دون كشف تفاصيل المعادلة للعميل.
+                        </p>
+                      </div>
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-purple-100 text-purple-700 border border-purple-200">
+                        متحكم فيه بالكامل
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block font-black text-neutral-800 text-xs mb-1">
+                          سعر صرف الريال السعودي (SAR to EGP)
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            step="0.1"
+                            min={1}
+                            max={100}
+                            required
+                            value={editSarToEgpRate}
+                            onChange={(e) => setEditSarToEgpRate(Number(e.target.value))}
+                            className="w-full pl-20 pr-3.5 py-2.5 bg-white border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-600 font-black text-sm"
+                          />
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-neutral-400">
+                            ج.م / ريال
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-neutral-500 mt-1">القيمة الحالية: {editSarToEgpRate} جنيه مصري لكل 1 ريال سعودي.</p>
+                      </div>
+
+                      <div>
+                        <label className="block font-black text-neutral-800 text-xs mb-1">
+                          نسبة هامش الربح المضافة للمنتج (%)
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            step="0.5"
+                            min={0}
+                            max={100}
+                            required
+                            value={editProfitMarginPercent}
+                            onChange={(e) => setEditProfitMarginPercent(Number(e.target.value))}
+                            className="w-full pl-10 pr-3.5 py-2.5 bg-white border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-600 font-black text-sm"
+                          />
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-neutral-400">
+                            %
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-neutral-500 mt-1">تضاف تلقائياً فوق السعر المحول بالجنيه (افتراضياً 10%).</p>
+                      </div>
+                    </div>
+
+                    {/* Interactive Live Formula Preview */}
+                    <div className="p-3.5 bg-white rounded-2xl border border-purple-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+                      <div className="space-y-1 text-center sm:text-right">
+                        <span className="font-extrabold text-purple-900 block">
+                          💡 تجربة حية للمعادلة (Live Preview):
+                        </span>
+                        <div className="font-mono text-neutral-600 text-[11px]">
+                          منتج بسعر <strong>10 ريال</strong> × {editSarToEgpRate} = <strong>{(10 * editSarToEgpRate).toFixed(1)} ج.م</strong> + {editProfitMarginPercent}% ربح
+                        </div>
+                      </div>
+                      <div className="text-center sm:text-left bg-purple-50 px-4 py-2 rounded-xl border border-purple-200/80">
+                        <span className="text-[10px] font-bold text-purple-700 block">السعر النهائي الذي يظهر للعميل:</span>
+                        <span className="font-black text-base text-purple-950 font-mono">
+                          {Math.round((10 * editSarToEgpRate) * (1 + editProfitMarginPercent / 100))} EGP
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Dynamic Fee & Shipping */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-5 bg-neutral-50 rounded-2xl border border-neutral-200/80">
                     <div>

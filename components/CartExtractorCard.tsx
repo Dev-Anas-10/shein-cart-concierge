@@ -112,9 +112,11 @@ export function CartExtractorCard({ onExtracted, currentDynamicFeePercent }: Car
               <Sparkles className="w-3.5 h-3.5 text-[#8B5CF6]" />
               {t.extractorBadge}
             </span>
-            <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-neutral-100 dark:bg-[#201a2d] text-neutral-600 dark:text-neutral-400 text-[11px] font-semibold border border-neutral-200/60 dark:border-[#2f2742]">
-              +{currentDynamicFeePercent}% {t.feeLabel}
-            </span>
+            {currentDynamicFeePercent > 0 && (
+              <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-neutral-100 dark:bg-[#201a2d] text-neutral-600 dark:text-neutral-400 text-[11px] font-semibold border border-neutral-200/60 dark:border-[#2f2742]">
+                +{currentDynamicFeePercent}% {t.feeLabel}
+              </span>
+            )}
           </div>
 
           <h2 className="text-2xl sm:text-3xl font-black text-neutral-900 dark:text-white tracking-tight">

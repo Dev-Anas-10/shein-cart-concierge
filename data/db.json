@@ -493,10 +493,11 @@
     }
   ],
   "settings": {
-    "dynamicFeePercent": 20,
+    "dynamicFeePercent": 0,
+    "profitMarginPercent": 10,
     "flatShippingFee": 0,
     "currency": "EGP",
-    "sarToEgpRate": 13.5,
+    "sarToEgpRate": 15,
     "usdToEgpRate": 50,
     "showPaymentInSupport": true,
     "enableInstapay": true,
@@ -555,7 +556,7 @@
             "icon": "Truck"
           }
         ],
-        "createdAt": "2026-10-25T14:33:26.888Z"
+        "createdAt": "2026-10-25T15:05:33.126Z"
       }
     ]
   }

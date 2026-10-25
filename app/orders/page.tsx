@@ -314,10 +314,14 @@ export default function UserOrdersPage() {
                             <span>
                               {t.placedOn} {new Date(order.createdAt).toLocaleDateString()}
                             </span>
-                            <span>•</span>
-                            <span>
-                              {t.feeLabel} {order.dynamicFeePercent}% ({order.dynamicFeeAmount} EGP)
-                            </span>
+                            {(order.dynamicFeeAmount || 0) > 0 && (
+                              <>
+                                <span>•</span>
+                                <span>
+                                  {t.feeLabel} {order.dynamicFeePercent}% ({order.dynamicFeeAmount} EGP)
+                                </span>
+                              </>
+                            )}
                           </div>
                         </div>
                       </div>

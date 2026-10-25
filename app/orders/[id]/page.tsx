@@ -459,11 +459,15 @@ export default function OrderDetailsPage() {
                 {isRtl ? 'إجمالي المنتجات:' : 'Items:'}{' '}
                 <strong className="font-mono">{order.itemsSubtotal.toLocaleString()} EGP</strong>
               </span>
-              <span>•</span>
-              <span className="text-[#7C3AED] dark:text-purple-300">
-                {isRtl ? 'رسوم الخدمة' : 'Concierge Fee'} ({order.dynamicFeePercent}%):{' '}
-                <strong className="font-mono">+{order.dynamicFeeAmount.toLocaleString()} EGP</strong>
-              </span>
+              {(order.dynamicFeeAmount || 0) > 0 && (
+                <>
+                  <span>•</span>
+                  <span className="text-[#7C3AED] dark:text-purple-300">
+                    {isRtl ? 'رسوم الخدمة' : 'Concierge Fee'} ({order.dynamicFeePercent}%):{' '}
+                    <strong className="font-mono">+{order.dynamicFeeAmount.toLocaleString()} EGP</strong>
+                  </span>
+                </>
+              )}
             </div>
             <div className="font-black text-sm text-neutral-950 dark:text-white font-mono">
               {isRtl ? 'المبلغ الإجمالي:' : 'Total Cash:'} {order.totalCash.toLocaleString()} EGP

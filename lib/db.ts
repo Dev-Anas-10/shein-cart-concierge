@@ -23,10 +23,11 @@ interface DatabaseSchema {
 /* ─────────────────────────────── Defaults ─────────────────────────── */
 
 const DEFAULT_SETTINGS: SystemSettings = {
-  dynamicFeePercent: 20,
+  dynamicFeePercent: 0,
+  profitMarginPercent: 10,
   flatShippingFee: 0,
   currency: 'EGP',
-  sarToEgpRate: 13.5,
+  sarToEgpRate: 15.0,
   usdToEgpRate: 50.0,
   showPaymentInSupport: true,
   enableInstapay: true,

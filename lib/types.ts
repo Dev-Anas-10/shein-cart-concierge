@@ -149,9 +149,10 @@ export interface CustomSection {
 export interface SystemSettings {
   // Pricing & Fees
   dynamicFeePercent: number;    // Default 20
+  profitMarginPercent?: number; // e.g. 10% (profit margin baked directly into product EGP price)
   flatShippingFee: number;      // Default 0 or 50 EGP
   currency: string;             // 'EGP'
-  sarToEgpRate?: number;        // Exchange rate SAR to EGP (Default: 13.5)
+  sarToEgpRate?: number;        // Exchange rate SAR to EGP (Default: 15.0)
   usdToEgpRate?: number;        // Exchange rate USD to EGP (Default: 50.0)
 
   // Payment Options & Details

@@ -25,11 +25,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Get current dynamic fee percent configured in settings
+    // Dynamic Pricing: Admin controlled SAR rate & Profit Margin %
     const settings = await db.getSettings();
     const dynamicFeePercent = typeof body.dynamicFeePercent === 'number'
       ? body.dynamicFeePercent
-      : settings.dynamicFeePercent || 20;
+      : (settings.dynamicFeePercent || 0);
+
+    const sarToEgpRate = typeof body.sarToEgpRate === 'number'
+      ? body.sarToEgpRate
+      : (settings.sarToEgpRate || 15.0);
+
+    const profitMarginPercent = typeof body.profitMarginPercent === 'number'
+      ? body.profitMarginPercent
+      : (settings.profitMarginPercent ?? 10.0);
 
     const estimatedSubtotal = typeof body.estimatedSubtotal === 'number'
       ? body.estimatedSubtotal
@@ -43,16 +51,13 @@ export async function POST(req: NextRequest) {
       ? Number(body.estimatedItemsCount)
       : undefined;
 
-    const sarToEgpRate = typeof body.sarToEgpRate === 'number'
-      ? body.sarToEgpRate
-      : (settings.sarToEgpRate || 13.5);
-
     const extracted = await extractSheinGoods(
       rawInput,
       dynamicFeePercent,
       estimatedSubtotal,
       estimatedItemsCount,
-      sarToEgpRate
+      sarToEgpRate,
+      profitMarginPercent
     );
 
     return NextResponse.json({
