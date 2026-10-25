@@ -27,8 +27,6 @@ import {
   CreditCard,
   X,
   AlertCircle,
-  Code2,
-  Copy,
   Check,
 } from 'lucide-react';
 
@@ -54,8 +52,6 @@ export function ExtractedGoodsView({
   const handleBack = onBack || onReset || (() => {});
   const [items, setItems] = useState<GoodItem[]>(data.items);
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
-  const [showJsonModal, setShowJsonModal] = useState(false);
-  const [copiedJson, setCopiedJson] = useState(false);
 
   // Customer contact info
   const [customerName, setCustomerName] = useState(user?.name || '');
@@ -63,30 +59,6 @@ export function ExtractedGoodsView({
   const [shippingAddress, setShippingAddress] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const productsJsonString = JSON.stringify(
-    data.sheinProducts ||
-      items.map((it) => ({
-        goods_id: it.id,
-        goods_sn: it.sku || '',
-        name: it.name,
-        image: it.image,
-        original_price: it.sourceOriginalPrice || it.sourcePrice || String(it.originalPrice),
-        sale_price: it.sourcePrice || String(it.originalPrice),
-        currency: it.sourceCurrency || 'SAR',
-        selected_variant: [it.color, it.size].filter(Boolean).join(' / '),
-        sku_code: it.sku || '',
-        sold_out: it.status === 'out_of_stock',
-      })),
-    null,
-    2
-  );
-
-  const handleCopyJson = () => {
-    navigator.clipboard.writeText(productsJsonString);
-    setCopiedJson(true);
-    setTimeout(() => setCopiedJson(false), 2000);
-  };
 
   // Calculations
   const itemsSubtotal = items.reduce((sum, it) => sum + it.subtotal, 0);
@@ -226,16 +198,6 @@ export function ExtractedGoodsView({
           >
             {isRtl ? <ArrowRight className="w-3.5 h-3.5" /> : <ArrowLeft className="w-3.5 h-3.5" />}
             <span>{isRtl ? 'سلة أخرى' : 'Another Cart'}</span>
-          </motion.button>
-
-          <motion.button
-            whileHover={{ scale: 1.04 }}
-            whileTap={{ scale: 0.96 }}
-            onClick={() => setShowJsonModal(true)}
-            className="px-3.5 py-2 bg-purple-50 dark:bg-purple-950/60 hover:bg-purple-100 dark:hover:bg-purple-900/60 text-[#7C3AED] dark:text-purple-300 font-extrabold text-xs rounded-2xl border border-purple-200/80 dark:border-purple-800/80 shadow-xs cursor-pointer flex items-center gap-1.5"
-          >
-            <Code2 className="w-3.5 h-3.5" />
-            <span>{isRtl ? 'بيانات JSON' : 'JSON Data'}</span>
           </motion.button>
 
           <motion.a
@@ -608,75 +570,6 @@ export function ExtractedGoodsView({
                   </motion.button>
                 </div>
               </form>
-            </motion.div>
-          </div>
-        )}
-
-        {/* JSON Viewer Modal */}
-        {showJsonModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="w-full max-w-2xl bg-white dark:bg-[#14101e] rounded-3xl p-6 border border-neutral-200 dark:border-[#2f2742] shadow-2xl space-y-4"
-            >
-              <div className="flex items-center justify-between pb-3 border-b border-neutral-100 dark:border-[#241e30]">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-purple-100 dark:bg-purple-950/60 text-[#7C3AED] dark:text-purple-300 flex items-center justify-center">
-                    <Code2 className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="font-black text-sm text-neutral-900 dark:text-white">
-                      {isRtl ? 'بيانات المنتجات المستخرجة (JSON)' : 'Extracted Products JSON'}
-                    </h3>
-                    <p className="text-[10px] text-neutral-400">
-                      {isRtl ? `${items.length} منتجات مهيكلة حسب مواصفات شي إن الرسمية` : `${items.length} products structured per SHEIN specs`}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={handleCopyJson}
-                    className="px-3 py-1.5 bg-neutral-100 dark:bg-[#1f192b] hover:bg-neutral-200 dark:hover:bg-[#2b233a] text-xs font-bold text-neutral-700 dark:text-neutral-200 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
-                  >
-                    {copiedJson ? (
-                      <>
-                        <Check className="w-3.5 h-3.5 text-emerald-500" />
-                        <span className="text-emerald-500">{isRtl ? 'تم النسخ!' : 'Copied!'}</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-3.5 h-3.5" />
-                        <span>{isRtl ? 'نسخ JSON' : 'Copy JSON'}</span>
-                      </>
-                    )}
-                  </button>
-
-                  <button
-                    onClick={() => setShowJsonModal(false)}
-                    className="w-8 h-8 flex items-center justify-center rounded-xl text-neutral-400 hover:text-neutral-700 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-[#1f192b] transition-colors cursor-pointer"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-
-              <div className="relative">
-                <pre className="max-h-[380px] overflow-auto p-4 rounded-2xl bg-neutral-950 text-neutral-100 text-xs font-mono leading-relaxed border border-neutral-800 dir-ltr text-left selection:bg-purple-500 selection:text-white">
-                  {productsJsonString}
-                </pre>
-              </div>
-
-              <div className="flex items-center justify-end pt-2 border-t border-neutral-100 dark:border-[#241e30]">
-                <button
-                  onClick={() => setShowJsonModal(false)}
-                  className="px-4 py-2 bg-neutral-100 dark:bg-[#1f192b] hover:bg-neutral-200 dark:hover:bg-[#2a233a] text-xs font-bold text-neutral-800 dark:text-neutral-200 rounded-xl transition-all cursor-pointer"
-                >
-                  {isRtl ? 'إغلاق' : 'Close'}
-                </button>
-              </div>
             </motion.div>
           </div>
         )}
