@@ -23,6 +23,19 @@ export type OrderStatus =
 
 export type ItemStatus = 'available' | 'out_of_stock' | 'price_changed' | 'approved';
 
+export interface SheinCartProduct {
+  goods_id: string;
+  goods_sn: string;
+  name: string;
+  image: string;
+  original_price: string;
+  sale_price: string;
+  currency: string;
+  selected_variant: string;
+  sku_code: string;
+  sold_out: boolean;
+}
+
 export interface GoodItem {
   id: string;
   name: string;
@@ -37,6 +50,9 @@ export interface GoodItem {
   subtotal: number;
   status?: ItemStatus;
   adminComment?: string;    // Comment by admin specifically for this good
+  sourcePrice?: string;     // e.g. "35.20"
+  sourceCurrency?: string;  // e.g. "SAR" or "USD"
+  sourceOriginalPrice?: string; // e.g. "44.00"
 }
 
 export interface PaymentDetails {
@@ -114,6 +130,8 @@ export interface SystemSettings {
   dynamicFeePercent: number;    // Default 20
   flatShippingFee: number;      // Default 0 or 50 EGP
   currency: string;             // 'EGP'
+  sarToEgpRate?: number;        // Exchange rate SAR to EGP (Default: 13.5)
+  usdToEgpRate?: number;        // Exchange rate USD to EGP (Default: 50.0)
 
   // Payment Options & Details
   showPaymentInSupport: boolean;      // Toggle payment section in support modal
@@ -164,10 +182,13 @@ export interface ExtractedCartResult {
   coverImage?: string;
   shareCode?: string;
   groupId?: string;
+  landingUrl?: string;
   items: GoodItem[];
+  sheinProducts?: SheinCartProduct[];
   itemsSubtotal: number;
   dynamicFeePercent: number;
   dynamicFeeAmount: number;
   totalCash: number;
   currency: string;
+  sourceCurrency?: string;
 }

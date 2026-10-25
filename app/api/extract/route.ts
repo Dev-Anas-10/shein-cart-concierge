@@ -43,15 +43,21 @@ export async function POST(req: NextRequest) {
       ? Number(body.estimatedItemsCount)
       : undefined;
 
+    const sarToEgpRate = typeof body.sarToEgpRate === 'number'
+      ? body.sarToEgpRate
+      : (settings.sarToEgpRate || 13.5);
+
     const extracted = await extractSheinGoods(
       rawInput,
       dynamicFeePercent,
       estimatedSubtotal,
-      estimatedItemsCount
+      estimatedItemsCount,
+      sarToEgpRate
     );
 
     return NextResponse.json({
       success: true,
+      products: extracted.sheinProducts || [],
       data: extracted,
     });
   } catch (err: any) {

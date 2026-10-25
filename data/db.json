@@ -21,16 +21,6 @@
       "createdAt": "2026-10-25T09:37:22.809+00:00"
     },
     {
-      "id": "user-1792921321300",
-      "name": "Gamal",
-      "email": "gamy13.ahmed@gmail.com",
-      "password": "$2b$10$SNXRyuHo9gcuCFEFylAp6uy/f/b1IBToOwiL0zl4CCXNlAUEcvpvq",
-      "role": "user",
-      "phone": "01121349423",
-      "avatar": "https://api.dicebear.com/7.x/initials/svg?seed=Gamal",
-      "createdAt": "2026-10-25T09:42:01.3+00:00"
-    },
-    {
       "id": "user-admin",
       "name": "Admin Supervisor",
       "email": "admin@sheinextract.com",
@@ -51,6 +41,17 @@
       "avatar": "https://api.dicebear.com/7.x/initials/svg?seed=aaa",
       "createdAt": "2026-10-25T13:05:15.126+00:00",
       "lastLoginAt": "2026-10-25T13:28:42.909+00:00"
+    },
+    {
+      "id": "user-1792921321300",
+      "name": "Gamal",
+      "email": "gamy13.ahmed@gmail.com",
+      "password": "$2b$10$SNXRyuHo9gcuCFEFylAp6uy/f/b1IBToOwiL0zl4CCXNlAUEcvpvq",
+      "role": "user",
+      "phone": "01121349423",
+      "avatar": "https://api.dicebear.com/7.x/initials/svg?seed=Gamal",
+      "createdAt": "2026-10-25T09:42:01.3+00:00",
+      "lastLoginAt": "2026-10-25T14:15:38.526+00:00"
     }
   ],
   "orders": [
@@ -495,6 +496,8 @@
     "dynamicFeePercent": 20,
     "flatShippingFee": 0,
     "currency": "EGP",
+    "sarToEgpRate": 13.5,
+    "usdToEgpRate": 50,
     "showPaymentInSupport": true,
     "enableInstapay": true,
     "instapayAddress": "shein.orders@instapay",
@@ -552,7 +555,7 @@
             "icon": "Truck"
           }
         ],
-        "createdAt": "2026-10-25T13:54:49.524Z"
+        "createdAt": "2026-10-25T14:33:26.888Z"
       }
     ]
   }

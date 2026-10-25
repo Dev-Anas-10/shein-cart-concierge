@@ -1,13 +1,16 @@
-import { ExtractedCartResult, GoodItem } from './types';
+import { ExtractedCartResult, GoodItem, SheinCartProduct } from './types';
 
 // Regex to extract SHEIN URL from any conversational context or share message
-export const SHEIN_URL_REGEX = /(https?:\/\/(?:[a-zA-Z0-9-]+\.)*(?:shein\.com|onelink\.shein\.com)[^\s<>"')]+)/i;
+export const SHEIN_URL_REGEX = /(?:https?:\/\/|sheinlink:\/\/)(?:[a-zA-Z0-9-]+\.)*(?:shein\.com|onelink\.shein\.com)[^\s<>"')]+/i;
+
+const MOBILE_UA =
+  'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36';
 
 export function extractSheinUrl(text: string): string | null {
   if (!text) return null;
   const match = text.match(SHEIN_URL_REGEX);
-  if (match && match[1]) {
-    let clean = match[1].trim();
+  if (match && match[0]) {
+    let clean = match[0].trim();
     clean = clean.replace(/[.,;!?]+$/, '');
     return clean;
   }
@@ -26,15 +29,197 @@ export interface SheinPageMetadata {
 
 // Fallback high-res, verified fashion product images (100% reliable, no 404s, CORS-friendly)
 export const RELIABLE_FASHION_IMAGES = [
-  'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=600&auto=format&fit=crop&q=80', // Two-piece knit set
-  'https://images.unsplash.com/photo-1434389677669-e08b4cac3105?w=600&auto=format&fit=crop&q=80', // Knit cardigan / sweater
-  'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=600&auto=format&fit=crop&q=80', // Quilted handbag with chain
-  'https://images.unsplash.com/photo-1539109136881-3be0616acf4b?w=600&auto=format&fit=crop&q=80', // Elegant dress
-  'https://images.unsplash.com/photo-1551488831-00ddcb6c6bd3?w=600&auto=format&fit=crop&q=80', // Casual jacket
+  'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=600&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1434389677669-e08b4cac3105?w=600&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=600&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1539109136881-3be0616acf4b?w=600&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1551488831-00ddcb6c6bd3?w=600&auto=format&fit=crop&q=80',
 ];
 
 /**
- * Fetch and extract metadata from a SHEIN onelink or product link
+ * Generate synthetic armorUuid cookie accepted by SHEIN BFF API
+ */
+export function mintArmorCookie(): string {
+  const stamp = new Date().toISOString().replace(/\D/g, '').slice(0, 14);
+  let hex = '';
+  while (hex.length < 50) hex += Math.floor(Math.random() * 16).toString(16);
+  return `armorUuid=${stamp}${hex}`;
+}
+
+export function parseVariantAttr(attr?: string): { color: string; size: string } {
+  if (!attr) return { color: 'حسب الاختيار', size: 'حسب الاختيار' };
+  const parts = String(attr).split('/').map((s) => s.trim());
+  if (parts.length >= 2) {
+    return { color: parts[0] || 'حسب الاختيار', size: parts[1] || 'حسب الاختيار' };
+  }
+  return { color: parts[0] || 'حسب الاختيار', size: 'حسب الاختيار' };
+}
+
+export function formatImageUrl(url?: string): string {
+  if (!url) return RELIABLE_FASHION_IMAGES[0];
+  if (url.startsWith('//')) return `https:${url}`;
+  if (url.startsWith('/')) return `https://m.shein.com${url}`;
+  return url;
+}
+
+export interface ResolvedTarget {
+  groupId: string;
+  shc: string;
+  localCountry: string;
+  landingUrl: string;
+}
+
+/**
+ * Resolves short onelink or deeplink to target parameters (groupId, shc, localCountry, landingUrl)
+ */
+export async function resolveSheinLink(inputUrl: string): Promise<ResolvedTarget> {
+  let gid = '';
+  let shc = '';
+  let country = 'SA';
+
+  // If input already has group_id query parameter
+  try {
+    const urlObj = new URL(inputUrl);
+    if (urlObj.searchParams.get('group_id')) {
+      gid = urlObj.searchParams.get('group_id') || '';
+      shc = urlObj.searchParams.get('shc') || '';
+      country = urlObj.searchParams.get('local_country') || 'SA';
+    } else if (urlObj.searchParams.get('shc')) {
+      shc = urlObj.searchParams.get('shc') || '';
+    }
+  } catch (e) {
+    // ignore URL parse errors
+  }
+
+  // If already resolved from query params
+  if (gid) {
+    const landing = `https://m.shein.com/ar/cart/share/landing?group_id=${gid}&shc=${shc}&local_country=${country}&cart_share=1`;
+    return { groupId: gid, shc, localCountry: country, landingUrl: landing };
+  }
+
+  // Fetch short onelink
+  const firstRes = await fetch(inputUrl, {
+    headers: {
+      'User-Agent': MOBILE_UA,
+      Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    },
+  });
+
+  if (!firstRes.ok) {
+    throw new Error(`SHEIN short link returned status ${firstRes.status}`);
+  }
+
+  const firstHtml = await firstRes.text();
+
+  // 1. Check for deeplink: <input id="deeplink" value="sheinlink://applink/share_receiver?data=...">
+  const dlMatch = firstHtml.match(/id=["']deeplink["']\s+value=["']([^"']+)["']/i);
+  if (dlMatch && dlMatch[1]) {
+    const rawDl = dlMatch[1].replace(/&amp;/g, '&');
+    const dataMatch = rawDl.match(/data=([^&]+)/);
+    if (dataMatch && dataMatch[1]) {
+      try {
+        const decoded = JSON.parse(decodeURIComponent(dataMatch[1]));
+        if (decoded.group_id) gid = String(decoded.group_id);
+        if (decoded.shc) shc = decoded.shc;
+        if (decoded.local_country) country = decoded.local_country;
+      } catch (err) {
+        // ignore parse error
+      }
+    }
+  }
+
+  // 2. If not found in deeplink, check for appjump URL: <input id="url" value="...">
+  if (!gid) {
+    const urlMatch = firstHtml.match(/id=["']url["']\s+value=["']([^"']+)["']/i);
+    if (urlMatch && urlMatch[1]) {
+      const appjump = urlMatch[1].replace(/&amp;/g, '&');
+      try {
+        const jumpRes = await fetch(appjump, {
+          headers: { 'User-Agent': MOBILE_UA, Accept: 'text/html,*/*' },
+        });
+        if (jumpRes.ok) {
+          const jumpHtml = await jumpRes.text();
+          const shareInfoMatch = jumpHtml.match(/var\s+shareInfo\s*=\s*(\{[\s\S]*?\})\s*;/);
+          if (shareInfoMatch && shareInfoMatch[1]) {
+            const info = JSON.parse(shareInfoMatch[1]);
+            gid = String(info.id || info.shareId || '');
+            if (info.localcountry) country = String(info.localcountry);
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to resolve appjump URL:', err);
+      }
+    }
+  }
+
+  if (!gid) {
+    throw new Error('تعذر العثور على معرّف السلة (group_id) من هذا الرابط. قد يكون الرابط منتهياً.');
+  }
+
+  const landing = `https://m.shein.com/ar/cart/share/landing?group_id=${gid}&shc=${shc}&local_country=${country}&cart_share=1`;
+  return { groupId: gid, shc, localCountry: country, landingUrl: landing };
+}
+
+/**
+ * Fetches cart products from SHEIN BFF API
+ */
+export async function fetchSheinBffCart(
+  target: ResolvedTarget,
+  preferredCurrency: string = 'SAR'
+): Promise<{ title: string; rawProducts: any[] }> {
+  const cookie = mintArmorCookie();
+  const endpoints = [
+    `https://m.shein.com/ar/bff-api/order/cart/share/landing?_ver=1.1.8&_lang=ar`,
+    `https://m.shein.com/bff-api/order/cart/share/landing?_ver=1.1.8&_lang=ar`,
+  ];
+
+  let lastError: any = null;
+
+  for (const endpoint of endpoints) {
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'User-Agent': MOBILE_UA,
+          Accept: 'application/json, text/plain, */*',
+          'Content-Type': 'application/json',
+          'x-requested-with': 'XMLHttpRequest',
+          origin: 'https://m.shein.com',
+          referer: target.landingUrl,
+          appcurrency: preferredCurrency,
+          cookie: cookie,
+        },
+        body: JSON.stringify({
+          groupId: String(target.groupId),
+          localCountry: target.localCountry || 'SA',
+          userLocalSizeCountry: '',
+        }),
+      });
+
+      if (!res.ok) continue;
+
+      const data = await res.json();
+      if (data.code === '0' && data.info) {
+        const info = data.info;
+        const products = [
+          ...(info.normalProducts || []),
+          ...(info.outStock || []).map((x: any) => ({ ...x, soldOutStatus: 1 })),
+        ];
+        return {
+          title: info.title || 'العناصر التي شاركها صديقك',
+          rawProducts: products,
+        };
+      }
+    } catch (err) {
+      lastError = err;
+    }
+  }
+
+  throw lastError || new Error('فشل جلب تفاصيل السلة من خوادم شي إن.');
+}
+
+/**
+ * Scrapes metadata from a single product page or fallback page
  */
 export async function scrapeSheinLinkMetadata(url: string): Promise<SheinPageMetadata> {
   const result: SheinPageMetadata = {
@@ -46,166 +231,179 @@ export async function scrapeSheinLinkMetadata(url: string): Promise<SheinPageMet
   try {
     const res = await fetch(url, {
       headers: {
-        'User-Agent':
-          'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
-        'Accept-Language': 'en-US,en;q=0.9,ar;q=0.8',
+        'User-Agent': MOBILE_UA,
+        'Accept-Language': 'ar-EG,ar;q=0.9,en-US;q=0.8,en;q=0.7',
         Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
       },
-      next: { revalidate: 60 },
     });
 
-    if (!res.ok) {
-      console.warn(`Fetch returned status ${res.status} for ${url}`);
-      return result;
-    }
-
-    const html = await res.text();
-
-    // 1. Extract OpenGraph tags
-    const titleMatch =
-      html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i) ||
-      html.match(/<title>([^<]+)<\/title>/i);
-    if (titleMatch && titleMatch[1]) {
-      result.title = titleMatch[1].trim();
-    }
-
-    const descMatch = html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i);
-    if (descMatch && descMatch[1]) {
-      result.description = descMatch[1].trim();
-    }
-
-    const imgMatch = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i);
-    if (imgMatch && imgMatch[1] && imgMatch[1].startsWith('http')) {
-      result.image = imgMatch[1].trim();
-    }
-
-    // 2. Extract onelink hidden inputs if present
-    const urlInputMatch = html.match(/<input[^>]+id=["']url["'][^>]+value=["']([^"']+)["']/i);
-    if (urlInputMatch && urlInputMatch[1]) {
-      result.redirectUrl = urlInputMatch[1].replace(/&amp;/g, '&');
-    }
-
-    const deeplinkMatch = html.match(/<input[^>]+id=["']deeplink["'][^>]+value=["']([^"']+)["']/i);
-    if (deeplinkMatch && deeplinkMatch[1]) {
-      result.deeplink = deeplinkMatch[1];
-      try {
-        const decoded = decodeURIComponent(result.deeplink);
-        const dataMatch = decoded.match(/data=({.*})/);
-        if (dataMatch) {
-          const parsed = JSON.parse(dataMatch[1]);
-          if (parsed.shc) result.shc = parsed.shc;
-          if (parsed.group_id) result.groupId = parsed.group_id;
-        }
-      } catch (e) {
-        // ignore parse error
+    if (res.ok) {
+      const html = await res.text();
+      const titleMatch =
+        html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i) ||
+        html.match(/<title>([^<]+)<\/title>/i);
+      if (titleMatch && titleMatch[1]) {
+        result.title = titleMatch[1].trim();
       }
-    }
 
-    // Extract shc from URL if not yet found
-    if (!result.shc) {
-      const urlObj = new URL(url);
-      result.shc = urlObj.searchParams.get('shc') || undefined;
-    }
+      const descMatch = html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i);
+      if (descMatch && descMatch[1]) {
+        result.description = descMatch[1].trim();
+      }
 
-    // 3. If there is a redirect/jump URL, fetch it to get deeper shareInfo
-    if (result.redirectUrl) {
-      try {
-        const jumpRes = await fetch(result.redirectUrl, {
-          headers: {
-            'User-Agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-            Accept: 'text/html,application/xhtml+xml',
-          },
-        });
-        if (jumpRes.ok) {
-          const jumpHtml = await jumpRes.text();
-          const shareInfoMatch = jumpHtml.match(/var\s+shareInfo\s*=\s*({.*?});/);
-          if (shareInfoMatch && shareInfoMatch[1]) {
-            try {
-              const info = JSON.parse(shareInfoMatch[1]);
-              if (info.shareTitle) result.title = info.shareTitle;
-              if (info.shareComment) result.description = info.shareComment;
-              if (info.shareImg || info.img_url) result.image = info.shareImg || info.img_url;
-              if (info.id) result.groupId = String(info.id);
-            } catch (e) {
-              // ignore json parse error
-            }
-          }
-        }
-      } catch (err) {
-        console.warn('Error fetching jump url:', err);
+      const imgMatch = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i);
+      if (imgMatch && imgMatch[1] && imgMatch[1].startsWith('http')) {
+        result.image = imgMatch[1].trim();
       }
     }
   } catch (err) {
-    console.error('Failed to scrape SHEIN metadata:', err);
+    console.warn('Metadata scrape failed:', err);
   }
 
   return result;
 }
 
 /**
- * Extracts goods from SHEIN cart link or context with reliable fallback images
+ * Main extraction function: Resolves SHEIN cart, calls BFF API, maps to JSON & GoodItem[]
  */
 export async function extractSheinGoods(
   rawInput: string,
   dynamicFeePercent: number = 20,
   estimatedSubtotal?: number,
-  estimatedItemsCount?: number
+  estimatedItemsCount?: number,
+  sarToEgpRate: number = 13.5
 ): Promise<ExtractedCartResult> {
   const extractedLink = extractSheinUrl(rawInput);
   if (!extractedLink) {
-    throw new Error('No valid SHEIN URL found in your message. Please provide a SHEIN cart or item link.');
+    throw new Error('يرجى لصق رابط صالح من شي إن (مثل رابط مشاركة السلة onelink.shein.com).');
   }
 
-  const meta = await scrapeSheinLinkMetadata(extractedLink);
+  try {
+    // 1. Resolve short onelink to target cart
+    const target = await resolveSheinLink(extractedLink);
 
-  const subtotal = typeof estimatedSubtotal === 'number' && !isNaN(estimatedSubtotal) && estimatedSubtotal > 0
-    ? Math.round(estimatedSubtotal)
-    : 0;
+    // 2. Fetch real products from SHEIN BFF API
+    const { title, rawProducts } = await fetchSheinBffCart(target, 'SAR');
 
-  const count = typeof estimatedItemsCount === 'number' && !isNaN(estimatedItemsCount) && estimatedItemsCount > 0
-    ? Math.round(estimatedItemsCount)
-    : 1;
+    if (!rawProducts || rawProducts.length === 0) {
+      throw new Error('السلة المشاركة فارغة أو انتهت صلاحيتها في شي إن.');
+    }
 
-  // Real, genuine cart package representation based on customer's actual SHEIN link
-  const cartTitle = meta.title && !meta.title.includes('I found some great items') && meta.title !== 'SHEIN Shopping Cart Items'
-    ? meta.title
-    : 'سلة مشتريات شي إن المجمعة (SHEIN Cart)';
+    // 3. Normalize products to user-specified JSON format
+    const sheinProducts: SheinCartProduct[] = rawProducts.map((p: any) => {
+      const retail = p.retailPrice || {};
+      const sale = p.salePrice || {};
+      return {
+        goods_id: String(p.goods_id || ''),
+        goods_sn: String(p.goods_sn || ''),
+        name: String(p.goods_name || ''),
+        image: formatImageUrl(p.goods_img),
+        original_price: String(retail.amount || sale.amount || ''),
+        sale_price: String(sale.amount || ''),
+        currency: 'SAR',
+        selected_variant: String(p.goodsAttr || ''),
+        sku_code: String(p.sku_code || ''),
+        sold_out: Boolean(p.soldOutStatus),
+      };
+    });
 
-  const items: GoodItem[] = [
-    {
-      id: `shein-cart-${Date.now()}`,
-      name: cartTitle,
-      image: meta.image || RELIABLE_FASHION_IMAGES[0],
-      originalUrl: extractedLink,
-      sku: meta.shc ? `SHC: ${meta.shc}` : (meta.groupId ? `GROUP: ${meta.groupId}` : 'SHEIN-CART'),
-      color: 'حسب اختياراتك في السلة',
-      size: count > 1 ? `${count} قطع مختلفة` : 'حسب اختياراتك في السلة',
-      originalPrice: subtotal,
+    // 4. Map to GoodItem[] in EGP
+    const items: GoodItem[] = sheinProducts.map((sp) => {
+      const { color, size } = parseVariantAttr(sp.selected_variant);
+      const saleNum = parseFloat(sp.sale_price) || 0;
+      const egpPrice = Math.round(saleNum * sarToEgpRate);
+
+      return {
+        id: sp.goods_id,
+        name: sp.name,
+        image: sp.image,
+        originalUrl: `https://www.shein.com/product-p-${sp.goods_id}.html`,
+        sku: sp.sku_code || sp.goods_sn,
+        color,
+        size,
+        originalPrice: egpPrice,
+        currency: 'EGP',
+        quantity: 1,
+        subtotal: egpPrice,
+        status: sp.sold_out ? 'out_of_stock' : 'available',
+        sourcePrice: sp.sale_price,
+        sourceCurrency: sp.currency,
+        sourceOriginalPrice: sp.original_price,
+      };
+    });
+
+    const itemsSubtotal = items.reduce((sum, item) => sum + item.subtotal, 0);
+    const dynamicFeeAmount = Math.round(itemsSubtotal * (dynamicFeePercent / 100));
+    const totalCash = itemsSubtotal + dynamicFeeAmount;
+
+    return {
+      rawInput,
+      extractedLink,
+      title: title || 'العناصر التي شاركها صديقك',
+      description: `تم استخراج ${items.length} منتج بنجاح من سلة شي إن.`,
+      coverImage: items[0]?.image || RELIABLE_FASHION_IMAGES[0],
+      shareCode: target.shc,
+      groupId: target.groupId,
+      landingUrl: target.landingUrl,
+      items,
+      sheinProducts,
+      itemsSubtotal,
+      dynamicFeePercent,
+      dynamicFeeAmount,
+      totalCash,
       currency: 'EGP',
-      quantity: 1,
-      subtotal: subtotal,
-      status: 'available',
-    },
-  ];
+      sourceCurrency: 'SAR',
+    };
+  } catch (bffError: any) {
+    console.warn('SHEIN BFF extraction failed, checking fallback metadata:', bffError.message);
 
-  const itemsSubtotal = items.reduce((sum, item) => sum + item.subtotal, 0);
-  const dynamicFeeAmount = itemsSubtotal > 0 ? Math.round(itemsSubtotal * (dynamicFeePercent / 100)) : 0;
-  const totalCash = itemsSubtotal + dynamicFeeAmount;
+    // Fallback: If not a cart link (e.g. single product link) or BFF blocked
+    const meta = await scrapeSheinLinkMetadata(extractedLink);
+    const subtotal =
+      typeof estimatedSubtotal === 'number' && !isNaN(estimatedSubtotal) && estimatedSubtotal > 0
+        ? Math.round(estimatedSubtotal)
+        : 500;
 
-  return {
-    rawInput,
-    extractedLink,
-    title: cartTitle,
-    description: meta.description || 'سلة مشترياتك المشتركة من تطبيق شي إن، جاهزة للتسعير والمراجعة والتوصيل.',
-    coverImage: meta.image || RELIABLE_FASHION_IMAGES[0],
-    shareCode: meta.shc || 'SHEIN-CART',
-    groupId: meta.groupId || '',
-    items,
-    itemsSubtotal,
-    dynamicFeePercent,
-    dynamicFeeAmount,
-    totalCash,
-    currency: 'EGP',
-  };
+    const count =
+      typeof estimatedItemsCount === 'number' && !isNaN(estimatedItemsCount) && estimatedItemsCount > 0
+        ? Math.round(estimatedItemsCount)
+        : 1;
+
+    const fallbackItems: GoodItem[] = [
+      {
+        id: `shein-${Date.now()}`,
+        name: meta.title || 'منتج شي إن المستخرج',
+        image: meta.image || RELIABLE_FASHION_IMAGES[0],
+        originalUrl: extractedLink,
+        sku: meta.shc ? `SHC: ${meta.shc}` : 'SHEIN-ITEM',
+        color: 'حسب الاختيار في شي إن',
+        size: count > 1 ? `${count} قطع` : 'حسب الاختيار في شي إن',
+        originalPrice: subtotal,
+        currency: 'EGP',
+        quantity: 1,
+        subtotal: subtotal,
+        status: 'available',
+      },
+    ];
+
+    const itemsSubtotal = fallbackItems.reduce((sum, it) => sum + it.subtotal, 0);
+    const dynamicFeeAmount = Math.round(itemsSubtotal * (dynamicFeePercent / 100));
+    const totalCash = itemsSubtotal + dynamicFeeAmount;
+
+    return {
+      rawInput,
+      extractedLink,
+      title: meta.title || 'منتج شي إن المستخرج',
+      description: meta.description || 'تم استخراج بيانات المنتج من رابط شي إن.',
+      coverImage: meta.image || RELIABLE_FASHION_IMAGES[0],
+      shareCode: meta.shc,
+      groupId: meta.groupId,
+      items: fallbackItems,
+      itemsSubtotal,
+      dynamicFeePercent,
+      dynamicFeeAmount,
+      totalCash,
+      currency: 'EGP',
+    };
+  }
 }
