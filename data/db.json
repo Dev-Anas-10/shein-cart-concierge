@@ -7,8 +7,8 @@
       "password": "admin123456",
       "role": "admin",
       "phone": "+20 100 000 0000",
-      "avatar": "https://api.dicebear.com/7.x/initials/svg?seed=Admin+Supervisor",
-      "createdAt": "2026-10-25T07:31:27.770Z"
+      "avatar": "https://api.dicebear.com/7.x/initials/svg?seed=Admin%20Supervisor",
+      "createdAt": "2026-10-25T09:31:52.92623+00:00"
     },
     {
       "id": "user-sara",
@@ -18,10 +18,102 @@
       "role": "user",
       "phone": "01019283746",
       "avatar": "https://api.dicebear.com/7.x/initials/svg?seed=Sara+Ahmed",
-      "createdAt": "2026-10-25T07:31:27.771Z"
+      "createdAt": "2026-10-25T09:33:56.902356+00:00"
+    },
+    {
+      "id": "user-1792921042809",
+      "name": "Ahmed Youssef",
+      "email": "user1792921037961@egypt.com",
+      "password": "password123",
+      "phone": "01023456789",
+      "role": "user",
+      "avatar": "https://api.dicebear.com/7.x/initials/svg?seed=Ahmed%20Youssef",
+      "createdAt": "2026-10-25T09:37:22.809Z"
+    },
+    {
+      "id": "google-1792922349441",
+      "name": "Gamal Ahmed",
+      "email": "gamal.egypt.1792922344565@gmail.com",
+      "role": "user",
+      "avatar": "https://api.dicebear.com/7.x/initials/svg?seed=Gamal%20Ahmed",
+      "phone": "01000000000",
+      "createdAt": "2026-10-25T09:59:09.441Z"
     }
   ],
   "orders": [
+    {
+      "id": "SH-70316",
+      "userId": "user-sara",
+      "userName": "Sara Ahmed",
+      "userEmail": "sara@example.com",
+      "userPhone": "01019283746",
+      "shippingAddress": "Nasr City, Cairo",
+      "rawInput": "https://shein.com/item-test",
+      "extractedLink": "https://shein.com/item-test",
+      "items": [
+        {
+          "id": "item-1",
+          "name": "Test Dress",
+          "image": "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=600",
+          "originalPrice": 500,
+          "currency": "EGP",
+          "quantity": 1,
+          "subtotal": 500
+        }
+      ],
+      "itemsCount": 1,
+      "itemsSubtotal": 500,
+      "dynamicFeePercent": 20,
+      "dynamicFeeAmount": 100,
+      "shippingFee": 0,
+      "totalCash": 600,
+      "currency": "EGP",
+      "status": "PENDING_APPROVAL",
+      "createdAt": "2026-10-25T09:37:36.001Z",
+      "updatedAt": "2026-10-25T09:37:36.001Z"
+    },
+    {
+      "id": "SH-89421",
+      "userId": "user-sara",
+      "userName": "Sara Ahmed",
+      "userEmail": "sara@example.com",
+      "userPhone": "01019283746",
+      "shippingAddress": "Building 14, St 9, Maadi, Cairo, Egypt",
+      "rawInput": "https://onelink.shein.com/58/662zlco9zrsd?shc=2_RNmYr2Mxf4g",
+      "extractedLink": "https://onelink.shein.com/58/662zlco9zrsd?shc=2_RNmYr2Mxf4g",
+      "items": [
+        {
+          "id": "item-1",
+          "name": "SHEIN Frenchy Solid Notch Neck Long Sleeve Top & Trousers Set",
+          "image": "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=600&auto=format&fit=crop&q=80",
+          "status": "available",
+          "currency": "EGP",
+          "quantity": 1,
+          "subtotal": 650,
+          "originalPrice": 650
+        },
+        {
+          "id": "item-2",
+          "name": "SHEIN EZwear Casual Drop Shoulder Ribbed Knit Cardigan",
+          "image": "https://images.unsplash.com/photo-1434389677669-e08b4cac3105?w=600&auto=format&fit=crop&q=80",
+          "status": "available",
+          "currency": "EGP",
+          "quantity": 1,
+          "subtotal": 420,
+          "originalPrice": 420
+        }
+      ],
+      "itemsCount": 2,
+      "itemsSubtotal": 1070,
+      "dynamicFeePercent": 20,
+      "dynamicFeeAmount": 214,
+      "shippingFee": 0,
+      "totalCash": 1284,
+      "currency": "EGP",
+      "status": "PENDING_APPROVAL",
+      "createdAt": "2026-10-25T09:34:12.422287+00:00",
+      "updatedAt": "2026-10-25T09:34:12.422287+00:00"
+    },
     {
       "id": "SH-19036",
       "userId": "user-sara",
@@ -36,11 +128,11 @@
           "id": "item-1",
           "name": "SHEIN Frenchy Solid Notch Neck Long Sleeve Top & Trousers Set",
           "image": "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=600&auto=format&fit=crop&q=80",
-          "originalPrice": 650,
           "currency": "EGP",
           "quantity": 1,
           "subtotal": 650,
-          "adminComment": "Size M in Mocha Brown confirmed in stock at regional fulfillment center"
+          "adminComment": "Size M in Mocha Brown confirmed in stock",
+          "originalPrice": 650
         }
       ],
       "itemsCount": 1,
@@ -51,85 +143,9 @@
       "totalCash": 780,
       "currency": "EGP",
       "status": "APPROVED_PENDING_PAYMENT",
-      "createdAt": "2026-10-25T07:31:53.334Z",
-      "updatedAt": "2026-10-25T08:32:25.314Z",
-      "reviewedBy": "Admin",
-      "reviewedAt": "2026-10-25T08:32:25.314Z",
       "adminComment": "Accurately verified by supervisor.",
-      "payment": {
-        "method": "vodafone_cash",
-        "senderIdentifier": "01019283746",
-        "transactionReference": "VF-9482109",
-        "submittedAt": "2026-10-25T07:31:55.998Z",
-        "adminNote": "Payment confirmed by admin"
-      }
-    },
-    {
-      "id": "SH-89421",
-      "userId": "user-sara",
-      "userName": "Sara Ahmed",
-      "userEmail": "sara@example.com",
-      "userPhone": "01019283746",
-      "shippingAddress": "Building 14, St 9, Maadi, Cairo, Egypt",
-      "rawInput": "I found some great items at SHEIN!\nThese items in my shopping cart are great. I highly recommend them to everyone!\nhttps://onelink.shein.com/58/662zlco9zrsd?shc=2_RNmYr2Mxf4g",
-      "extractedLink": "https://onelink.shein.com/58/662zlco9zrsd?shc=2_RNmYr2Mxf4g",
-      "cartShareCode": "2_RNmYr2Mxf4g",
-      "cartGroupId": "912245215",
-      "cartCoverImage": "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=600&auto=format&fit=crop&q=80",
-      "items": [
-        {
-          "id": "item-1",
-          "name": "SHEIN Frenchy Solid Notch Neck Long Sleeve Top & Trousers Set",
-          "image": "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=600&auto=format&fit=crop&q=80",
-          "originalUrl": "https://onelink.shein.com/58/662zlco9zrsd?shc=2_RNmYr2Mxf4g",
-          "sku": "sz240819129532890",
-          "color": "Mocha Brown",
-          "size": "M",
-          "originalPrice": 650,
-          "currency": "EGP",
-          "quantity": 1,
-          "subtotal": 650,
-          "status": "available"
-        },
-        {
-          "id": "item-2",
-          "name": "SHEIN EZwear Casual Drop Shoulder Ribbed Knit Cardigan",
-          "image": "https://images.unsplash.com/photo-1434389677669-e08b4cac3105?w=600&auto=format&fit=crop&q=80",
-          "originalUrl": "https://onelink.shein.com/58/662zlco9zrsd?shc=2_RNmYr2Mxf4g",
-          "sku": "sw23080447382910",
-          "color": "Oatmeal Beige",
-          "size": "L",
-          "originalPrice": 420,
-          "currency": "EGP",
-          "quantity": 1,
-          "subtotal": 420,
-          "status": "available"
-        },
-        {
-          "id": "item-3",
-          "name": "SHEIN Minimalist Quilted Shoulder Crossbody Bag With Chain",
-          "image": "https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=600&auto=format&fit=crop&q=80",
-          "originalUrl": "https://onelink.shein.com/58/662zlco9zrsd?shc=2_RNmYr2Mxf4g",
-          "sku": "sg2310118837190",
-          "color": "Classic Black",
-          "size": "One Size",
-          "originalPrice": 380,
-          "currency": "EGP",
-          "quantity": 1,
-          "subtotal": 380,
-          "status": "available"
-        }
-      ],
-      "itemsCount": 3,
-      "itemsSubtotal": 1450,
-      "dynamicFeePercent": 20,
-      "dynamicFeeAmount": 290,
-      "shippingFee": 0,
-      "totalCash": 1740,
-      "currency": "EGP",
-      "status": "PENDING_APPROVAL",
-      "createdAt": "2026-10-25T05:31:27.771Z",
-      "updatedAt": "2026-10-25T05:31:27.771Z"
+      "createdAt": "2026-10-25T09:34:05.19054+00:00",
+      "updatedAt": "2026-10-25T09:34:05.19054+00:00"
     }
   ],
   "settings": {

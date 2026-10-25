@@ -28,44 +28,85 @@ export function AuthModal({ isOpen, onClose, defaultRole = 'user' }: AuthModalPr
   const [gmailEmail, setGmailEmail] = useState('');
   const [gmailName, setGmailName] = useState('');
 
-  const [loading, setLoading] = useState(false);
+  const [formLoading, setFormLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
-  const handleGoogleSignIn = async () => {
+  const handleGoogleSignIn = () => {
     setError(null);
-    setLoading(true);
+    setGoogleLoading(true);
 
     try {
       const redirectOrigin =
         typeof window !== 'undefined'
           ? window.location.origin
           : 'https://shein-cart-concierge.vercel.app';
-      const redirectUrl = `${redirectOrigin}/orders`;
+      const redirectUrl = `${redirectOrigin}/auth/callback`;
 
-      const sb = getSupabase();
-      if (sb) {
-        const { data, error: oauthErr } = await sb.auth.signInWithOAuth({
-          provider: 'google',
-          options: {
-            redirectTo: redirectUrl,
-          },
-        });
-        if (oauthErr) throw oauthErr;
-        if (data?.url) {
-          window.location.href = data.url;
-          return;
-        }
+      const authUrl = `https://sxcsgnzkgwctafqxkfdd.supabase.co/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(
+        redirectUrl
+      )}`;
+
+      const width = 500;
+      const height = 650;
+      const left = window.screenX + Math.max(0, (window.outerWidth - width) / 2);
+      const top = window.screenY + Math.max(0, (window.outerHeight - height) / 2);
+
+      const popup = window.open(
+        authUrl,
+        'GoogleSignInPopup',
+        `width=${width},height=${height},left=${left},top=${top},status=no,resizable=yes,scrollbars=yes`
+      );
+
+      if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+        setShowGmailInput(true);
+        setError(
+          dir === 'rtl'
+            ? 'تم حظر النافذة المنبثقة من متصفحك. يرجى السماح بالنوافذ أو إدخال بريدك أدناه.'
+            : 'Popup blocked. Please allow popups or enter your email below.'
+        );
+        setGoogleLoading(false);
+        return;
       }
 
-      // Direct fallback
-      window.location.href = `https://sxcsgnzkgwctafqxkfdd.supabase.co/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirectUrl)}`;
+      // 1. Listen for auth success message from callback window
+      const messageHandler = (e: MessageEvent) => {
+        if (e.data?.type === 'GOOGLE_AUTH_SUCCESS') {
+          window.removeEventListener('message', messageHandler);
+          setGoogleLoading(false);
+          if (e.data.user) {
+            login({
+              id: `google-${Date.now()}`,
+              name: e.data.user.name,
+              email: e.data.user.email,
+              avatar: e.data.user.avatar,
+              role: 'user',
+              createdAt: new Date().toISOString(),
+            });
+          }
+          onClose();
+        } else if (e.data?.type === 'GOOGLE_AUTH_DONE') {
+          window.removeEventListener('message', messageHandler);
+          setGoogleLoading(false);
+        }
+      };
+      window.addEventListener('message', messageHandler);
+
+      // 2. Poll when popup window is closed by user
+      const timer = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(timer);
+          window.removeEventListener('message', messageHandler);
+          setGoogleLoading(false);
+        }
+      }, 500);
     } catch (err: any) {
       console.warn('Google OAuth note, showing manual input:', err);
       setShowGmailInput(true);
       setError(err.message);
-      setLoading(false);
+      setGoogleLoading(false);
     }
   };
 
@@ -77,7 +118,7 @@ export function AuthModal({ isOpen, onClose, defaultRole = 'user' }: AuthModalPr
       return;
     }
 
-    setLoading(true);
+    setGoogleLoading(true);
     setError(null);
     try {
       const detectedName = gmailName.trim() || cleanEmail.split('@')[0];
@@ -98,13 +139,13 @@ export function AuthModal({ isOpen, onClose, defaultRole = 'user' }: AuthModalPr
     } catch (err: any) {
       setError(err.message);
     } finally {
-      setLoading(false);
+      setGoogleLoading(false);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    setFormLoading(true);
     setError(null);
 
     try {
@@ -133,7 +174,7 @@ export function AuthModal({ isOpen, onClose, defaultRole = 'user' }: AuthModalPr
     } catch (err: any) {
       setError(err.message);
     } finally {
-      setLoading(false);
+      setFormLoading(false);
     }
   };
 
@@ -259,10 +300,10 @@ export function AuthModal({ isOpen, onClose, defaultRole = 'user' }: AuthModalPr
                     <button
                       type="button"
                       onClick={handleGmailSubmit}
-                      disabled={loading || !gmailEmail.trim()}
+                      disabled={googleLoading || !gmailEmail.trim()}
                       className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl text-xs font-black transition-all cursor-pointer shadow-sm flex items-center justify-center gap-2"
                     >
-                      {loading ? (
+                      {googleLoading ? (
                         <>
                           <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                           <span>{isRtl ? 'جاري تسجيل الدخول...' : 'Signing in...'}</span>
@@ -278,7 +319,7 @@ export function AuthModal({ isOpen, onClose, defaultRole = 'user' }: AuthModalPr
                   <button
                     type="button"
                     onClick={handleGoogleSignIn}
-                    disabled={loading}
+                    disabled={googleLoading}
                     className="w-full flex items-center justify-center gap-3 py-3 px-4 border border-neutral-300 dark:border-[#2a2538] rounded-2xl bg-white dark:bg-[#1e1a29] hover:bg-neutral-50 dark:hover:bg-[#282236] text-neutral-800 dark:text-neutral-100 font-bold text-xs transition-all shadow-xs active:scale-[0.99] cursor-pointer"
                   >
                     <svg className="w-4 h-4" viewBox="0 0 24 24">
@@ -287,7 +328,7 @@ export function AuthModal({ isOpen, onClose, defaultRole = 'user' }: AuthModalPr
                       <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
                       <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
                     </svg>
-                    <span>{loading ? (isRtl ? 'جاري فتح شاشة Google...' : 'Opening Google...') : 'Continue with Google Gmail'}</span>
+                    <span>{googleLoading ? (isRtl ? 'جاري فتح شاشة Google...' : 'Opening Google...') : 'Continue with Google Gmail'}</span>
                   </button>
 
                   <div className="text-center">
@@ -405,10 +446,10 @@ export function AuthModal({ isOpen, onClose, defaultRole = 'user' }: AuthModalPr
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={formLoading}
               className="w-full mt-2 py-3 bg-[#8B5CF6] hover:bg-[#7C3AED] disabled:opacity-50 text-white rounded-xl text-xs font-black shadow-md shadow-purple-500/20 transition-all cursor-pointer flex items-center justify-center gap-2"
             >
-              {loading ? (
+              {formLoading ? (
                 <>
                   <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   <span>{isRtl ? 'جاري التحقق...' : 'Verifying...'}</span>
