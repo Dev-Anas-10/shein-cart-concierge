@@ -29,7 +29,8 @@ import {
 interface ExtractedGoodsViewProps {
   data: ExtractedCartResult;
   onOrderCreated: (orderId: string) => void;
-  onReset: () => void;
+  onReset?: () => void;
+  onBack?: () => void;
   onOpenAuth: () => void;
 }
 
@@ -37,9 +38,11 @@ export function ExtractedGoodsView({
   data,
   onOrderCreated,
   onReset,
+  onBack,
   onOpenAuth,
 }: ExtractedGoodsViewProps) {
   const { user } = useAuth();
+  const handleBack = onBack || onReset || (() => {});
   const [items, setItems] = useState<GoodItem[]>(data.items);
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
 
@@ -155,7 +158,7 @@ export function ExtractedGoodsView({
 
         <div className="flex items-center gap-3">
           <button
-            onClick={onReset}
+            onClick={handleBack}
             className="px-4 py-2.5 bg-white hover:bg-neutral-50 text-neutral-700 font-bold text-xs rounded-2xl border border-neutral-200 shadow-xs cursor-pointer flex items-center gap-1.5"
           >
             <ArrowLeft className="w-3.5 h-3.5" />

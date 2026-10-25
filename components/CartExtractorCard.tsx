@@ -3,13 +3,13 @@
 import React, { useState } from 'react';
 import { extractSheinUrl } from '@/lib/shein-extractor';
 import { ExtractedCartResult } from '@/lib/types';
+import { useThemeLang } from '@/lib/theme-lang-context';
 import {
   Sparkles,
   ArrowRight,
+  ArrowLeft,
   Search,
-  Scissors,
   ShoppingBag,
-  Zap,
   CheckCircle2,
   AlertCircle,
 } from 'lucide-react';
@@ -19,11 +19,8 @@ interface CartExtractorCardProps {
   currentDynamicFeePercent: number;
 }
 
-const SAMPLE_TEXT = `I found some great items at SHEIN!
-These items in my shopping cart are great. I highly recommend them to everyone!
-https://onelink.shein.com/58/662zlco9zrsd?shc=2_RNmYr2Mxf4g`;
-
 export function CartExtractorCard({ onExtracted, currentDynamicFeePercent }: CartExtractorCardProps) {
+  const { t, dir } = useThemeLang();
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,20 +33,24 @@ export function CartExtractorCard({ onExtracted, currentDynamicFeePercent }: Car
     setDetectedUrl(link);
   };
 
-  const handleUseSample = () => {
-    handleTextChange(SAMPLE_TEXT);
-  };
-
   const handleExtract = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!inputText.trim()) {
-      setError('Please paste your SHEIN cart share text or URL.');
+      setError(
+        dir === 'rtl'
+          ? 'يرجى لصق نص مشاركة السلة من تطبيق شي إن أو الرابط أولاً.'
+          : 'Please paste your SHEIN cart share text or URL.'
+      );
       return;
     }
 
     const cleanUrl = extractSheinUrl(inputText);
     if (!cleanUrl) {
-      setError('No valid SHEIN URL detected. Make sure your message contains a SHEIN link.');
+      setError(
+        dir === 'rtl'
+          ? 'لم يتم العثور على رابط شي إن صالح. تأكد من أن الرسالة تحتوي على رابط SHEIN.'
+          : 'No valid SHEIN URL detected. Make sure your message contains a SHEIN link.'
+      );
       return;
     }
 
@@ -68,7 +69,12 @@ export function CartExtractorCard({ onExtracted, currentDynamicFeePercent }: Car
 
       const json = await res.json();
       if (!res.ok) {
-        throw new Error(json.error || 'Failed to extract goods from SHEIN link.');
+        throw new Error(
+          json.error ||
+            (dir === 'rtl'
+              ? 'تعذر استخراج المنتجات من رابط شي إن.'
+              : 'Failed to extract goods from SHEIN link.')
+        );
       }
 
       onExtracted(json.data);
@@ -80,25 +86,25 @@ export function CartExtractorCard({ onExtracted, currentDynamicFeePercent }: Car
   };
 
   return (
-    <div className="bg-white rounded-[32px] p-6 sm:p-10 border border-neutral-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] space-y-6">
-      {/* Top Graphic Illustration Header (inspired by Screen 1 & Screen 2) */}
+    <div className="bg-white rounded-[32px] p-6 sm:p-10 border border-neutral-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] space-y-6 transition-colors">
+      {/* Top Graphic Header */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-6 pb-2">
-        <div className="space-y-2 text-center sm:text-left">
+        <div className="space-y-2 text-center sm:text-start">
           <div className="flex items-center justify-center sm:justify-start gap-2">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-50 text-[#7C3AED] text-[11px] font-black uppercase tracking-wider">
               <Sparkles className="w-3.5 h-3.5 text-[#8B5CF6]" />
-              Smart SHEIN Cart Extractor
+              {t.extractorBadge}
             </span>
             <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-neutral-100 text-neutral-600 text-[11px] font-medium">
-              +{currentDynamicFeePercent}% Dynamic Fee
+              +{currentDynamicFeePercent}% {t.feeLabel}
             </span>
           </div>
 
           <h2 className="text-2xl sm:text-3xl font-extrabold text-neutral-900 tracking-tight">
-            Paste your cart link or message
+            {t.extractorTitle}
           </h2>
           <p className="text-xs sm:text-sm text-neutral-500 max-w-lg leading-relaxed">
-            Copy the share text directly from the SHEIN app. Our parser extracts the items, calculates total cash with fee, and forwards to admin for review.
+            {t.extractorDesc}
           </p>
         </div>
 
@@ -106,7 +112,6 @@ export function CartExtractorCard({ onExtracted, currentDynamicFeePercent }: Car
         <div className="relative w-28 h-28 shrink-0 flex items-center justify-center">
           <div className="absolute inset-0 bg-[#F3E8FF] rounded-full scale-95" />
           <svg className="w-20 h-20 relative z-10" viewBox="0 0 100 100" fill="none">
-            {/* Minimalist desk/screen illustration matching user screenshot */}
             <circle cx="50" cy="50" r="38" fill="#E9D5FF" opacity="0.6" />
             <rect x="25" y="42" width="50" height="32" rx="6" fill="#FFFFFF" stroke="#18181B" strokeWidth="2.5" />
             <path d="M40 74L36 84H64L60 74" stroke="#18181B" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -117,24 +122,16 @@ export function CartExtractorCard({ onExtracted, currentDynamicFeePercent }: Car
         </div>
       </div>
 
-      {/* Pill Filter Badges */}
+      {/* Pill Filter Badges (Sample Cart removed cleanly!) */}
       <div className="flex flex-wrap items-center gap-2 pt-1">
-        <button
-          type="button"
-          onClick={handleUseSample}
-          className="px-4 py-1.5 rounded-full text-xs font-bold bg-[#A78BFA] text-white hover:bg-[#9061F9] transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer"
-        >
-          <Scissors className="w-3.5 h-3.5" />
-          Try Sample Cart
-        </button>
         <span className="px-3.5 py-1.5 rounded-full text-xs font-semibold bg-neutral-50 text-neutral-600 border border-neutral-200/80">
-          Auto Link Extraction
+          {t.autoLinkBadge}
         </span>
         <span className="px-3.5 py-1.5 rounded-full text-xs font-semibold bg-neutral-50 text-neutral-600 border border-neutral-200/80">
-          InstaPay &amp; Vodafone Cash
+          {t.paymentBadge}
         </span>
         <span className="px-3.5 py-1.5 rounded-full text-xs font-semibold bg-neutral-50 text-neutral-600 border border-neutral-200/80">
-          Admin Verified
+          {t.adminVerifiedBadge}
         </span>
       </div>
 
@@ -152,13 +149,15 @@ export function CartExtractorCard({ onExtracted, currentDynamicFeePercent }: Car
             rows={4}
             value={inputText}
             onChange={(e) => handleTextChange(e.target.value)}
-            placeholder={`Paste the entire shared context from SHEIN here:\n"I found some great items at SHEIN!\nhttps://onelink.shein.com/58/662zlco9zrsd?shc=2_RNmYr2Mxf4g"`}
+            placeholder={t.placeholder}
             className="w-full px-4 py-3 text-xs sm:text-sm text-neutral-900 bg-transparent focus:outline-none placeholder:text-neutral-400 font-sans resize-y leading-relaxed"
           />
 
           <div className="px-4 py-2.5 bg-neutral-50/80 border-t border-neutral-100 flex items-center justify-between text-[11px] text-neutral-400">
-            <span>Accepts onelink.shein.com or product URLs</span>
-            <span>{inputText.length} chars</span>
+            <span>{t.acceptsHint}</span>
+            <span>
+              {inputText.length} {t.chars}
+            </span>
           </div>
         </div>
 
@@ -168,14 +167,14 @@ export function CartExtractorCard({ onExtracted, currentDynamicFeePercent }: Car
             <div className="flex items-center gap-2.5 overflow-hidden">
               <CheckCircle2 className="w-4 h-4 text-[#8B5CF6] shrink-0" />
               <div className="overflow-hidden">
-                <span className="font-bold text-[#6D28D9] block text-[11px]">Valid Link Isolated:</span>
+                <span className="font-bold text-[#6D28D9] block text-[11px]">{t.validLinkDetected}</span>
                 <span className="truncate font-mono text-[11px] text-neutral-700 block">
                   {detectedUrl}
                 </span>
               </div>
             </div>
             <span className="shrink-0 text-[11px] font-bold text-[#7C3AED] bg-white px-2.5 py-1 rounded-full border border-purple-200">
-              Ready
+              {t.ready}
             </span>
           </div>
         )}
@@ -197,13 +196,13 @@ export function CartExtractorCard({ onExtracted, currentDynamicFeePercent }: Car
             {loading ? (
               <>
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                <span>Extracting Goods...</span>
+                <span>{t.extracting}</span>
               </>
             ) : (
               <>
                 <ShoppingBag className="w-4 h-4" />
-                <span>Extract Goods &amp; Preview Total</span>
-                <ArrowRight className="w-4 h-4" />
+                <span>{t.extractBtn}</span>
+                {dir === 'rtl' ? <ArrowLeft className="w-4 h-4" /> : <ArrowRight className="w-4 h-4" />}
               </>
             )}
           </button>
