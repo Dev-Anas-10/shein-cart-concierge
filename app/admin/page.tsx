@@ -486,18 +486,18 @@ export default function AdminDashboardPage() {
   // ── Guard: show login prompt if not authenticated ──
   if (!authLoading && !user) {
     return (
-      <div className="min-h-screen bg-neutral-100/60">
+      <div className="min-h-screen bg-[#FBFBFC] dark:bg-[#0c0a0f] text-neutral-900 dark:text-white">
         <Navbar onOpenAuth={() => setAuthOpen(true)} />
-        <div className="flex flex-col items-center justify-center min-h-[70vh] gap-6">
-          <div className="p-8 bg-white rounded-3xl border border-neutral-200 shadow-xl text-center max-w-md">
+        <div className="flex flex-col items-center justify-center min-h-[70vh] gap-6 p-4">
+          <div className="p-8 bg-white dark:bg-[#14111d] rounded-3xl border border-neutral-200 dark:border-[#2a243a] shadow-xl text-center max-w-md">
             <ShieldCheck className="w-12 h-12 text-rose-600 mx-auto mb-4" />
-            <h2 className="text-2xl font-black text-neutral-950 mb-2">Admin Access Required</h2>
-            <p className="text-neutral-500 text-sm mb-6">
+            <h2 className="text-2xl font-black text-neutral-950 dark:text-white mb-2">Admin Access Required</h2>
+            <p className="text-neutral-500 dark:text-neutral-400 text-sm mb-6">
               Please sign in with your admin account to access the dashboard.
             </p>
             <button
               onClick={() => setAuthOpen(true)}
-              className="w-full py-3 bg-neutral-950 hover:bg-rose-600 text-white font-extrabold rounded-2xl transition-colors"
+              className="w-full py-3 bg-neutral-950 dark:bg-purple-600 hover:bg-neutral-800 text-white font-extrabold rounded-2xl transition-colors cursor-pointer"
             >
               Sign In as Admin
             </button>
@@ -511,16 +511,16 @@ export default function AdminDashboardPage() {
   // ── Guard: show access denied if logged in but not admin ──
   if (!authLoading && user && user.role !== 'admin') {
     return (
-      <div className="min-h-screen bg-neutral-100/60">
+      <div className="min-h-screen bg-[#FBFBFC] dark:bg-[#0c0a0f] text-neutral-900 dark:text-white">
         <Navbar onOpenAuth={() => setAuthOpen(true)} />
-        <div className="flex flex-col items-center justify-center min-h-[70vh] gap-6">
-          <div className="p-8 bg-white rounded-3xl border border-rose-200 shadow-xl text-center max-w-md">
+        <div className="flex flex-col items-center justify-center min-h-[70vh] gap-6 p-4">
+          <div className="p-8 bg-white dark:bg-[#14111d] rounded-3xl border border-rose-200 dark:border-rose-900 shadow-xl text-center max-w-md">
             <AlertTriangle className="w-12 h-12 text-rose-600 mx-auto mb-4" />
-            <h2 className="text-2xl font-black text-neutral-950 mb-2">Access Denied</h2>
-            <p className="text-neutral-500 text-sm mb-2">
+            <h2 className="text-2xl font-black text-neutral-950 dark:text-white mb-2">Access Denied</h2>
+            <p className="text-neutral-500 dark:text-neutral-400 text-sm mb-2">
               Your account (<strong>{user.email}</strong>) does not have admin privileges.
             </p>
-            <p className="text-neutral-400 text-xs">Contact your supervisor to request access.</p>
+            <p className="text-neutral-400 dark:text-neutral-500 text-xs">Contact your supervisor to request access.</p>
           </div>
         </div>
       </div>
@@ -528,7 +528,10 @@ export default function AdminDashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-100/60 pb-20">
+    <div className="min-h-screen bg-[#FBFBFC] dark:bg-[#0c0a0f] text-neutral-900 dark:text-white pb-24 transition-colors relative overflow-hidden">
+      {/* Background ambient lighting */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-6xl h-96 bg-gradient-to-b from-purple-400/8 via-pink-400/4 to-transparent dark:from-purple-600/10 dark:via-purple-900/5 dark:to-transparent pointer-events-none blur-3xl -z-10" />
+
       <Navbar onOpenAuth={() => setAuthOpen(true)} />
 
       {/* Toast Notifications */}
@@ -539,18 +542,18 @@ export default function AdminDashboardPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-2">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-100 text-rose-800 text-[11px] font-black uppercase tracking-wider border border-rose-200">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 text-[11px] font-black uppercase tracking-wider border border-rose-200 dark:border-rose-900/60">
                 <ShieldCheck className="w-3.5 h-3.5 text-rose-600" />
                 Administrative Command Center
               </span>
-              <span className="text-[11px] font-mono text-neutral-500 bg-white px-2.5 py-0.5 rounded-full border border-neutral-200">
+              <span className="text-[11px] font-mono text-neutral-500 bg-white dark:bg-[#1a1626] px-2.5 py-0.5 rounded-full border border-neutral-200 dark:border-[#2f2742]">
                 Live DB Sync
               </span>
             </div>
-            <h1 className="text-3xl sm:text-4xl font-black text-neutral-950 tracking-tight">
+            <h1 className="text-3xl sm:text-4xl font-black text-neutral-950 dark:text-white tracking-tight">
               Order Review &amp; Dynamic Pricing Hub
             </h1>
-            <p className="text-xs sm:text-sm text-neutral-500">
+            <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400">
               Accurately review extracted SHEIN goods, modify individual item pricing, add per-good notes, unlock InstaPay / Vodafone Cash payments, and confirm receipts.
             </p>
           </div>
@@ -558,7 +561,7 @@ export default function AdminDashboardPage() {
           <div className="flex items-center gap-3">
             <Link
               href="/admin/analytics"
-              className="px-4 py-2.5 bg-white hover:bg-neutral-50 text-neutral-800 border border-neutral-200 rounded-2xl text-xs font-black transition-all flex items-center gap-2 shadow-xs cursor-pointer active:scale-95"
+              className="px-4 py-2.5 bg-white dark:bg-[#14111d] hover:bg-neutral-50 dark:hover:bg-[#1f1a2c] text-neutral-800 dark:text-neutral-200 border border-neutral-200 dark:border-[#2a243a] rounded-2xl text-xs font-black transition-all flex items-center gap-2 shadow-xs cursor-pointer active:scale-95"
             >
               <TrendingUp className="w-4 h-4 text-purple-600" />
               التحليلات والأرباح (Analytics)
@@ -574,7 +577,7 @@ export default function AdminDashboardPage() {
 
             <button
               onClick={fetchData}
-              className="p-2.5 bg-white hover:bg-neutral-50 text-neutral-600 border border-neutral-200 rounded-2xl transition-all shadow-xs cursor-pointer"
+              className="p-2.5 bg-white dark:bg-[#14111d] hover:bg-neutral-50 dark:hover:bg-[#1f1a2c] text-neutral-600 dark:text-neutral-300 border border-neutral-200 dark:border-[#2a243a] rounded-2xl transition-all shadow-xs cursor-pointer"
               title="Refresh"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -584,56 +587,56 @@ export default function AdminDashboardPage() {
 
         {/* High-Impact Metric Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-          <div className="bg-white p-5 rounded-3xl border border-neutral-200/80 shadow-xs hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between text-neutral-400 text-xs font-bold mb-2">
+          <div className="bg-white dark:bg-[#14111d] p-5 rounded-3xl border border-neutral-200/80 dark:border-[#2a243a] shadow-xs hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between text-neutral-400 dark:text-neutral-500 text-xs font-bold mb-2">
               <span>Total Orders</span>
-              <span className="text-[10px] bg-neutral-100 px-2 py-0.5 rounded-md text-neutral-700">All</span>
+              <span className="text-[10px] bg-neutral-100 dark:bg-[#201a2e] px-2 py-0.5 rounded-md text-neutral-700 dark:text-neutral-300">All</span>
             </div>
-            <div className="text-3xl font-black text-neutral-950">{totalOrdersCount}</div>
-            <div className="text-[11px] text-neutral-400 mt-1">Extracted carts</div>
+            <div className="text-3xl font-black text-neutral-950 dark:text-white">{totalOrdersCount}</div>
+            <div className="text-[11px] text-neutral-400 dark:text-neutral-500 mt-1">Extracted carts</div>
           </div>
 
-          <div className="bg-gradient-to-br from-amber-50 to-orange-50 p-5 rounded-3xl border-2 border-amber-300 shadow-sm relative overflow-hidden">
-            <div className="flex items-center justify-between text-amber-900 text-xs font-bold mb-2">
+          <div className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/20 p-5 rounded-3xl border-2 border-amber-300 dark:border-amber-800/60 shadow-sm relative overflow-hidden">
+            <div className="flex items-center justify-between text-amber-900 dark:text-amber-300 text-xs font-bold mb-2">
               <span className="font-extrabold">Needs Review</span>
               <Clock className="w-4 h-4 text-amber-600" />
             </div>
-            <div className="text-3xl font-black text-amber-600">{pendingApprovalCount}</div>
-            <div className="text-[11px] text-amber-800 font-bold mt-1">Pending Approval</div>
+            <div className="text-3xl font-black text-amber-600 dark:text-amber-400">{pendingApprovalCount}</div>
+            <div className="text-[11px] text-amber-800 dark:text-amber-300 font-bold mt-1">Pending Approval</div>
           </div>
 
-          <div className="bg-white p-5 rounded-3xl border border-blue-200 shadow-xs hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between text-blue-700 text-xs font-bold mb-2">
+          <div className="bg-white dark:bg-[#14111d] p-5 rounded-3xl border border-blue-200 dark:border-blue-900/50 shadow-xs hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between text-blue-700 dark:text-blue-400 text-xs font-bold mb-2">
               <span>Awaiting Payment</span>
               <CreditCard className="w-4 h-4 text-blue-500" />
             </div>
-            <div className="text-3xl font-black text-blue-600">{approvedPaymentCount}</div>
-            <div className="text-[11px] text-blue-500 mt-1">User has payment info</div>
+            <div className="text-3xl font-black text-blue-600 dark:text-blue-400">{approvedPaymentCount}</div>
+            <div className="text-[11px] text-blue-500 dark:text-blue-400 mt-1">User has payment info</div>
           </div>
 
-          <div className="bg-gradient-to-br from-purple-50 to-indigo-50 p-5 rounded-3xl border-2 border-purple-300 shadow-sm">
-            <div className="flex items-center justify-between text-purple-900 text-xs font-bold mb-2">
+          <div className="bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-950/30 dark:to-indigo-950/20 p-5 rounded-3xl border-2 border-purple-300 dark:border-purple-800/60 shadow-sm">
+            <div className="flex items-center justify-between text-purple-900 dark:text-purple-300 text-xs font-bold mb-2">
               <span className="font-extrabold">Payment Review</span>
               <FileCheck className="w-4 h-4 text-purple-600" />
             </div>
-            <div className="text-3xl font-black text-purple-600">{paymentReviewCount}</div>
-            <div className="text-[11px] text-purple-800 font-bold mt-1">Receipts Uploaded</div>
+            <div className="text-3xl font-black text-purple-600 dark:text-purple-400">{paymentReviewCount}</div>
+            <div className="text-[11px] text-purple-800 dark:text-purple-300 font-bold mt-1">Receipts Uploaded</div>
           </div>
 
-          <div className="bg-white p-5 rounded-3xl border border-emerald-200 shadow-xs hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between text-emerald-800 text-xs font-bold mb-2">
+          <div className="bg-white dark:bg-[#14111d] p-5 rounded-3xl border border-emerald-200 dark:border-emerald-900/50 shadow-xs hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between text-emerald-800 dark:text-emerald-400 text-xs font-bold mb-2">
               <span>Total Volume</span>
               <TrendingUp className="w-4 h-4 text-emerald-600" />
             </div>
-            <div className="text-2xl font-black text-emerald-600">
+            <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
               {totalVolumeEgp.toLocaleString()} <span className="text-xs">EGP</span>
             </div>
-            <div className="text-[11px] text-emerald-700 font-medium mt-1">{completedCount} Completed</div>
+            <div className="text-[11px] text-emerald-700 dark:text-emerald-400 font-medium mt-1">{completedCount} Completed</div>
           </div>
         </div>
 
         {/* Filters & Search Bar */}
-        <div className="bg-white p-4 rounded-3xl border border-neutral-200 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="bg-white dark:bg-[#14111d] p-4 rounded-3xl border border-neutral-200/80 dark:border-[#2a243a] shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-1.5 w-full md:w-auto">
             {[
               { key: 'ALL', label: 'All Orders' },
@@ -648,8 +651,8 @@ export default function AdminDashboardPage() {
                 onClick={() => setStatusFilter(tab.key)}
                 className={`px-3.5 py-2 rounded-2xl text-xs font-extrabold transition-all cursor-pointer ${
                   statusFilter === tab.key
-                    ? 'bg-neutral-950 text-white shadow-xs'
-                    : 'text-neutral-600 hover:bg-neutral-100'
+                    ? 'bg-neutral-950 dark:bg-purple-600 text-white shadow-xs'
+                    : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-[#201a2e]'
                 }`}
               >
                 {tab.label}
@@ -674,17 +677,17 @@ export default function AdminDashboardPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search by order ID, customer, phone..."
-              className="w-full pl-10 pr-3.5 py-2.5 text-xs bg-neutral-50 border border-neutral-200 rounded-2xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-neutral-950"
+              className="w-full pl-10 pr-3.5 py-2.5 text-xs bg-neutral-50 dark:bg-[#1a1626] border border-neutral-200 dark:border-[#2f2742] text-neutral-900 dark:text-white rounded-2xl focus:bg-white dark:focus:bg-[#201a2e] focus:outline-none focus:ring-2 focus:ring-purple-600"
             />
           </div>
         </div>
 
         {/* Orders Table */}
-        <div className="bg-white rounded-3xl border border-neutral-200 shadow-xs overflow-hidden">
+        <div className="bg-white dark:bg-[#14111d] rounded-3xl border border-neutral-200/80 dark:border-[#2a243a] shadow-xs overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-neutral-50 border-b border-neutral-200 text-[11px] font-black uppercase tracking-wider text-neutral-500">
+                <tr className="bg-neutral-50 dark:bg-[#181422] border-b border-neutral-200 dark:border-[#2a243a] text-[11px] font-black uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
                   <th className="py-4 px-6">Order ID & Date</th>
                   <th className="py-4 px-6">Customer Info</th>
                   <th className="py-4 px-6">Goods Preview</th>
@@ -693,7 +696,7 @@ export default function AdminDashboardPage() {
                   <th className="py-4 px-6 text-right">Review Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-neutral-100 text-xs">
+              <tbody className="divide-y divide-neutral-100 dark:divide-[#241e33] text-xs">
                 {loading ? (
                   <tr>
                     <td colSpan={6} className="py-14 text-center text-neutral-400 font-medium">
@@ -711,26 +714,26 @@ export default function AdminDashboardPage() {
                   filteredOrders.map((order) => (
                     <tr
                       key={order.id}
-                      className="hover:bg-neutral-50/70 transition-colors group cursor-pointer"
+                      className="hover:bg-neutral-50/70 dark:hover:bg-[#1c1728]/70 transition-colors group cursor-pointer"
                       onClick={() => openReviewModal(order)}
                     >
                       <td className="py-5 px-6">
-                        <div className="font-mono font-black text-neutral-950 text-sm">{order.id}</div>
-                        <div className="text-[11px] text-neutral-400 mt-0.5">
+                        <div className="font-mono font-black text-neutral-950 dark:text-white text-sm">{order.id}</div>
+                        <div className="text-[11px] text-neutral-400 dark:text-neutral-500 mt-0.5">
                           {new Date(order.createdAt).toLocaleDateString()} at{' '}
                           {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </div>
                       </td>
 
                       <td className="py-5 px-6">
-                        <div className="font-bold text-neutral-900">{order.userName}</div>
-                        <div className="text-neutral-500 text-[11px] font-mono">{order.userPhone || order.userEmail}</div>
+                        <div className="font-bold text-neutral-900 dark:text-white">{order.userName}</div>
+                        <div className="text-neutral-500 dark:text-neutral-400 text-[11px] font-mono">{order.userPhone || order.userEmail}</div>
                       </td>
 
                       <td className="py-5 px-6 max-w-xs">
                         <div className="flex items-center gap-2">
                           {order.items.slice(0, 3).map((it, idx) => (
-                            <div key={idx} className="w-8 h-10 rounded-lg overflow-hidden border border-neutral-200 shadow-xs bg-purple-50 shrink-0">
+                            <div key={idx} className="w-8 h-10 rounded-lg overflow-hidden border border-neutral-200 dark:border-[#2f2742] shadow-xs bg-purple-50 dark:bg-purple-950/40 shrink-0">
                               <SafeImage
                                 src={it.image}
                                 alt=""
@@ -738,20 +741,20 @@ export default function AdminDashboardPage() {
                               />
                             </div>
                           ))}
-                          <span className="font-bold text-neutral-700">
+                          <span className="font-bold text-neutral-700 dark:text-neutral-300">
                             {order.items.length} goods
                           </span>
                         </div>
-                        <div className="text-[11px] text-rose-600 font-mono truncate mt-1">
+                        <div className="text-[11px] text-rose-600 dark:text-rose-400 font-mono truncate mt-1">
                           {order.extractedLink}
                         </div>
                       </td>
 
                       <td className="py-5 px-6">
-                        <div className="font-black text-sm text-neutral-950">
+                        <div className="font-black text-sm text-neutral-950 dark:text-white">
                           {order.totalCash.toLocaleString()} EGP
                         </div>
-                        <div className="text-[11px] text-neutral-400">
+                        <div className="text-[11px] text-neutral-400 dark:text-neutral-500">
                           Subtotal {order.itemsSubtotal} + Fee {order.dynamicFeePercent}% ({order.dynamicFeeAmount})
                         </div>
                       </td>
@@ -766,7 +769,7 @@ export default function AdminDashboardPage() {
                             e.stopPropagation();
                             openReviewModal(order);
                           }}
-                          className="px-4 py-2 bg-neutral-950 hover:bg-rose-600 text-white font-extrabold rounded-2xl text-xs transition-colors shadow-xs inline-flex items-center gap-1.5 cursor-pointer active:scale-95"
+                          className="px-4 py-2 bg-neutral-950 dark:bg-purple-600 hover:bg-purple-700 text-white font-extrabold rounded-2xl text-xs transition-colors shadow-xs inline-flex items-center gap-1.5 cursor-pointer active:scale-95"
                         >
                           <Eye className="w-3.5 h-3.5" />
                           {order.status === 'PENDING_APPROVAL' ? 'Review & Approve' : 'Open Review'}
