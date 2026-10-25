@@ -20,6 +20,7 @@ import {
   ArrowLeft,
   ChevronRight,
   ChevronLeft,
+  ShoppingBag,
 } from 'lucide-react';
 
 function parseJwt(token: string) {
@@ -725,13 +726,14 @@ export function FullPageLoginCard({ onGuestContinue }: FullPageLoginCardProps) {
 
         {/* Guest Continue Option */}
         {onGuestContinue && (
-          <div className="mt-4 text-center">
+          <div className="mt-5 pt-3 border-t border-dashed border-neutral-200/80 dark:border-neutral-800 text-center">
             <button
               type="button"
               onClick={onGuestContinue}
-              className="text-xs text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors inline-flex items-center gap-1 cursor-pointer font-medium"
+              className="w-full py-3 px-4 rounded-2xl bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 dark:hover:bg-purple-900/50 text-[#7C3AED] dark:text-purple-300 border border-purple-200 dark:border-purple-800 font-black text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-[0.98]"
             >
-              <span>{isRtl ? 'المتابعة كزائر واستخراج سلة' : 'Continue as Guest to Extract Cart'}</span>
+              <ShoppingBag className="w-4 h-4 text-pink-500" />
+              <span>{isRtl ? 'استكشاف الموقع وتجربة استخراج سلة شي إن كضيفة 🛍️' : 'Explore & Extract SHEIN Cart as Guest 🛍️'}</span>
               {isRtl ? <ArrowLeft className="w-3.5 h-3.5" /> : <ArrowRight className="w-3.5 h-3.5" />}
             </button>
           </div>
