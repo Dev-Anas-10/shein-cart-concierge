@@ -1,16 +1,15 @@
 /**
- * Persistent database layer.
- *
- * Strategy (in priority order):
- *  1. Upstash Redis — when UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN are set
- *     (works across Vercel serverless instances, multiple users, all regions)
- *  2. Local file — data/db.json for local dev or single-server deployments
- *  3. In-memory only — last resort, data survives until process restart
+ * Persistent database layer with multi-level fallback:
+ *  1. Upstash Redis (shared across all Vercel serverless instances when env vars exist)
+ *  2. Local /tmp file (on Vercel) initialized from bundled data/db.json
+ *  3. data/db.json (local file system)
+ *  4. In-memory cache
  */
 
 import fs from 'fs';
 import path from 'path';
 import { Order, SystemSettings, User, GoodItem } from './types';
+import { RELIABLE_FASHION_IMAGES } from './shein-extractor';
 
 /* ─────────────────────────────── Types ─────────────────────────────── */
 
@@ -47,9 +46,130 @@ const DEFAULT_USERS: (User & { password?: string })[] = [
     avatar: 'https://api.dicebear.com/7.x/initials/svg?seed=Admin+Supervisor',
     createdAt: new Date().toISOString(),
   },
+  {
+    id: 'user-sara',
+    name: 'Sara Ahmed',
+    email: 'sara@example.com',
+    password: 'user123456',
+    role: 'user',
+    phone: '01019283746',
+    avatar: 'https://api.dicebear.com/7.x/initials/svg?seed=Sara+Ahmed',
+    createdAt: new Date().toISOString(),
+  },
 ];
 
-const DEFAULT_ORDERS: Order[] = [];
+const DEFAULT_ORDERS: Order[] = [
+  {
+    id: 'SH-19036',
+    userId: 'user-sara',
+    userName: 'Sara Ahmed',
+    userEmail: 'sara@example.com',
+    userPhone: '01019283746',
+    shippingAddress: '5 Street 250, Degla, Maadi, Cairo',
+    rawInput: 'https://onelink.shein.com/58/662zlco9zrsd?shc=2_RNmYr2Mxf4g',
+    extractedLink: 'https://onelink.shein.com/58/662zlco9zrsd?shc=2_RNmYr2Mxf4g',
+    items: [
+      {
+        id: 'item-1',
+        name: 'SHEIN Frenchy Solid Notch Neck Long Sleeve Top & Trousers Set',
+        image: RELIABLE_FASHION_IMAGES[0],
+        originalPrice: 650,
+        currency: 'EGP',
+        quantity: 1,
+        subtotal: 650,
+        adminComment: 'Size M in Mocha Brown confirmed in stock at regional fulfillment center',
+      },
+    ],
+    itemsCount: 1,
+    itemsSubtotal: 650,
+    dynamicFeePercent: 20,
+    dynamicFeeAmount: 130,
+    shippingFee: 0,
+    totalCash: 780,
+    currency: 'EGP',
+    status: 'APPROVED_PENDING_PAYMENT',
+    createdAt: new Date(Date.now() - 3600000 * 4).toISOString(),
+    updatedAt: new Date(Date.now() - 3600000).toISOString(),
+    reviewedBy: 'Admin Supervisor',
+    reviewedAt: new Date(Date.now() - 3600000).toISOString(),
+    adminComment: 'Accurately verified by supervisor. Cart is ready for payment.',
+    payment: {
+      method: 'vodafone_cash',
+      senderIdentifier: '01019283746',
+      transactionReference: 'VF-9482109',
+      submittedAt: new Date(Date.now() - 3600000 * 2).toISOString(),
+      adminNote: 'Payment confirmed by admin',
+    },
+  },
+  {
+    id: 'SH-89421',
+    userId: 'user-sara',
+    userName: 'Sara Ahmed',
+    userEmail: 'sara@example.com',
+    userPhone: '01019283746',
+    shippingAddress: 'Building 14, St 9, Maadi, Cairo, Egypt',
+    rawInput:
+      'I found some great items at SHEIN!\nThese items in my shopping cart are great. I highly recommend them to everyone!\nhttps://onelink.shein.com/58/662zlco9zrsd?shc=2_RNmYr2Mxf4g',
+    extractedLink: 'https://onelink.shein.com/58/662zlco9zrsd?shc=2_RNmYr2Mxf4g',
+    cartShareCode: '2_RNmYr2Mxf4g',
+    cartGroupId: '912245215',
+    cartCoverImage: RELIABLE_FASHION_IMAGES[0],
+    items: [
+      {
+        id: 'item-1',
+        name: 'SHEIN Frenchy Solid Notch Neck Long Sleeve Top & Trousers Set',
+        image: RELIABLE_FASHION_IMAGES[0],
+        originalUrl: 'https://onelink.shein.com/58/662zlco9zrsd?shc=2_RNmYr2Mxf4g',
+        sku: 'sz240819129532890',
+        color: 'Mocha Brown',
+        size: 'M',
+        originalPrice: 650,
+        currency: 'EGP',
+        quantity: 1,
+        subtotal: 650,
+        status: 'available',
+      },
+      {
+        id: 'item-2',
+        name: 'SHEIN EZwear Casual Drop Shoulder Ribbed Knit Cardigan',
+        image: RELIABLE_FASHION_IMAGES[1],
+        originalUrl: 'https://onelink.shein.com/58/662zlco9zrsd?shc=2_RNmYr2Mxf4g',
+        sku: 'sw23080447382910',
+        color: 'Oatmeal Beige',
+        size: 'L',
+        originalPrice: 420,
+        currency: 'EGP',
+        quantity: 1,
+        subtotal: 420,
+        status: 'available',
+      },
+      {
+        id: 'item-3',
+        name: 'SHEIN Minimalist Quilted Shoulder Crossbody Bag With Chain',
+        image: RELIABLE_FASHION_IMAGES[2],
+        originalUrl: 'https://onelink.shein.com/58/662zlco9zrsd?shc=2_RNmYr2Mxf4g',
+        sku: 'sg2310118837190',
+        color: 'Classic Black',
+        size: 'One Size',
+        originalPrice: 380,
+        currency: 'EGP',
+        quantity: 1,
+        subtotal: 380,
+        status: 'available',
+      },
+    ],
+    itemsCount: 3,
+    itemsSubtotal: 1450,
+    dynamicFeePercent: 20,
+    dynamicFeeAmount: 290,
+    shippingFee: 0,
+    totalCash: 1740,
+    currency: 'EGP',
+    status: 'PENDING_APPROVAL',
+    createdAt: new Date(Date.now() - 3600000 * 6).toISOString(),
+    updatedAt: new Date(Date.now() - 3600000 * 6).toISOString(),
+  },
+];
 
 /* ────────────────────────── Upstash Redis Layer ───────────────────── */
 
@@ -63,11 +183,10 @@ let _redis: RedisClient | null = null;
 function getRedis(): RedisClient | null {
   if (_redis) return _redis;
 
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
   if (!url || !token) return null;
 
-  // Lazy import — only runs when env vars exist
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { Redis } = require('@upstash/redis');
@@ -78,7 +197,7 @@ function getRedis(): RedisClient | null {
   }
 }
 
-const REDIS_KEY = 'shein_concierge_db';
+const REDIS_KEY = 'shein_concierge_db_v2';
 
 async function loadFromRedis(): Promise<DatabaseSchema | null> {
   const r = getRedis();
@@ -88,8 +207,8 @@ async function loadFromRedis(): Promise<DatabaseSchema | null> {
     if (!raw) return null;
     const parsed = typeof raw === 'string' ? JSON.parse(raw) : (raw as DatabaseSchema);
     return {
-      users: parsed.users ?? DEFAULT_USERS,
-      orders: parsed.orders ?? DEFAULT_ORDERS,
+      users: parsed.users && parsed.users.length > 0 ? parsed.users : DEFAULT_USERS,
+      orders: parsed.orders && parsed.orders.length > 0 ? parsed.orders : DEFAULT_ORDERS,
       settings: parsed.settings ?? DEFAULT_SETTINGS,
     };
   } catch (err) {
@@ -110,41 +229,65 @@ async function saveToRedis(data: DatabaseSchema): Promise<void> {
 
 /* ──────────────────────────── File-based Layer ────────────────────── */
 
+const LOCAL_DB_PATH = path.join(process.cwd(), 'data', 'db.json');
+
 function getDbFilePath(): string {
   if (process.env.VERCEL) {
     return '/tmp/shein_db.json';
   }
-  return path.join(process.cwd(), 'data', 'db.json');
+  return LOCAL_DB_PATH;
 }
 
 function loadFromFile(): DatabaseSchema | null {
+  const targetPath = getDbFilePath();
+
+  // Try active target file first (e.g. /tmp/shein_db.json on Vercel)
   try {
-    const filePath = getDbFilePath();
-    if (fs.existsSync(filePath)) {
-      const raw = fs.readFileSync(filePath, 'utf-8');
+    if (fs.existsSync(targetPath)) {
+      const raw = fs.readFileSync(targetPath, 'utf-8');
       const parsed = JSON.parse(raw);
-      return {
-        users: parsed.users ?? DEFAULT_USERS,
-        orders: parsed.orders ?? DEFAULT_ORDERS,
-        settings: parsed.settings ?? DEFAULT_SETTINGS,
-      };
+      if (parsed) {
+        return {
+          users: parsed.users && parsed.users.length > 0 ? parsed.users : DEFAULT_USERS,
+          orders: parsed.orders && parsed.orders.length > 0 ? parsed.orders : DEFAULT_ORDERS,
+          settings: parsed.settings ?? DEFAULT_SETTINGS,
+        };
+      }
     }
   } catch (err) {
-    console.warn('[DB] File read error:', err);
+    console.warn('[DB] Target file read error:', err);
   }
+
+  // Fallback to bundled data/db.json (seeds initial data on fresh serverless cold starts)
+  try {
+    if (fs.existsSync(LOCAL_DB_PATH)) {
+      const raw = fs.readFileSync(LOCAL_DB_PATH, 'utf-8');
+      const parsed = JSON.parse(raw);
+      if (parsed) {
+        return {
+          users: parsed.users && parsed.users.length > 0 ? parsed.users : DEFAULT_USERS,
+          orders: parsed.orders && parsed.orders.length > 0 ? parsed.orders : DEFAULT_ORDERS,
+          settings: parsed.settings ?? DEFAULT_SETTINGS,
+        };
+      }
+    }
+  } catch (err) {
+    console.warn('[DB] Bundled DB read error:', err);
+  }
+
   return null;
 }
 
 function saveToFile(data: DatabaseSchema): void {
+  const targetPath = getDbFilePath();
   try {
-    const filePath = getDbFilePath();
-    const dir = path.dirname(filePath);
+    const dir = path.dirname(targetPath);
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
-    const tmp = `${filePath}.tmp`;
+    const tmp = `${targetPath}.tmp`;
     fs.writeFileSync(tmp, JSON.stringify(data, null, 2), 'utf-8');
-    fs.renameSync(tmp, filePath);
+    fs.renameSync(tmp, targetPath);
   } catch (err) {
     console.warn('[DB] File write error (in-memory only):', err);
   }
@@ -167,36 +310,32 @@ function defaultDb(): DatabaseSchema {
 async function ensureDb(): Promise<DatabaseSchema> {
   if (memoryDb) return memoryDb;
 
-  // Try Redis first
+  // 1. Try Redis
   const fromRedis = await loadFromRedis();
   if (fromRedis) {
     memoryDb = fromRedis;
     return memoryDb;
   }
 
-  // Try file
+  // 2. Try file
   const fromFile = loadFromFile();
   if (fromFile) {
     memoryDb = fromFile;
     return memoryDb;
   }
 
-  // Use defaults
+  // 3. Defaults
   memoryDb = defaultDb();
-
-  // Persist initial state
   await persistDb(memoryDb);
   return memoryDb;
 }
 
 async function persistDb(data: DatabaseSchema): Promise<void> {
   memoryDb = data;
-  // Prefer Redis if available
   if (getRedis()) {
     await saveToRedis(data);
-  } else {
-    saveToFile(data);
   }
+  saveToFile(data);
 }
 
 /* ──────────────────────────── Data Access ──────────────────────────── */
@@ -234,11 +373,28 @@ export const db = {
     return data.settings;
   },
 
-  getOrders: async (filter?: { userId?: string; status?: string; search?: string }): Promise<Order[]> => {
+  getOrders: async (filter?: {
+    userId?: string;
+    userEmail?: string;
+    userPhone?: string;
+    status?: string;
+    search?: string;
+  }): Promise<Order[]> => {
     let list = (await ensureDb()).orders;
 
-    if (filter?.userId) {
-      list = list.filter((o) => o.userId === filter.userId);
+    // Filter by user if specified (matches userId, userEmail, or userPhone)
+    if (filter?.userId || filter?.userEmail || filter?.userPhone) {
+      list = list.filter((o) => {
+        if (filter.userId && o.userId === filter.userId) return true;
+        if (
+          filter.userEmail &&
+          o.userEmail &&
+          o.userEmail.toLowerCase() === filter.userEmail.toLowerCase()
+        )
+          return true;
+        if (filter.userPhone && o.userPhone && o.userPhone === filter.userPhone) return true;
+        return false;
+      });
     }
 
     if (filter?.status && filter.status !== 'ALL') {
@@ -266,7 +422,13 @@ export const db = {
 
   createOrder: async (order: Order): Promise<Order> => {
     const data = await ensureDb();
-    data.orders.unshift(order);
+    // Check if order already exists
+    const existingIndex = data.orders.findIndex((o) => o.id === order.id);
+    if (existingIndex >= 0) {
+      data.orders[existingIndex] = order;
+    } else {
+      data.orders.unshift(order);
+    }
     await persistDb(data);
     return order;
   },
@@ -283,7 +445,7 @@ export const db = {
       updatedAt: new Date().toISOString(),
     };
 
-    // If items were updated, recalculate subtotal and total cash dynamically
+    // Recalculate subtotal and total cash if items changed
     if (updates.items) {
       const subtotal = updates.items.reduce((s, it) => s + it.subtotal, 0);
       const feePercent = updates.dynamicFeePercent ?? current.dynamicFeePercent;
@@ -313,7 +475,6 @@ export const db = {
     return false;
   },
 
-  /** Invalidate in-memory cache — forces next read to reload from Redis/file */
   invalidateCache: () => {
     memoryDb = null;
   },

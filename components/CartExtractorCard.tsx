@@ -6,13 +6,12 @@ import { ExtractedCartResult } from '@/lib/types';
 import {
   Sparkles,
   ArrowRight,
-  CheckCircle2,
-  AlertCircle,
+  Search,
   Scissors,
   ShoppingBag,
-  ExternalLink,
-  ShieldAlert,
   Zap,
+  CheckCircle2,
+  AlertCircle,
 } from 'lucide-react';
 
 interface CartExtractorCardProps {
@@ -81,124 +80,135 @@ export function CartExtractorCard({ onExtracted, currentDynamicFeePercent }: Car
   };
 
   return (
-    <div className="relative group">
-      {/* Ambient decorative glow behind the card */}
-      <div className="absolute -inset-1.5 bg-gradient-to-r from-rose-500/20 via-purple-500/15 to-amber-500/20 rounded-3xl blur-xl opacity-70 group-hover:opacity-100 transition duration-700 pointer-events-none" />
-
-      <div className="relative bg-white/90 backdrop-blur-2xl rounded-3xl p-7 sm:p-10 shadow-2xl shadow-neutral-950/5 border border-white/80 ring-1 ring-neutral-900/5">
-        {/* Header with pill badges */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-7">
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-50 text-rose-700 text-[11px] font-black uppercase tracking-wider border border-rose-200/60 shadow-xs">
-                <Sparkles className="w-3.5 h-3.5 text-rose-600 animate-spin" />
-                Live SHEIN Parser
-              </span>
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 text-[11px] font-bold border border-emerald-200/60">
-                <Zap className="w-3 h-3 text-emerald-600" />
-                Auto-Regex Stripper
-              </span>
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-black text-neutral-950 tracking-tight">
-              Paste Your SHEIN Cart Message
-            </h2>
-            <p className="text-xs sm:text-sm text-neutral-500 max-w-xl font-normal leading-relaxed">
-              Users often send the complete share caption from the SHEIN app. Our parser removes the noise, isolates the link, extracts every single good, and applies the dynamic 20% concierge fee.
-            </p>
+    <div className="bg-white rounded-[32px] p-6 sm:p-10 border border-neutral-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] space-y-6">
+      {/* Top Graphic Illustration Header (inspired by Screen 1 & Screen 2) */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-6 pb-2">
+        <div className="space-y-2 text-center sm:text-left">
+          <div className="flex items-center justify-center sm:justify-start gap-2">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-50 text-[#7C3AED] text-[11px] font-black uppercase tracking-wider">
+              <Sparkles className="w-3.5 h-3.5 text-[#8B5CF6]" />
+              Smart SHEIN Cart Extractor
+            </span>
+            <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-neutral-100 text-neutral-600 text-[11px] font-medium">
+              +{currentDynamicFeePercent}% Dynamic Fee
+            </span>
           </div>
 
-          <button
-            type="button"
-            onClick={handleUseSample}
-            className="self-start sm:self-center px-4 py-2.5 text-xs font-black bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 text-amber-950 border border-amber-200/80 rounded-2xl transition-all flex items-center gap-2 shadow-xs hover:shadow-md active:scale-95 whitespace-nowrap cursor-pointer"
-          >
-            <Scissors className="w-4 h-4 text-amber-600" />
-            <span>Load Your Exact Sample</span>
-          </button>
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-neutral-900 tracking-tight">
+            Paste your cart link or message
+          </h2>
+          <p className="text-xs sm:text-sm text-neutral-500 max-w-lg leading-relaxed">
+            Copy the share text directly from the SHEIN app. Our parser extracts the items, calculates total cash with fee, and forwards to admin for review.
+          </p>
         </div>
 
-        {/* Input area */}
-        <form onSubmit={handleExtract} className="space-y-5">
-          <div className="space-y-3">
-            <div className="relative rounded-2xl overflow-hidden focus-within:ring-2 focus-within:ring-neutral-950 transition-all border border-neutral-200/80 shadow-inner bg-neutral-50/70">
-              <textarea
-                rows={4}
-                value={inputText}
-                onChange={(e) => handleTextChange(e.target.value)}
-                placeholder={`Paste the entire shared text here:\n"I found some great items at SHEIN!\nThese items in my shopping cart are great. I highly recommend them to everyone!\nhttps://onelink.shein.com/58/662zlco9zrsd?shc=2_RNmYr2Mxf4g"`}
-                className="w-full p-4 sm:p-5 text-sm text-neutral-900 bg-transparent focus:outline-none placeholder:text-neutral-400 font-mono resize-y leading-relaxed"
-              />
-
-              <div className="px-4 py-2.5 bg-neutral-100/70 border-t border-neutral-200/60 flex items-center justify-between text-[11px] text-neutral-500 font-medium">
-                <span>Supports: onelink.shein.com, m.shein.com, shein.com</span>
-                <span>{inputText.length} characters</span>
-              </div>
-            </div>
-
-            {/* Scraped URL Feedback Bar */}
-            {detectedUrl && (
-              <div className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 text-emerald-900 text-xs flex items-center justify-between gap-3 animate-in fade-in slide-in-from-top-1">
-                <div className="flex items-center gap-2.5 overflow-hidden">
-                  <div className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold text-[10px] flex-shrink-0 shadow-xs">
-                    ✓
-                  </div>
-                  <div className="overflow-hidden">
-                    <span className="font-extrabold text-emerald-950 block">Scraped SHEIN Link:</span>
-                    <span className="truncate font-mono text-[11px] text-emerald-800 underline block">
-                      {detectedUrl}
-                    </span>
-                  </div>
-                </div>
-
-                <span className="flex-shrink-0 font-extrabold text-[11px] text-emerald-700 bg-white px-3 py-1 rounded-full border border-emerald-300 shadow-xs">
-                  Clean & Ready
-                </span>
-              </div>
-            )}
-          </div>
-
-          {error && (
-            <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-3 animate-in shake">
-              <AlertCircle className="w-5 h-5 flex-shrink-0 text-rose-600" />
-              <span className="font-semibold">{error}</span>
-            </div>
-          )}
-
-          {/* Action Row */}
-          <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-3 text-xs text-neutral-500">
-              <div className="w-7 h-7 rounded-full bg-neutral-100 flex items-center justify-center font-black text-neutral-700 text-xs">
-                %
-              </div>
-              <div>
-                <span className="text-neutral-400 block text-[10px] uppercase font-bold tracking-wider">Dynamic Markup</span>
-                <span className="font-extrabold text-neutral-900 text-xs">
-                  +{currentDynamicFeePercent}% Concierge & Customs Fee Applied
-                </span>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-neutral-950 to-zinc-900 hover:from-black hover:to-neutral-950 text-white font-black text-sm rounded-2xl shadow-xl shadow-black/15 hover:shadow-2xl hover:shadow-black/25 transition-all flex items-center justify-center gap-3 active:scale-[0.98] disabled:opacity-75 cursor-pointer border border-white/10"
-            >
-              {loading ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>Extracting Goods from SHEIN...</span>
-                </>
-              ) : (
-                <>
-                  <ShoppingBag className="w-4 h-4 text-rose-400" />
-                  <span>Extract Goods & Preview Cash</span>
-                  <ArrowRight className="w-4 h-4 text-neutral-400" />
-                </>
-              )}
-            </button>
-          </div>
-        </form>
+        {/* Minimalist Vector Illustration Badge */}
+        <div className="relative w-28 h-28 shrink-0 flex items-center justify-center">
+          <div className="absolute inset-0 bg-[#F3E8FF] rounded-full scale-95" />
+          <svg className="w-20 h-20 relative z-10" viewBox="0 0 100 100" fill="none">
+            {/* Minimalist desk/screen illustration matching user screenshot */}
+            <circle cx="50" cy="50" r="38" fill="#E9D5FF" opacity="0.6" />
+            <rect x="25" y="42" width="50" height="32" rx="6" fill="#FFFFFF" stroke="#18181B" strokeWidth="2.5" />
+            <path d="M40 74L36 84H64L60 74" stroke="#18181B" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M20 84H80" stroke="#18181B" strokeWidth="3" strokeLinecap="round" />
+            <circle cx="50" cy="56" r="6" fill="#A78BFA" />
+            <path d="M68 28C74 34 68 46 76 50" stroke="#18181B" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+        </div>
       </div>
+
+      {/* Pill Filter Badges */}
+      <div className="flex flex-wrap items-center gap-2 pt-1">
+        <button
+          type="button"
+          onClick={handleUseSample}
+          className="px-4 py-1.5 rounded-full text-xs font-bold bg-[#A78BFA] text-white hover:bg-[#9061F9] transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer"
+        >
+          <Scissors className="w-3.5 h-3.5" />
+          Try Sample Cart
+        </button>
+        <span className="px-3.5 py-1.5 rounded-full text-xs font-semibold bg-neutral-50 text-neutral-600 border border-neutral-200/80">
+          Auto Link Extraction
+        </span>
+        <span className="px-3.5 py-1.5 rounded-full text-xs font-semibold bg-neutral-50 text-neutral-600 border border-neutral-200/80">
+          InstaPay &amp; Vodafone Cash
+        </span>
+        <span className="px-3.5 py-1.5 rounded-full text-xs font-semibold bg-neutral-50 text-neutral-600 border border-neutral-200/80">
+          Admin Verified
+        </span>
+      </div>
+
+      {/* Form Input Container */}
+      <form onSubmit={handleExtract} className="space-y-4 pt-2">
+        <div className="relative rounded-2xl border border-neutral-200 focus-within:border-[#A78BFA] focus-within:ring-2 focus-within:ring-purple-100 transition-all bg-[#FBFBFC]">
+          <div className="flex items-center gap-3 px-4 pt-3.5 text-neutral-400">
+            <Search className="w-4 h-4 text-neutral-400" />
+            <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">
+              SHEIN Share Box
+            </span>
+          </div>
+
+          <textarea
+            rows={4}
+            value={inputText}
+            onChange={(e) => handleTextChange(e.target.value)}
+            placeholder={`Paste the entire shared context from SHEIN here:\n"I found some great items at SHEIN!\nhttps://onelink.shein.com/58/662zlco9zrsd?shc=2_RNmYr2Mxf4g"`}
+            className="w-full px-4 py-3 text-xs sm:text-sm text-neutral-900 bg-transparent focus:outline-none placeholder:text-neutral-400 font-sans resize-y leading-relaxed"
+          />
+
+          <div className="px-4 py-2.5 bg-neutral-50/80 border-t border-neutral-100 flex items-center justify-between text-[11px] text-neutral-400">
+            <span>Accepts onelink.shein.com or product URLs</span>
+            <span>{inputText.length} chars</span>
+          </div>
+        </div>
+
+        {/* Scraped URL Feedback */}
+        {detectedUrl && (
+          <div className="p-3.5 rounded-2xl bg-purple-50/80 border border-purple-200 text-neutral-900 text-xs flex items-center justify-between gap-3 animate-in fade-in">
+            <div className="flex items-center gap-2.5 overflow-hidden">
+              <CheckCircle2 className="w-4 h-4 text-[#8B5CF6] shrink-0" />
+              <div className="overflow-hidden">
+                <span className="font-bold text-[#6D28D9] block text-[11px]">Valid Link Isolated:</span>
+                <span className="truncate font-mono text-[11px] text-neutral-700 block">
+                  {detectedUrl}
+                </span>
+              </div>
+            </div>
+            <span className="shrink-0 text-[11px] font-bold text-[#7C3AED] bg-white px-2.5 py-1 rounded-full border border-purple-200">
+              Ready
+            </span>
+          </div>
+        )}
+
+        {error && (
+          <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2.5 animate-in shake">
+            <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {/* Submit Button */}
+        <div className="flex items-center justify-end pt-1">
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full sm:w-auto px-8 py-3.5 bg-[#8B5CF6] hover:bg-[#7C3AED] disabled:opacity-50 text-white font-extrabold text-xs sm:text-sm rounded-2xl shadow-sm transition-all flex items-center justify-center gap-2.5 active:scale-98 cursor-pointer"
+          >
+            {loading ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <span>Extracting Goods...</span>
+              </>
+            ) : (
+              <>
+                <ShoppingBag className="w-4 h-4" />
+                <span>Extract Goods &amp; Preview Total</span>
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }

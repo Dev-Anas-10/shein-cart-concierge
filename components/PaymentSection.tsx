@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Order, SystemSettings } from '@/lib/types';
+import { saveClientOrder } from '@/lib/order-storage';
 import {
   CreditCard,
   Copy,
@@ -81,6 +82,10 @@ export function PaymentSection({ order, settings, onPaymentSubmitted }: PaymentS
       const resJson = await res.json();
       if (!res.ok) {
         throw new Error(resJson.error || 'Failed to submit payment proof');
+      }
+
+      if (resJson.data) {
+        saveClientOrder(resJson.data);
       }
 
       onPaymentSubmitted();

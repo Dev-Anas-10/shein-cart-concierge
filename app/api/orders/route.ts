@@ -6,10 +6,12 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get('userId') || undefined;
+    const userEmail = searchParams.get('userEmail') || undefined;
+    const userPhone = searchParams.get('userPhone') || undefined;
     const status = searchParams.get('status') || undefined;
     const search = searchParams.get('search') || undefined;
 
-    const orders = await db.getOrders({ userId, status, search });
+    const orders = await db.getOrders({ userId, userEmail, userPhone, status, search });
     return NextResponse.json({ success: true, data: orders });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Failed to fetch orders' }, { status: 500 });
@@ -57,7 +59,7 @@ export async function POST(req: NextRequest) {
     const shippingFee = settings.flatShippingFee || 0;
     const totalCash = itemsSubtotal + dynamicFeeAmount + shippingFee;
 
-    const orderId = `SH-${Math.floor(10000 + Math.random() * 90000)}`;
+    const orderId = body.id || `SH-${Math.floor(10000 + Math.random() * 90000)}`;
 
     const newOrder: Order = {
       id: orderId,

@@ -5,6 +5,7 @@ import { Order, GoodItem, SystemSettings, OrderStatus } from '@/lib/types';
 import { useAuth } from '@/lib/auth-context';
 import { Navbar } from '@/components/Navbar';
 import { AuthModal } from '@/components/AuthModal';
+import { SafeImage } from '@/components/SafeImage';
 import {
   ShieldCheck,
   Search,
@@ -541,12 +542,13 @@ export default function AdminDashboardPage() {
                       <td className="py-5 px-6 max-w-xs">
                         <div className="flex items-center gap-2">
                           {order.items.slice(0, 3).map((it, idx) => (
-                            <img
-                              key={idx}
-                              src={it.image}
-                              alt=""
-                              className="w-8 h-10 object-cover rounded-lg border border-neutral-200 shadow-xs"
-                            />
+                            <div key={idx} className="w-8 h-10 rounded-lg overflow-hidden border border-neutral-200 shadow-xs bg-purple-50 shrink-0">
+                              <SafeImage
+                                src={it.image}
+                                alt=""
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
                           ))}
                           <span className="font-bold text-neutral-700">
                             {order.items.length} goods
@@ -748,11 +750,13 @@ export default function AdminDashboardPage() {
                     >
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex items-center gap-3.5">
-                          <img
-                            src={item.image}
-                            alt=""
-                            className="w-16 h-20 object-cover rounded-2xl border border-neutral-200 bg-white shadow-xs"
-                          />
+                          <div className="w-16 h-20 rounded-2xl overflow-hidden border border-neutral-200 bg-white shadow-xs shrink-0">
+                            <SafeImage
+                              src={item.image}
+                              alt=""
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
                           <div>
                             <h5 className="font-extrabold text-neutral-950 text-xs sm:text-sm line-clamp-2">{item.name}</h5>
                             <div className="flex flex-wrap gap-2 text-[11px] text-neutral-500 mt-1">
