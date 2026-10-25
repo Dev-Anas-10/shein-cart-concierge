@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/lib/auth-context';
 import { useThemeLang } from '@/lib/theme-lang-context';
@@ -30,11 +31,18 @@ import {
 } from 'lucide-react';
 
 export default function UserOrdersPage() {
+  const router = useRouter();
   const { user } = useAuth();
   const { t, dir } = useThemeLang();
   const [authOpen, setAuthOpen] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user?.role === 'admin') {
+      router.replace('/admin');
+    }
+  }, [user, router]);
 
   const fetchOrders = async () => {
     // Strict multi-user privacy: Never fetch or show orders if not logged in!

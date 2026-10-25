@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { Order, GoodItem, SystemSettings, OrderStatus, CustomSection } from '@/lib/types';
 import { useAuth } from '@/lib/auth-context';
 import { Navbar } from '@/components/Navbar';
@@ -555,6 +556,14 @@ export default function AdminDashboardPage() {
           </div>
 
           <div className="flex items-center gap-3">
+            <Link
+              href="/admin/analytics"
+              className="px-4 py-2.5 bg-white hover:bg-neutral-50 text-neutral-800 border border-neutral-200 rounded-2xl text-xs font-black transition-all flex items-center gap-2 shadow-xs cursor-pointer active:scale-95"
+            >
+              <TrendingUp className="w-4 h-4 text-purple-600" />
+              التحليلات والأرباح (Analytics)
+            </Link>
+
             <button
               onClick={() => setSettingsOpen(true)}
               className="px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-2xl text-xs font-black transition-all flex items-center gap-2 shadow-md shadow-purple-500/20 cursor-pointer active:scale-95"

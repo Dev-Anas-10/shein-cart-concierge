@@ -18,6 +18,7 @@ import {
   Moon,
   Globe,
   Sparkles,
+  TrendingUp,
 } from 'lucide-react';
 
 export function Navbar({ onOpenAuth }: { onOpenAuth?: () => void }) {
@@ -46,8 +47,8 @@ export function Navbar({ onOpenAuth }: { onOpenAuth?: () => void }) {
         className="sticky top-0 z-40 w-full bg-white/85 dark:bg-[#0e0c14]/85 backdrop-blur-xl border-b border-neutral-100/80 dark:border-[#231e30] transition-colors"
       >
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between">
-          {/* Brand Logo */}
-          <Link href="/" className="flex items-center gap-3 group">
+          {/* Brand Logo: Links to /admin for Admins, / for Customers */}
+          <Link href={user?.role === 'admin' ? '/admin' : '/'} className="flex items-center gap-3 group">
             <motion.div
               whileHover={{ scale: 1.08, rotate: [0, -3, 3, 0] }}
               whileTap={{ scale: 0.95 }}
@@ -67,70 +68,95 @@ export function Navbar({ onOpenAuth }: { onOpenAuth?: () => void }) {
                 )}
               </div>
               <p className="text-[11px] text-neutral-400 dark:text-neutral-500 font-medium tracking-tight mt-0.5">
-                {t.brandSubtitle}
+                {user?.role === 'admin' ? (lang === 'ar' ? 'لوحة تحكم وإدارة المشرف' : 'Admin Operations Control') : t.brandSubtitle}
               </p>
             </div>
           </Link>
 
           {/* Center Pill Nav with Animated Sliding Pill */}
           <nav className="hidden sm:flex items-center gap-1 p-1 bg-neutral-100/80 dark:bg-[#1a1625] rounded-full border border-neutral-200/60 dark:border-[#2a243a] shadow-xs">
-            <Link
-              href="/"
-              className={`relative px-4 py-1.5 rounded-full text-xs font-bold transition-colors ${
-                pathname === '/'
-                  ? 'text-neutral-950 dark:text-white'
-                  : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
-              }`}
-            >
-              {pathname === '/' && (
-                <motion.span
-                  layoutId="activeNavIndicator"
-                  className="absolute inset-0 bg-white dark:bg-[#2b243b] rounded-full shadow-xs border border-black/[0.04] dark:border-white/[0.06]"
-                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                />
-              )}
-              <span className="relative z-10">{t.extractCart}</span>
-            </Link>
+            {user?.role === 'admin' ? (
+              <>
+                <Link
+                  href="/admin"
+                  className={`relative px-4 py-1.5 rounded-full text-xs font-bold transition-colors flex items-center gap-1.5 ${
+                    pathname === '/admin'
+                      ? 'text-white'
+                      : 'text-neutral-600 dark:text-neutral-300 hover:text-purple-600 dark:hover:text-purple-400'
+                  }`}
+                >
+                  {pathname === '/admin' && (
+                    <motion.span
+                      layoutId="activeNavIndicator"
+                      className="absolute inset-0 bg-[#8B5CF6] rounded-full shadow-xs"
+                      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                    />
+                  )}
+                  <span className="relative z-10 flex items-center gap-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <span>{lang === 'ar' ? 'إدارة الطلبات' : 'Customer Orders'}</span>
+                  </span>
+                </Link>
 
-            <Link
-              href="/orders"
-              className={`relative px-4 py-1.5 rounded-full text-xs font-bold transition-colors ${
-                pathname.startsWith('/orders')
-                  ? 'text-neutral-950 dark:text-white'
-                  : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
-              }`}
-            >
-              {pathname.startsWith('/orders') && (
-                <motion.span
-                  layoutId="activeNavIndicator"
-                  className="absolute inset-0 bg-white dark:bg-[#2b243b] rounded-full shadow-xs border border-black/[0.04] dark:border-white/[0.06]"
-                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                />
-              )}
-              <span className="relative z-10">{t.myOrders}</span>
-            </Link>
+                <Link
+                  href="/admin/analytics"
+                  className={`relative px-4 py-1.5 rounded-full text-xs font-bold transition-colors flex items-center gap-1.5 ${
+                    pathname.startsWith('/admin/analytics')
+                      ? 'text-white'
+                      : 'text-neutral-600 dark:text-neutral-300 hover:text-purple-600 dark:hover:text-purple-400'
+                  }`}
+                >
+                  {pathname.startsWith('/admin/analytics') && (
+                    <motion.span
+                      layoutId="activeNavIndicator"
+                      className="absolute inset-0 bg-[#8B5CF6] rounded-full shadow-xs"
+                      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                    />
+                  )}
+                  <span className="relative z-10 flex items-center gap-1.5">
+                    <TrendingUp className="w-3.5 h-3.5" />
+                    <span>{lang === 'ar' ? 'الإحصائيات والتحليلات' : 'Analytics & Revenue'}</span>
+                  </span>
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/"
+                  className={`relative px-4 py-1.5 rounded-full text-xs font-bold transition-colors ${
+                    pathname === '/'
+                      ? 'text-neutral-950 dark:text-white'
+                      : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
+                  }`}
+                >
+                  {pathname === '/' && (
+                    <motion.span
+                      layoutId="activeNavIndicator"
+                      className="absolute inset-0 bg-white dark:bg-[#2b243b] rounded-full shadow-xs border border-black/[0.04] dark:border-white/[0.06]"
+                      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                    />
+                  )}
+                  <span className="relative z-10">{t.extractCart}</span>
+                </Link>
 
-            {user?.role === 'admin' && (
-              <Link
-                href="/admin"
-                className={`relative px-4 py-1.5 rounded-full text-xs font-bold transition-colors flex items-center gap-1.5 ${
-                  pathname.startsWith('/admin')
-                    ? 'text-white'
-                    : 'text-[#8B5CF6] hover:bg-purple-50 dark:hover:bg-purple-950/40'
-                }`}
-              >
-                {pathname.startsWith('/admin') && (
-                  <motion.span
-                    layoutId="activeNavIndicator"
-                    className="absolute inset-0 bg-[#8B5CF6] rounded-full shadow-xs"
-                    transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                  />
-                )}
-                <span className="relative z-10 flex items-center gap-1.5">
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  {t.admin}
-                </span>
-              </Link>
+                <Link
+                  href="/orders"
+                  className={`relative px-4 py-1.5 rounded-full text-xs font-bold transition-colors ${
+                    pathname.startsWith('/orders')
+                      ? 'text-neutral-950 dark:text-white'
+                      : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
+                  }`}
+                >
+                  {pathname.startsWith('/orders') && (
+                    <motion.span
+                      layoutId="activeNavIndicator"
+                      className="absolute inset-0 bg-white dark:bg-[#2b243b] rounded-full shadow-xs border border-black/[0.04] dark:border-white/[0.06]"
+                      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                    />
+                  )}
+                  <span className="relative z-10">{t.myOrders}</span>
+                </Link>
+              </>
             )}
           </nav>
 
@@ -163,16 +189,18 @@ export function Navbar({ onOpenAuth }: { onOpenAuth?: () => void }) {
               )}
             </motion.button>
 
-            {/* New Order Button */}
-            <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-              <Link
-                href="/"
-                className="hidden md:inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-[#F5EDFF] dark:bg-purple-950/40 hover:bg-[#E9D5FF] dark:hover:bg-purple-900/40 text-[#7C3AED] dark:text-purple-300 border border-purple-200 dark:border-purple-800 transition-colors"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>{t.newOrder}</span>
-              </Link>
-            </motion.div>
+            {/* New Order Button (Hidden for Admins) */}
+            {user?.role !== 'admin' && (
+              <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+                <Link
+                  href="/"
+                  className="hidden md:inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-[#F5EDFF] dark:bg-purple-950/40 hover:bg-[#E9D5FF] dark:hover:bg-purple-900/40 text-[#7C3AED] dark:text-purple-300 border border-purple-200 dark:border-purple-800 transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>{t.newOrder}</span>
+                </Link>
+              </motion.div>
+            )}
 
             {/* Support Contact Button */}
             <motion.button
