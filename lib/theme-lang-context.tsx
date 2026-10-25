@@ -127,7 +127,7 @@ const TRANSLATIONS: Record<Language, Translations> = {
     extractorDesc:
       'انسخ نص المشاركة من تطبيق SHEIN مباشرة. نقوم باستخراج المنتجات وحساب الإجمالي ورسوم الخدمة والتوصيل.',
     placeholder:
-      'ألصق نص المشاركة الكامل من تطبيق شي إن هنا...\n"I found some great items at SHEIN!\nhttps://onelink.shein.com/58/..."',
+      'ألصق هنا رابط أو مشاركة سلتك بعد اختيار المنتجات المراد شراؤها من تطبيق شي إن...\n(افتح السلة في تطبيق SHEIN ➔ اضغط "مشاركة السلة" ➔ الصق الرابط أو الرسالة هنا)',
     chars: 'حرف',
     acceptsHint: 'يقبل روابط onelink.shein.com وروابط المنتجات المباشرة',
     extractBtn: 'استخراج السلة وحساب الإجمالي',
@@ -230,7 +230,7 @@ const TRANSLATIONS: Record<Language, Translations> = {
     extractorDesc:
       'Copy the share text directly from the SHEIN app. Our parser extracts the items, calculates total cash with fee, and forwards to admin for review.',
     placeholder:
-      'Paste the entire shared context from SHEIN here:\n"I found some great items at SHEIN!\nhttps://onelink.shein.com/58/..."',
+      'Paste your SHEIN cart share link or message here after selecting the items you wish to purchase...\n(Open your cart in SHEIN App ➔ Tap "Share Cart" ➔ Paste link or text here)',
     chars: 'chars',
     acceptsHint: 'Accepts onelink.shein.com or product URLs',
     extractBtn: 'Extract Goods & Preview Total',

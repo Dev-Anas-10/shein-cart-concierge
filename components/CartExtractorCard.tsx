@@ -161,7 +161,7 @@ export function CartExtractorCard({ onExtracted, currentDynamicFeePercent }: Car
           <div className="flex items-center gap-3 px-4 pt-3.5 text-neutral-400 dark:text-neutral-500">
             <Search className="w-4 h-4 text-[#8B5CF6]" />
             <span className="text-[11px] font-black uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
-              SHEIN Cart Share Text / Link
+              {dir === 'rtl' ? 'رابط أو نص مشاركة السلة من تطبيق شي إن' : 'SHEIN Cart Share Text / Link'}
             </span>
           </div>
 
