@@ -10,18 +10,11 @@ import {
   Sparkles,
   ChevronDown,
   ChevronUp,
-  ArrowRight,
-  ArrowLeft,
   CheckCircle2,
-  ExternalLink,
 } from 'lucide-react';
 import { useThemeLang } from '@/lib/theme-lang-context';
 
-interface SheinLinkGuideProps {
-  onUseSampleLink?: () => void;
-}
-
-export function SheinLinkGuide({ onUseSampleLink }: SheinLinkGuideProps) {
+export function SheinLinkGuide() {
   const { dir } = useThemeLang();
   const isRtl = dir === 'rtl';
   const [isOpen, setIsOpen] = useState(false);
@@ -83,7 +76,7 @@ export function SheinLinkGuide({ onUseSampleLink }: SheinLinkGuideProps) {
                   : 'Not sure how to get the link from the SHEIN app?'}
               </h3>
               <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/40">
-                {isRtl ? 'شرح بالصور 📸' : 'Visual Guide 📸'}
+                {isRtl ? 'شرح بالخطوات 📸' : 'Visual Guide 📸'}
               </span>
             </div>
             <p className="text-[11px] text-neutral-500 dark:text-neutral-400 mt-0.5">
@@ -159,7 +152,7 @@ export function SheinLinkGuide({ onUseSampleLink }: SheinLinkGuideProps) {
               </div>
 
               {/* Visual Simulated Mockup of the SHEIN App UI */}
-              <div className="rounded-2xl bg-neutral-950 p-4 text-white relative overflow-hidden border border-neutral-800">
+              <div className="rounded-2xl bg-neutral-950 p-4 sm:p-5 text-white relative overflow-hidden border border-neutral-800">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-purple-600/10 rounded-full blur-2xl pointer-events-none" />
 
                 <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -173,26 +166,12 @@ export function SheinLinkGuide({ onUseSampleLink }: SheinLinkGuideProps) {
                         ? 'علامة المشاركة بتكون أعلى يمين أو يسار شاشة السلة'
                         : 'The share icon is at the top corner of the Cart screen'}
                     </h5>
-                    <p className="text-[11px] text-neutral-400 max-w-md">
+                    <p className="text-[11px] text-neutral-400 max-w-xl">
                       {isRtl
                         ? 'أول ما تضغطي عليها وتختاري "نسخ الرابط"، ارجعي هنا واضغطي زرار "لصق من الحافظة" الكبير بالأسفل.'
                         : 'Once you tap Share and Copy Link, come back and tap the big "Paste" button below.'}
                     </p>
                   </div>
-
-                  {onUseSampleLink && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onUseSampleLink();
-                        setIsOpen(false);
-                      }}
-                      className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 active:scale-95 text-white text-xs font-black shadow-md shadow-purple-600/30 transition-all flex items-center gap-2 cursor-pointer shrink-0"
-                    >
-                      <Sparkles className="w-3.5 h-3.5" />
-                      <span>{isRtl ? 'جربي برابط تجريبي جاهز فوراً ⚡' : 'Try Demo Link Now ⚡'}</span>
-                    </button>
-                  )}
                 </div>
               </div>
 
