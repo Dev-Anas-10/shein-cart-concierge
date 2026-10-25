@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Order, SystemSettings } from '@/lib/types';
+import { Order, SystemSettings, User } from '@/lib/types';
 import { useAuth } from '@/lib/auth-context';
 import { useThemeLang } from '@/lib/theme-lang-context';
 import { Navbar } from '@/components/Navbar';
@@ -34,12 +34,39 @@ import {
   Sparkles,
 } from 'lucide-react';
 
+function formatLastSeen(dateString?: string, isRtl = true): { label: string; isOnline: boolean } {
+  if (!dateString) return { label: isRtl ? 'لم يسجل دخول بعد' : 'Never logged in', isOnline: false };
+  const diffMs = Date.now() - new Date(dateString).getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHours = Math.floor(diffMin / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffMin < 15) {
+    return { label: isRtl ? 'متصل الآن' : 'Online Now', isOnline: true };
+  }
+  if (diffMin < 60) {
+    return { label: isRtl ? `منذ ${diffMin} دقيقة` : `${diffMin}m ago`, isOnline: false };
+  }
+  if (diffHours < 24) {
+    return { label: isRtl ? `منذ ${diffHours} ساعة` : `${diffHours}h ago`, isOnline: false };
+  }
+  if (diffDays === 1) {
+    return { label: isRtl ? 'أمس' : 'Yesterday', isOnline: false };
+  }
+  if (diffDays < 7) {
+    return { label: isRtl ? `منذ ${diffDays} أيام` : `${diffDays}d ago`, isOnline: false };
+  }
+  return { label: new Date(dateString).toLocaleDateString(isRtl ? 'ar-EG' : 'en-US'), isOnline: false };
+}
+
 export default function AdminAnalyticsPage() {
   const { user, isLoading: authLoading } = useAuth();
   const { dir, lang } = useThemeLang();
   const isRtl = dir === 'rtl';
 
   const [orders, setOrders] = useState<Order[]>([]);
+  const [registeredUsers, setRegisteredUsers] = useState<User[]>([]);
   const [settings, setSettings] = useState<SystemSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [authOpen, setAuthOpen] = useState(false);
@@ -48,16 +75,19 @@ export default function AdminAnalyticsPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [ordersRes, settingsRes] = await Promise.all([
+      const [ordersRes, settingsRes, usersRes] = await Promise.all([
         fetch('/api/orders?admin=true'),
         fetch('/api/settings'),
+        fetch('/api/users'),
       ]);
 
       const ordersJson = await ordersRes.json();
       const settingsJson = await settingsRes.json();
+      const usersJson = await usersRes.json();
 
       if (ordersJson.success) setOrders(ordersJson.data);
       if (settingsJson.success) setSettings(settingsJson.data);
+      if (usersJson.success) setRegisteredUsers(usersJson.data);
     } catch (err) {
       console.error('Failed to load analytics data:', err);
     } finally {
@@ -166,9 +196,9 @@ export default function AdminAnalyticsPage() {
       vodafoneVolume,
       topCustomers,
       conversionRate,
-      uniqueCustomersCount: customerMap.size,
+      uniqueCustomersCount: registeredUsers.length > 0 ? registeredUsers.length : customerMap.size,
     };
-  }, [filteredOrders]);
+  }, [filteredOrders, registeredUsers]);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -620,6 +650,95 @@ export default function AdminAnalyticsPage() {
                       </td>
                     </tr>
                   ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Customer Directory & Last Login Activity */}
+        <div className="bg-white dark:bg-[#14111d] rounded-3xl border border-neutral-200/80 dark:border-[#2a243a] shadow-xs overflow-hidden text-start">
+          <div className="p-6 border-b border-neutral-100 dark:border-[#241e33] flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-black text-neutral-950 dark:text-white flex items-center gap-2">
+                <span>{isRtl ? 'سجل تواجد ونشاط العملاء' : 'Customer Activity & Last Seen'}</span>
+                <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200/60 font-mono font-bold">
+                  {registeredUsers.length} {isRtl ? 'حساب مسجل' : 'Registered Users'}
+                </span>
+              </h3>
+              <p className="text-xs text-neutral-400">
+                {isRtl ? 'تتبع لحظي لآخر توقيت دخول لكل عميل مسجل وتاريخ إنشائه' : 'Real-time tracking of when each customer was last active'}
+              </p>
+            </div>
+            <Clock className="w-5 h-5 text-emerald-600" />
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="bg-neutral-50 dark:bg-[#1a1626] border-b border-neutral-200 dark:border-[#2a243a] text-[11px] font-black uppercase tracking-wider text-neutral-500">
+                  <th className="py-3.5 px-6">{isRtl ? 'العميل' : 'Customer'}</th>
+                  <th className="py-3.5 px-6">{isRtl ? 'الرتبة' : 'Role'}</th>
+                  <th className="py-3.5 px-6">{isRtl ? 'رقم الهاتف' : 'Phone'}</th>
+                  <th className="py-3.5 px-6">{isRtl ? 'تاريخ التسجيل' : 'Joined'}</th>
+                  <th className="py-3.5 px-6">{isRtl ? 'آخر ظهور / تسجيل دخول' : 'Last Active / Login'}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-100 dark:divide-[#221c2e]">
+                {registeredUsers.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-neutral-400 font-bold">
+                      {isRtl ? 'جاري تحميل سجل المستخدمين...' : 'Loading registered users...'}
+                    </td>
+                  </tr>
+                ) : (
+                  registeredUsers.map((u) => {
+                    const lastSeen = formatLastSeen(u.lastLoginAt, isRtl);
+                    return (
+                      <tr key={u.id} className="hover:bg-neutral-50/50 dark:hover:bg-[#1a1626]/50 transition-colors">
+                        <td className="py-4 px-6 font-bold text-neutral-900 dark:text-white flex items-center gap-2.5">
+                          {u.avatar ? (
+                            <img src={u.avatar} alt={u.name} className="w-7 h-7 rounded-full bg-neutral-100 dark:bg-neutral-800 object-cover border border-neutral-200 dark:border-neutral-700" />
+                          ) : (
+                            <div className="w-7 h-7 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold text-xs">
+                              {u.name?.charAt(0) || 'U'}
+                            </div>
+                          )}
+                          <div>
+                            <div className="font-bold">{u.name}</div>
+                            <div className="text-[10px] text-neutral-400 font-normal">{u.email}</div>
+                          </div>
+                        </td>
+                        <td className="py-4 px-6">
+                          <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase ${
+                            u.role === 'admin'
+                              ? 'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800'
+                              : 'bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300'
+                          }`}>
+                            {u.role === 'admin' ? (isRtl ? 'مشرف' : 'Admin') : (isRtl ? 'عميل' : 'Customer')}
+                          </span>
+                        </td>
+                        <td className="py-4 px-6 font-mono text-neutral-600 dark:text-neutral-300" dir="ltr">
+                          {u.phone || '-'}
+                        </td>
+                        <td className="py-4 px-6 text-neutral-500 text-[11px]">
+                          {u.createdAt ? new Date(u.createdAt).toLocaleDateString(isRtl ? 'ar-EG' : 'en-US') : '-'}
+                        </td>
+                        <td className="py-4 px-6">
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold ${
+                            lastSeen.isOnline
+                              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60'
+                              : 'bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300'
+                          }`}>
+                            {lastSeen.isOnline && (
+                              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                            )}
+                            {lastSeen.label}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>

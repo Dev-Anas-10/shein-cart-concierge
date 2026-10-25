@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { verifyPassword, hashPassword } from '@/lib/auth-security';
 
 export async function POST(req: NextRequest) {
   try {
@@ -23,11 +24,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (user.password && user.password !== password) {
+    // Secure password verification with bcrypt
+    const { isValid, needsRehash } = await verifyPassword(password, user.password);
+    if (!isValid) {
       return NextResponse.json({ error: 'Invalid password' }, { status: 401 });
     }
 
+    // Transparently upgrade legacy plain-text password to salted bcrypt hash
+    if (needsRehash) {
+      const newHash = await hashPassword(password);
+      await db.updateUser(user.id, { password: newHash });
+    }
+
+    // Record last login timestamp in database
+    const lastLoginAt = await db.recordUserLogin(user.id);
+
     const { password: _, ...safeUser } = user;
+    safeUser.lastLoginAt = lastLoginAt;
 
     return NextResponse.json({
       success: true,

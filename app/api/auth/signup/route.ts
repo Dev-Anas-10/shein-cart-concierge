@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { User } from '@/lib/types';
+import { hashPassword } from '@/lib/auth-security';
 
 export async function POST(req: NextRequest) {
   try {
@@ -28,15 +29,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Secure password hashing with bcrypt
+    const hashedPassword = await hashPassword(password);
+    const now = new Date().toISOString();
+
     const newUser: User & { password?: string } = {
       id: `user-${Date.now()}`,
       name: name.trim(),
       email: email.trim().toLowerCase(),
-      password,
+      password: hashedPassword,
       phone: phone || '',
       role: 'user', // regular signups are always 'user'
       avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}`,
-      createdAt: new Date().toISOString(),
+      createdAt: now,
+      lastLoginAt: now,
     };
 
     const saved = await db.createUser(newUser);

@@ -95,7 +95,7 @@ const DEFAULT_USERS: (User & { password?: string })[] = [
     id: 'user-admin',
     name: 'Admin Supervisor',
     email: 'admin@sheinextract.com',
-    password: 'admin123456',
+    password: '$2b$10$XdSsrm.koBl9/5KrNmz5MudI1TlJ9ev8fgC9mx6XAjgVFRtmV61Be',
     role: 'admin',
     phone: '+20 100 000 0000',
     avatar: 'https://api.dicebear.com/7.x/initials/svg?seed=Admin+Supervisor',
@@ -105,7 +105,7 @@ const DEFAULT_USERS: (User & { password?: string })[] = [
     id: 'user-sara',
     name: 'Sara Ahmed',
     email: 'sara@example.com',
-    password: 'user123456',
+    password: '$2b$10$9fkZ2LEzi64ml5Sgn60R.e8P89gqVI.y/mlA0f9A8XsMryuT0Vdj2',
     role: 'user',
     phone: '01019283746',
     avatar: 'https://api.dicebear.com/7.x/initials/svg?seed=Sara+Ahmed',
@@ -325,6 +325,7 @@ function mapRowToUser(row: any): User & { password?: string } {
     phone: row.phone ?? '',
     avatar: row.avatar ?? `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(row.name || 'User')}`,
     createdAt: row.created_at ?? row.createdAt ?? new Date().toISOString(),
+    lastLoginAt: row.last_login_at ?? row.lastLoginAt ?? undefined,
   };
 }
 
@@ -362,7 +363,7 @@ async function syncUserToSupabase(user: User & { password?: string }): Promise<v
   const sb = getSupabase();
   if (!sb) return;
   try {
-    const { error } = await sb.from('users').upsert({
+    const payload: any = {
       id: user.id,
       name: user.name,
       email: user.email.toLowerCase(),
@@ -371,7 +372,11 @@ async function syncUserToSupabase(user: User & { password?: string }): Promise<v
       phone: user.phone || '',
       avatar: user.avatar,
       created_at: user.createdAt,
-    });
+    };
+    if (user.lastLoginAt) {
+      payload.last_login_at = user.lastLoginAt;
+    }
+    const { error } = await sb.from('users').upsert(payload);
     if (error) {
       console.warn('[Supabase] User upsert note:', error.message);
     } else {
@@ -614,6 +619,57 @@ export const db = {
     await syncUserToSupabase(user);
     const { password, ...safe } = user;
     return safe;
+  },
+
+  updateUser: async (
+    id: string,
+    updates: Partial<User & { password?: string }>
+  ): Promise<User | undefined> => {
+    const data = await ensureDb();
+    const idx = data.users.findIndex((u) => u.id === id);
+    if (idx === -1) {
+      const sb = getSupabase();
+      if (sb) {
+        try {
+          const payload: any = {};
+          if (updates.name) payload.name = updates.name;
+          if (updates.password) payload.password = updates.password;
+          if (updates.phone) payload.phone = updates.phone;
+          if (updates.lastLoginAt) payload.last_login_at = updates.lastLoginAt;
+          await sb.from('users').update(payload).eq('id', id);
+        } catch (e) {
+          console.warn('[DB] Supabase updateUser direct fallback:', e);
+        }
+      }
+      return undefined;
+    }
+    const updated = { ...data.users[idx], ...updates };
+    data.users[idx] = updated;
+    await persistDb(data);
+    await syncUserToSupabase(updated);
+    const { password, ...safe } = updated;
+    return safe;
+  },
+
+  recordUserLogin: async (id: string): Promise<string> => {
+    const now = new Date().toISOString();
+    const data = await ensureDb();
+    const idx = data.users.findIndex((u) => u.id === id);
+    if (idx !== -1) {
+      data.users[idx].lastLoginAt = now;
+      await persistDb(data);
+      await syncUserToSupabase(data.users[idx]);
+    } else {
+      const sb = getSupabase();
+      if (sb) {
+        try {
+          await sb.from('users').update({ last_login_at: now }).eq('id', id);
+        } catch (e) {
+          console.warn('[DB] Supabase recordUserLogin error:', e);
+        }
+      }
+    }
+    return now;
   },
 
   getSettings: async (): Promise<SystemSettings> => {

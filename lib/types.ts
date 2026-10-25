@@ -8,6 +8,7 @@ export interface User {
   phone?: string;
   avatar?: string;
   createdAt: string;
+  lastLoginAt?: string;
 }
 
 export type OrderStatus =
