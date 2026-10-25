@@ -5,11 +5,18 @@ import { User } from '@/lib/types';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const email = (body.email || 'customer.google@gmail.com').trim().toLowerCase();
-    const name = body.name || 'Google Customer';
+    if (!body.email || !body.email.includes('@')) {
+      return NextResponse.json(
+        { error: 'Please provide a valid Gmail or Google email address' },
+        { status: 400 }
+      );
+    }
+
+    const email = body.email.trim().toLowerCase();
+    const name = body.name?.trim() || email.split('@')[0];
     const avatar =
       body.avatar ||
-      `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(email)}`;
+      `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}`;
 
     let user = await db.getUserByEmail(email);
 
