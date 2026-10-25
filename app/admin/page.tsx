@@ -829,6 +829,16 @@ export default function AdminDashboardPage() {
                 <p className="text-xs text-neutral-500 mt-1">
                   Customer: <strong>{selectedOrder.userName}</strong> ({selectedOrder.userPhone || selectedOrder.userEmail}) • Placed: {new Date(selectedOrder.createdAt).toLocaleString()}
                 </p>
+                {selectedOrder.shippingAddress && (
+                  <p className="text-xs text-neutral-700 font-semibold mt-0.5">
+                    📍 عنوان التوصيل: <span>{selectedOrder.shippingAddress}</span>
+                  </p>
+                )}
+                {selectedOrder.customerNotes && (
+                  <div className="mt-1.5 p-2 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 font-medium">
+                    📝 ملاحظات العميل: <strong>{selectedOrder.customerNotes}</strong>
+                  </div>
+                )}
               </div>
 
               <button

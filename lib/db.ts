@@ -309,6 +309,7 @@ function mapRowToOrder(row: any): Order {
     totalCash: Number(row.total_cash ?? row.totalCash ?? 0),
     currency: String(row.currency ?? 'EGP'),
     status: row.status ?? 'PENDING_APPROVAL',
+    customerNotes: row.customer_notes ?? row.customerNotes ?? undefined,
     adminComment: row.admin_comment ?? row.adminComment ?? undefined,
     payment: row.payment ?? undefined,
     reviewedBy: row.reviewed_by ?? row.reviewedBy ?? undefined,

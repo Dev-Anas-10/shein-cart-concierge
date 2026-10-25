@@ -109,6 +109,7 @@ export interface Order {
   
   // Workflow & Review
   status: OrderStatus;
+  customerNotes?: string;    // Optional notes from customer upon checkout
   adminComment?: string;     // Admin's general review comment
   rejectionReason?: string;
   reviewedBy?: string;

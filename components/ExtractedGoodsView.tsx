@@ -28,6 +28,7 @@ import {
   X,
   AlertCircle,
   Check,
+  FileText,
 } from 'lucide-react';
 
 interface ExtractedGoodsViewProps {
@@ -57,6 +58,7 @@ export function ExtractedGoodsView({
   const [customerName, setCustomerName] = useState(user?.name || '');
   const [customerPhone, setCustomerPhone] = useState(user?.phone || '');
   const [shippingAddress, setShippingAddress] = useState('');
+  const [customerNotes, setCustomerNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -99,11 +101,25 @@ export function ExtractedGoodsView({
       return;
     }
 
+    if (!customerName.trim()) {
+      setError(isRtl ? 'يرجى إدخال اسم العميل (إجباري لإتمام الطلب).' : 'Please enter customer name (Mandatory).');
+      return;
+    }
+
     if (!customerPhone.trim()) {
       setError(
         isRtl
           ? 'يرجى إدخال رقم هاتفك للتواصل وتأكيد الدفع (فودافون كاش أو انستاباي).'
           : 'Please provide your phone number for InstaPay / Vodafone Cash contact.'
+      );
+      return;
+    }
+
+    if (!shippingAddress.trim()) {
+      setError(
+        isRtl
+          ? 'يرجى إدخال عنوان التوصيل بالتفصيل في مصر (إجباري لشحن الطلب).'
+          : 'Please enter your delivery address in Egypt (Mandatory).'
       );
       return;
     }
@@ -118,6 +134,7 @@ export function ExtractedGoodsView({
         userEmail: user.email,
         userPhone: customerPhone.trim(),
         shippingAddress: shippingAddress.trim(),
+        customerNotes: customerNotes.trim(),
         rawInput: data.rawInput,
         extractedLink: data.extractedLink,
         cartShareCode: data.shareCode,
@@ -485,9 +502,14 @@ export function ExtractedGoodsView({
                 )}
 
                 <div className="text-start">
-                  <label className="block font-black text-neutral-700 dark:text-neutral-300 mb-1">
-                    {isRtl ? 'اسم العميل' : 'Customer Name'}
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block font-black text-neutral-700 dark:text-neutral-300">
+                      {isRtl ? 'اسم العميل' : 'Customer Name'}
+                    </label>
+                    <span className="text-[10px] text-rose-500 font-bold bg-rose-50 dark:bg-rose-950/50 px-2 py-0.5 rounded-md border border-rose-200/50 dark:border-rose-900/50">
+                      {isRtl ? '* إجباري' : '* Required'}
+                    </span>
+                  </div>
                   <div className="relative">
                     <User className={`w-4 h-4 absolute top-1/2 -translate-y-1/2 text-neutral-400 ${isRtl ? 'right-3.5' : 'left-3.5'}`} />
                     <input
@@ -504,11 +526,16 @@ export function ExtractedGoodsView({
                 </div>
 
                 <div className="text-start">
-                  <label className="block font-black text-neutral-700 dark:text-neutral-300 mb-1">
-                    {isRtl
-                      ? 'رقم الموبايل في مصر (InstaPay أو Vodafone Cash)'
-                      : 'Egyptian Mobile Phone (InstaPay / Vodafone Cash)'}
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block font-black text-neutral-700 dark:text-neutral-300">
+                      {isRtl
+                        ? 'رقم الموبايل في مصر (InstaPay أو Vodafone Cash)'
+                        : 'Egyptian Mobile (InstaPay / Vodafone Cash)'}
+                    </label>
+                    <span className="text-[10px] text-rose-500 font-bold bg-rose-50 dark:bg-rose-950/50 px-2 py-0.5 rounded-md border border-rose-200/50 dark:border-rose-900/50">
+                      {isRtl ? '* إجباري' : '* Required'}
+                    </span>
+                  </div>
                   <div className="relative">
                     <Phone className={`w-4 h-4 absolute top-1/2 -translate-y-1/2 text-neutral-400 ${isRtl ? 'right-3.5' : 'left-3.5'}`} />
                     <input
@@ -525,17 +552,50 @@ export function ExtractedGoodsView({
                 </div>
 
                 <div className="text-start">
-                  <label className="block font-black text-neutral-700 dark:text-neutral-300 mb-1">
-                    {isRtl ? 'عنوان التوصيل في مصر' : 'Delivery Address in Egypt'}
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block font-black text-neutral-700 dark:text-neutral-300">
+                      {isRtl ? 'عنوان التوصيل في مصر' : 'Delivery Address in Egypt'}
+                    </label>
+                    <span className="text-[10px] text-rose-500 font-bold bg-rose-50 dark:bg-rose-950/50 px-2 py-0.5 rounded-md border border-rose-200/50 dark:border-rose-900/50">
+                      {isRtl ? '* إجباري' : '* Required'}
+                    </span>
+                  </div>
                   <div className="relative">
                     <MapPin className={`w-4 h-4 absolute top-3 text-neutral-400 ${isRtl ? 'right-3.5' : 'left-3.5'}`} />
                     <textarea
                       rows={2}
+                      required
                       value={shippingAddress}
                       onChange={(e) => setShippingAddress(e.target.value)}
                       placeholder={isRtl ? 'مثال: عمارة 12، شارع 9، المعادي، القاهرة' : 'e.g. Building 12, Street 9, Maadi, Cairo'}
                       className={`w-full py-2.5 bg-neutral-50 dark:bg-[#1a1626] border border-neutral-200/80 dark:border-[#2f2742] rounded-xl focus:bg-white dark:focus:bg-[#201a2e] focus:outline-none focus:ring-2 focus:ring-purple-600 text-neutral-900 dark:text-white ${
+                        isRtl ? 'pr-10 pl-3.5' : 'pl-10 pr-3.5'
+                      }`}
+                    />
+                  </div>
+                </div>
+
+                <div className="text-start">
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block font-black text-neutral-700 dark:text-neutral-300">
+                      {isRtl ? 'ملاحظات إضافية على الطلب' : 'Additional Order Notes'}
+                    </label>
+                    <span className="text-[10px] text-neutral-400 font-bold bg-neutral-100 dark:bg-[#1f192b] px-2 py-0.5 rounded-md border border-neutral-200/60 dark:border-[#2b243b]">
+                      {isRtl ? 'اختياري' : 'Optional'}
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <FileText className={`w-4 h-4 absolute top-3 text-neutral-400 ${isRtl ? 'right-3.5' : 'left-3.5'}`} />
+                    <textarea
+                      rows={2}
+                      value={customerNotes}
+                      onChange={(e) => setCustomerNotes(e.target.value)}
+                      placeholder={
+                        isRtl
+                          ? 'أي تعليمات أو ملاحظات خاصة بالاستلام، المقاسات، أوقات التوصيل المفضلة...'
+                          : 'Any instructions, sizing notes, or preferred delivery timing...'
+                      }
+                      className={`w-full py-2.5 bg-neutral-50 dark:bg-[#1a1626] border border-neutral-200/80 dark:border-[#2f2742] rounded-xl focus:bg-white dark:focus:bg-[#201a2e] focus:outline-none focus:ring-2 focus:ring-purple-600 text-neutral-900 dark:text-white text-xs ${
                         isRtl ? 'pr-10 pl-3.5' : 'pl-10 pr-3.5'
                       }`}
                     />

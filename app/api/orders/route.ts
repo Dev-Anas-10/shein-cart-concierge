@@ -35,6 +35,8 @@ export async function POST(req: NextRequest) {
       userEmail,
       userPhone,
       shippingAddress,
+      customerNotes,
+      notes,
       rawInput,
       extractedLink,
       cartShareCode,
@@ -47,6 +49,13 @@ export async function POST(req: NextRequest) {
     if (!rawInput || !extractedLink || !items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json(
         { error: 'Order must include extracted link and at least one good.' },
+        { status: 400 }
+      );
+    }
+
+    if (!userName || !userName.trim() || !userPhone || !userPhone.trim() || !shippingAddress || !shippingAddress.trim()) {
+      return NextResponse.json(
+        { error: 'Customer Name, Phone number, and Shipping Address are mandatory.' },
         { status: 400 }
       );
     }
@@ -71,10 +80,11 @@ export async function POST(req: NextRequest) {
     const newOrder: Order = {
       id: orderId,
       userId: userId || 'guest-user',
-      userName: userName || 'Customer',
+      userName: userName.trim(),
       userEmail: userEmail || 'customer@example.com',
-      userPhone: userPhone || '',
-      shippingAddress: shippingAddress || '',
+      userPhone: userPhone.trim(),
+      shippingAddress: shippingAddress.trim(),
+      customerNotes: (customerNotes || notes || '').trim() || undefined,
       rawInput,
       extractedLink,
       cartShareCode,

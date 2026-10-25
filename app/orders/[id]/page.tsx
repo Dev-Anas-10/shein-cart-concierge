@@ -199,6 +199,16 @@ export default function OrderDetailsPage() {
               <p className="text-xs text-neutral-400 dark:text-neutral-500">
                 {isRtl ? 'تم الإنشاء في' : 'Created on'} {new Date(order.createdAt).toLocaleDateString()} • {order.userName}
               </p>
+              {order.shippingAddress && (
+                <p className="text-[11px] text-neutral-500 dark:text-neutral-400 mt-0.5">
+                  📍 {order.shippingAddress}
+                </p>
+              )}
+              {order.customerNotes && (
+                <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-0.5 font-medium">
+                  📝 {isRtl ? 'ملاحظاتك:' : 'Your Notes:'} {order.customerNotes}
+                </p>
+              )}
             </div>
 
             <div className="text-start sm:text-end bg-neutral-50 dark:bg-[#1a1626] sm:bg-transparent p-4 sm:p-0 rounded-2xl">
