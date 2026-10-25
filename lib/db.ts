@@ -170,48 +170,89 @@ const DEFAULT_ORDERS: Order[] = [
   },
 ];
 
+let memoryDb: DatabaseSchema | null = null;
+
+function getDbFilePath(): string {
+  // If running on Vercel or read-only filesystem, use /tmp
+  if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+    return path.join('/tmp', 'shein_db.json');
+  }
+  return DB_FILE;
+}
+
 function ensureDb(): DatabaseSchema {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+  if (memoryDb) {
+    return memoryDb;
   }
 
-  if (!fs.existsSync(DB_FILE)) {
-    const initialData: DatabaseSchema = {
-      users: DEFAULT_USERS,
-      orders: DEFAULT_ORDERS,
-      settings: DEFAULT_SETTINGS,
-    };
-    fs.writeFileSync(DB_FILE, JSON.stringify(initialData, null, 2), 'utf-8');
-    return initialData;
+  const targetFile = getDbFilePath();
+
+  // Try to load from targetFile or fallback to bundled DB_FILE
+  try {
+    if (fs.existsSync(targetFile)) {
+      const raw = fs.readFileSync(targetFile, 'utf-8');
+      const parsed = JSON.parse(raw);
+      memoryDb = {
+        users: parsed.users || DEFAULT_USERS,
+        orders: parsed.orders || DEFAULT_ORDERS,
+        settings: parsed.settings || DEFAULT_SETTINGS,
+      };
+      return memoryDb;
+    }
+  } catch (err) {
+    console.warn('Could not read from targetFile, trying initial seed:', err);
   }
 
   try {
-    const raw = fs.readFileSync(DB_FILE, 'utf-8');
-    const parsed = JSON.parse(raw);
-    return {
-      users: parsed.users || DEFAULT_USERS,
-      orders: parsed.orders || DEFAULT_ORDERS,
-      settings: parsed.settings || DEFAULT_SETTINGS,
-    };
+    if (fs.existsSync(DB_FILE)) {
+      const raw = fs.readFileSync(DB_FILE, 'utf-8');
+      const parsed = JSON.parse(raw);
+      memoryDb = {
+        users: parsed.users || DEFAULT_USERS,
+        orders: parsed.orders || DEFAULT_ORDERS,
+        settings: parsed.settings || DEFAULT_SETTINGS,
+      };
+      return memoryDb;
+    }
   } catch (err) {
-    console.error('Failed reading db.json, restoring default:', err);
-    const initialData: DatabaseSchema = {
-      users: DEFAULT_USERS,
-      orders: DEFAULT_ORDERS,
-      settings: DEFAULT_SETTINGS,
-    };
-    fs.writeFileSync(DB_FILE, JSON.stringify(initialData, null, 2), 'utf-8');
-    return initialData;
+    console.warn('Could not read bundled DB_FILE:', err);
   }
+
+  // Fallback to default
+  memoryDb = {
+    users: DEFAULT_USERS,
+    orders: DEFAULT_ORDERS,
+    settings: DEFAULT_SETTINGS,
+  };
+
+  try {
+    const dir = path.dirname(targetFile);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(targetFile, JSON.stringify(memoryDb, null, 2), 'utf-8');
+  } catch (err) {
+    // Ignore read-only errors on serverless
+  }
+
+  return memoryDb;
 }
 
 function saveDb(data: DatabaseSchema): void {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+  memoryDb = data;
+  const targetFile = getDbFilePath();
+
+  try {
+    const dir = path.dirname(targetFile);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    const tempPath = `${targetFile}.tmp`;
+    fs.writeFileSync(tempPath, JSON.stringify(data, null, 2), 'utf-8');
+    fs.renameSync(tempPath, targetFile);
+  } catch (err) {
+    console.warn('Warning: Could not persist to disk, retained in memory:', err);
   }
-  const tempPath = `${DB_FILE}.tmp`;
-  fs.writeFileSync(tempPath, JSON.stringify(data, null, 2), 'utf-8');
-  fs.renameSync(tempPath, DB_FILE);
 }
 
 // Data Access API
