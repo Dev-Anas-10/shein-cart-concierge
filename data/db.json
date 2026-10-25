@@ -25,22 +25,152 @@
       "name": "Ahmed Youssef",
       "email": "user1792921037961@egypt.com",
       "password": "password123",
-      "phone": "01023456789",
       "role": "user",
+      "phone": "01023456789",
       "avatar": "https://api.dicebear.com/7.x/initials/svg?seed=Ahmed%20Youssef",
-      "createdAt": "2026-10-25T09:37:22.809Z"
+      "createdAt": "2026-10-25T09:37:22.809+00:00"
     },
     {
-      "id": "google-1792922349441",
-      "name": "Gamal Ahmed",
-      "email": "gamal.egypt.1792922344565@gmail.com",
+      "id": "user-1792921321300",
+      "name": "Gamal",
+      "email": "gamy13.ahmed@gmail.com",
+      "password": "Gamal#123",
       "role": "user",
-      "avatar": "https://api.dicebear.com/7.x/initials/svg?seed=Gamal%20Ahmed",
-      "phone": "01000000000",
-      "createdAt": "2026-10-25T09:59:09.441Z"
+      "phone": "01121349423",
+      "avatar": "https://api.dicebear.com/7.x/initials/svg?seed=Gamal",
+      "createdAt": "2026-10-25T09:42:01.3+00:00"
     }
   ],
   "orders": [
+    {
+      "id": "SH-92496",
+      "userId": "8e8863f6-9dc5-4c1b-998e-b1ddc1a68539",
+      "userName": "Gamal Ahmed Gamal",
+      "userEmail": "gamy13.ahmed@gmail.com",
+      "userPhone": "01284947782",
+      "rawInput": "I found some great items at SHEIN!\nThese items in my shopping cart are great. I highly recommend them to everyone!\nhttps://onelink.shein.com/58/6655t9m70yzp?shc=2_RN4yiuNnwha",
+      "extractedLink": "https://onelink.shein.com/58/6655t9m70yzp?shc=2_RN4yiuNnwha",
+      "items": [
+        {
+          "id": "item-1",
+          "sku": "sz240819129532890",
+          "name": "SHEIN Frenchy Solid Notch Neck Long Sleeve Top & Trousers Set",
+          "size": "M",
+          "color": "Mocha Brown",
+          "image": "https://img.ltwebstatic.com/v4/j/pics3/2026/10/25/7c/1792917440cd5129e67dd084696a4a777ec1abe887.jpg",
+          "status": "available",
+          "currency": "EGP",
+          "quantity": 1,
+          "subtotal": 650,
+          "originalUrl": "https://onelink.shein.com/58/6655t9m70yzp?shc=2_RN4yiuNnwha",
+          "adminComment": "testtt testtt 5sl 50%",
+          "originalPrice": 650
+        },
+        {
+          "id": "item-2",
+          "sku": "sw23080447382910",
+          "name": "SHEIN EZwear Casual Drop Shoulder Ribbed Knit Cardigan",
+          "size": "L",
+          "color": "Oatmeal Beige",
+          "image": "https://images.unsplash.com/photo-1434389677669-e08b4cac3105?w=600&auto=format&fit=crop&q=80",
+          "status": "available",
+          "currency": "EGP",
+          "quantity": 1,
+          "subtotal": 420,
+          "originalUrl": "https://onelink.shein.com/58/6655t9m70yzp?shc=2_RN4yiuNnwha",
+          "originalPrice": 420
+        },
+        {
+          "id": "item-3",
+          "sku": "sg2310118837190",
+          "name": "SHEIN Minimalist Quilted Shoulder Crossbody Bag With Chain",
+          "size": "One Size",
+          "color": "Classic Black",
+          "image": "https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=600&auto=format&fit=crop&q=80",
+          "status": "available",
+          "currency": "EGP",
+          "quantity": 1,
+          "subtotal": 380,
+          "originalUrl": "https://onelink.shein.com/58/6655t9m70yzp?shc=2_RN4yiuNnwha",
+          "originalPrice": 380
+        }
+      ],
+      "itemsCount": 3,
+      "itemsSubtotal": 1450,
+      "dynamicFeePercent": 20,
+      "dynamicFeeAmount": 290,
+      "shippingFee": 0,
+      "totalCash": 1740,
+      "currency": "EGP",
+      "status": "APPROVED_PENDING_PAYMENT",
+      "reviewedBy": "Admin",
+      "reviewedAt": "2026-10-25T11:27:23.217+00:00",
+      "createdAt": "2026-10-25T11:26:02.619+00:00",
+      "updatedAt": "2026-10-25T11:27:23.217+00:00"
+    },
+    {
+      "id": "SH-66169",
+      "userId": "google-1792918717965",
+      "userName": "Sarah (via Google)",
+      "userEmail": "customer.google@gmail.com",
+      "userPhone": "01000000000",
+      "rawInput": "I found some great items at SHEIN!\nThese items in my shopping cart are great. I highly recommend them to everyone!\nhttps://onelink.shein.com/58/6655t9m70yzp?shc=2_RN4yiuNnwha",
+      "extractedLink": "https://onelink.shein.com/58/6655t9m70yzp?shc=2_RN4yiuNnwha",
+      "items": [
+        {
+          "id": "item-1",
+          "sku": "sz240819129532890",
+          "name": "SHEIN Frenchy Solid Notch Neck Long Sleeve Top & Trousers Set",
+          "size": "M",
+          "color": "Mocha Brown",
+          "image": "https://img.ltwebstatic.com/v4/j/pics3/2026/10/25/7c/1792917440cd5129e67dd084696a4a777ec1abe887.jpg",
+          "status": "available",
+          "currency": "EGP",
+          "quantity": 1,
+          "subtotal": 650,
+          "originalUrl": "https://onelink.shein.com/58/6655t9m70yzp?shc=2_RN4yiuNnwha",
+          "originalPrice": 650
+        },
+        {
+          "id": "item-2",
+          "sku": "sw23080447382910",
+          "name": "SHEIN EZwear Casual Drop Shoulder Ribbed Knit Cardigan",
+          "size": "L",
+          "color": "Oatmeal Beige",
+          "image": "https://images.unsplash.com/photo-1434389677669-e08b4cac3105?w=600&auto=format&fit=crop&q=80",
+          "status": "available",
+          "currency": "EGP",
+          "quantity": 1,
+          "subtotal": 420,
+          "originalUrl": "https://onelink.shein.com/58/6655t9m70yzp?shc=2_RN4yiuNnwha",
+          "originalPrice": 420
+        },
+        {
+          "id": "item-3",
+          "sku": "sg2310118837190",
+          "name": "SHEIN Minimalist Quilted Shoulder Crossbody Bag With Chain",
+          "size": "One Size",
+          "color": "Classic Black",
+          "image": "https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=600&auto=format&fit=crop&q=80",
+          "status": "available",
+          "currency": "EGP",
+          "quantity": 1,
+          "subtotal": 380,
+          "originalUrl": "https://onelink.shein.com/58/6655t9m70yzp?shc=2_RN4yiuNnwha",
+          "originalPrice": 380
+        }
+      ],
+      "itemsCount": 3,
+      "itemsSubtotal": 1450,
+      "dynamicFeePercent": 20,
+      "dynamicFeeAmount": 290,
+      "shippingFee": 0,
+      "totalCash": 1740,
+      "currency": "EGP",
+      "status": "PENDING_APPROVAL",
+      "createdAt": "2026-10-25T09:43:04.158+00:00",
+      "updatedAt": "2026-10-25T09:43:04.158+00:00"
+    },
     {
       "id": "SH-70316",
       "userId": "user-sara",
@@ -55,10 +185,10 @@
           "id": "item-1",
           "name": "Test Dress",
           "image": "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=600",
-          "originalPrice": 500,
           "currency": "EGP",
           "quantity": 1,
-          "subtotal": 500
+          "subtotal": 500,
+          "originalPrice": 500
         }
       ],
       "itemsCount": 1,
@@ -69,8 +199,8 @@
       "totalCash": 600,
       "currency": "EGP",
       "status": "PENDING_APPROVAL",
-      "createdAt": "2026-10-25T09:37:36.001Z",
-      "updatedAt": "2026-10-25T09:37:36.001Z"
+      "createdAt": "2026-10-25T09:37:36.001+00:00",
+      "updatedAt": "2026-10-25T09:37:36.001+00:00"
     },
     {
       "id": "SH-89421",
@@ -208,7 +338,8 @@
             "desc": "توصيل لجميع محافظات مصر مع إشعارات مباشرة لحالة الشحنة.",
             "icon": "Truck"
           }
-        ]
+        ],
+        "createdAt": "2026-10-25T12:09:31.315Z"
       }
     ]
   }
