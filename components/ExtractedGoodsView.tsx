@@ -426,6 +426,34 @@ export function ExtractedGoodsView({
               </div>
             </div>
 
+            {/* Payment Methods Available with Official Logos */}
+            <div className="p-3.5 bg-neutral-50 dark:bg-[#181423] rounded-2xl border border-neutral-200/60 dark:border-[#2f2742] space-y-2">
+              <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">
+                {isRtl ? 'طرق الدفع المدعومة بالجنيه المصري:' : 'Supported EGP Payment Methods:'}
+              </span>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="p-2 rounded-xl bg-white dark:bg-[#1e192a] border border-purple-200 dark:border-purple-800/80 flex items-center gap-2 shadow-2xs">
+                  <div className="w-6 h-6 rounded-md bg-white p-0.5 border border-purple-200 shrink-0">
+                    <img src="/images/instapay.png" alt="InstaPay" className="w-full h-full object-contain" />
+                  </div>
+                  <div className="min-w-0">
+                    <h5 className="font-black text-[11px] text-neutral-900 dark:text-white leading-tight truncate">InstaPay</h5>
+                    <p className="text-[9px] text-purple-600 dark:text-purple-400 truncate">{isRtl ? 'تحويل بنكي' : 'Instant EBC'}</p>
+                  </div>
+                </div>
+
+                <div className="p-2 rounded-xl bg-white dark:bg-[#1e192a] border border-rose-200 dark:border-rose-800/80 flex items-center gap-2 shadow-2xs">
+                  <div className="w-6 h-6 rounded-md bg-white p-0.5 border border-rose-200 shrink-0">
+                    <img src="/images/vodafone-cash.png" alt="Vodafone Cash" className="w-full h-full object-contain" />
+                  </div>
+                  <div className="min-w-0">
+                    <h5 className="font-black text-[11px] text-neutral-900 dark:text-white leading-tight truncate">VF Cash</h5>
+                    <p className="text-[9px] text-rose-600 dark:text-rose-400 truncate">{isRtl ? 'محفظة كاش' : 'Mobile Wallet'}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Workflow steps badge */}
             <div className="p-3.5 bg-neutral-50 dark:bg-[#181423] rounded-2xl border border-neutral-200/60 dark:border-[#2f2742] space-y-2 text-xs">
               <div className="flex items-center gap-2 font-black text-neutral-800 dark:text-neutral-200">

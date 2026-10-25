@@ -120,6 +120,12 @@ export default function AdminDashboardPage() {
   const [updating, setUpdating] = useState(false);
   const [zoomReceipt, setZoomReceipt] = useState(false);
 
+  // Tracking Management States for Admin
+  const [trackingStatus, setTrackingStatus] = useState<OrderStatus>('PAID');
+  const [trackingCarrier, setTrackingCarrier] = useState('بوسطة للشحن السريع (Bosta)');
+  const [trackingNumber, setTrackingNumber] = useState('');
+  const [adminTrackingNote, setAdminTrackingNote] = useState('');
+
   // Settings modal & tabs
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<'payments' | 'support' | 'sections' | 'custom_sections'>('payments');
@@ -250,6 +256,10 @@ export default function AdminDashboardPage() {
     setReviewItems(JSON.parse(JSON.stringify(order.items)));
     setReviewDynamicFee(order.dynamicFeePercent || 20);
     setZoomReceipt(false);
+    setTrackingStatus(order.status);
+    setTrackingCarrier(order.tracking?.carrier || 'بوسطة للشحن السريع (Bosta)');
+    setTrackingNumber(order.tracking?.trackingNumber || '');
+    setAdminTrackingNote(order.tracking?.adminTrackingNote || '');
   };
 
   const handleItemFieldChange = (
@@ -276,7 +286,10 @@ export default function AdminDashboardPage() {
   };
 
   const calculateReviewTotals = () => {
-    const subtotal = reviewItems.reduce((s, it) => s + it.subtotal, 0);
+    const activeItems = reviewItems.filter(
+      (it) => it.status !== 'rejected' && it.status !== 'out_of_stock'
+    );
+    const subtotal = activeItems.reduce((s, it) => s + it.subtotal, 0);
     const feeAmount = Math.round(subtotal * (reviewDynamicFee / 100));
     const shipping = selectedOrder?.shippingFee || 0;
     const totalCash = subtotal + feeAmount + shipping;
@@ -285,7 +298,8 @@ export default function AdminDashboardPage() {
 
   const handleUpdateOrder = async (
     newStatus?: OrderStatus,
-    paymentStatus?: 'VERIFIED' | 'REJECTED'
+    paymentStatus?: 'VERIFIED' | 'REJECTED',
+    trackingPayload?: any
   ) => {
     if (!selectedOrder) return;
     if (updating) return;
@@ -304,6 +318,10 @@ export default function AdminDashboardPage() {
 
       if (paymentStatus) {
         payload.paymentStatus = paymentStatus;
+      }
+
+      if (trackingPayload) {
+        payload.tracking = trackingPayload;
       }
 
       const res = await fetch(`/api/orders/${selectedOrder.id}`, {
@@ -903,11 +921,18 @@ export default function AdminDashboardPage() {
                     <button
                       type="button"
                       disabled={updating}
-                      onClick={() => handleUpdateOrder('PAID', 'VERIFIED')}
+                      onClick={() =>
+                        handleUpdateOrder('PAID', 'VERIFIED', {
+                          currentStep: 1,
+                          carrier: trackingCarrier,
+                          trackingNumber: trackingNumber || `SH-EG-${selectedOrder.id.replace(/\D/g, '')}`,
+                          adminTrackingNote: 'تم التحقق من الدفع وتأكيده بنجاح، جاري تجهيز الطلب والشراء من شي إن.',
+                        })
+                      }
                       className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-extrabold rounded-xl text-xs flex items-center gap-1.5 shadow-md cursor-pointer active:scale-95"
                     >
                       <Check className="w-4 h-4" />
-                      {updating ? 'Processing...' : 'Confirm Payment (Mark as Paid & Fulfill)'}
+                      {updating ? 'Processing...' : 'تأكيد الدفع وتفعيل التتبع (Mark as Paid & Fulfill)'}
                     </button>
                     <button
                       type="button"
@@ -916,7 +941,115 @@ export default function AdminDashboardPage() {
                       className="px-4 py-2.5 bg-rose-100 hover:bg-rose-200 disabled:opacity-50 text-rose-800 font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer"
                     >
                       <X className="w-4 h-4" />
-                      Reject Receipt (Ask User to Re-upload)
+                      رفض التحويل (إعادة الطلب لمرحلة الدفع)
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* LIVE TRACKING CONTROL PANEL FOR ADMIN */}
+              {['PAID', 'PROCESSING', 'SHIPPED', 'COMPLETED'].includes(selectedOrder.status) && (
+                <div className="p-6 rounded-3xl bg-gradient-to-br from-indigo-50/90 via-purple-50/70 to-pink-50/60 border-2 border-indigo-200/80 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-indigo-200/60">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0">
+                        <Truck className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="font-black text-sm text-indigo-950">
+                          لوحة التحكم بتتبع الشحنة للعميل (Tracking Control Panel)
+                        </h4>
+                        <p className="text-[11px] text-indigo-700">
+                          أي تعديل هنا ينعكس فورياً في صفحة التتبع للعميل
+                        </p>
+                      </div>
+                    </div>
+                    <span className="px-3 py-1 rounded-full text-xs font-black bg-indigo-100 text-indigo-800 border border-indigo-300 font-mono self-start sm:self-auto">
+                      {selectedOrder.status}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                    <div>
+                      <label className="block text-[11px] font-bold text-neutral-700 mb-1">
+                        مرحلة التتبع (Order Stage):
+                      </label>
+                      <select
+                        value={trackingStatus}
+                        onChange={(e) => setTrackingStatus(e.target.value as OrderStatus)}
+                        className="w-full px-3 py-2 text-xs font-bold bg-white border border-indigo-200 rounded-xl focus:ring-2 focus:ring-indigo-500"
+                      >
+                        <option value="PAID">1. تم تأكيد الدفع (Payment Verified)</option>
+                        <option value="PROCESSING">2. جاري الشراء من شي إن (Processing on SHEIN)</option>
+                        <option value="SHIPPED">3. تم الشحن مع المندوب (In Transit / Shipped)</option>
+                        <option value="COMPLETED">4. تم التوصيل بنجاح (Delivered & Completed)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-neutral-700 mb-1">
+                        شركة الشحن / طريقة التوصيل:
+                      </label>
+                      <input
+                        type="text"
+                        value={trackingCarrier}
+                        onChange={(e) => setTrackingCarrier(e.target.value)}
+                        placeholder="بوسطة Bosta / أرامكس / مندوب خاص"
+                        className="w-full px-3 py-2 text-xs bg-white border border-indigo-200 rounded-xl focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-neutral-700 mb-1">
+                        رقم بوليصة الشحن (Tracking Number):
+                      </label>
+                      <input
+                        type="text"
+                        value={trackingNumber}
+                        onChange={(e) => setTrackingNumber(e.target.value)}
+                        placeholder="BST-9182390"
+                        className="w-full px-3 py-2 text-xs font-mono font-bold bg-white border border-indigo-200 rounded-xl focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-neutral-700 mb-1">
+                      ملاحظة التتبع الحية للعميل (Tracking Update Note):
+                    </label>
+                    <input
+                      type="text"
+                      value={adminTrackingNote}
+                      onChange={(e) => setAdminTrackingNote(e.target.value)}
+                      placeholder="مثال: تم شراء المنتجات بنجاح من شي إن وتجهيزها للشحن إلى مصر..."
+                      className="w-full px-3.5 py-2 text-xs bg-white border border-indigo-200 rounded-xl focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-end pt-1">
+                    <button
+                      type="button"
+                      disabled={updating}
+                      onClick={() => {
+                        const stepNum =
+                          trackingStatus === 'PAID'
+                            ? 1
+                            : trackingStatus === 'PROCESSING'
+                            ? 2
+                            : trackingStatus === 'SHIPPED'
+                            ? 3
+                            : 4;
+                        handleUpdateOrder(trackingStatus, undefined, {
+                          carrier: trackingCarrier,
+                          trackingNumber: trackingNumber || `SH-EG-${selectedOrder.id.replace(/\D/g, '')}`,
+                          adminTrackingNote: adminTrackingNote,
+                          currentStep: stepNum,
+                        });
+                      }}
+                      className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-extrabold text-xs rounded-xl shadow-md flex items-center gap-2 cursor-pointer active:scale-95"
+                    >
+                      <Truck className="w-3.5 h-3.5" />
+                      <span>{updating ? 'جاري الحفظ...' : 'تحديث مسار التتبع للعميل الآن ✓'}</span>
                     </button>
                   </div>
                 </div>
@@ -929,107 +1062,157 @@ export default function AdminDashboardPage() {
                     <span>Item-by-Item Review ({reviewItems.length} goods)</span>
                   </h4>
                   <span className="text-[11px] text-neutral-500 font-medium">
-                    Edit unit price, quantity, or add comments for each specific good
+                    تعديل سعر كل منتج، أو رفض منتج بعينه، أو إضافة ملاحظة خاصة به
                   </span>
                 </div>
 
                 <div className="space-y-3.5">
-                  {reviewItems.map((item, idx) => (
-                    <div
-                      key={item.id}
-                      className="p-5 rounded-3xl border border-neutral-200 bg-neutral-50/70 space-y-3 shadow-xs"
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex items-center gap-3.5">
-                          <div className="w-16 h-20 rounded-2xl overflow-hidden border border-neutral-200 bg-white shadow-xs shrink-0">
-                            <SafeImage
-                              src={item.image}
-                              alt={item.name}
-                              className="w-full h-full object-cover"
-                            />
+                  {reviewItems.map((item, idx) => {
+                    const isRejected = item.status === 'rejected' || item.status === 'out_of_stock';
+                    return (
+                      <div
+                        key={item.id}
+                        className={`p-5 rounded-3xl border space-y-3 shadow-xs transition-colors ${
+                          isRejected
+                            ? 'border-rose-300 bg-rose-50/50'
+                            : 'border-neutral-200 bg-neutral-50/70'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex items-center gap-3.5">
+                            <div className="w-16 h-20 rounded-2xl overflow-hidden border border-neutral-200 bg-white shadow-xs shrink-0">
+                              <SafeImage
+                                src={item.image}
+                                alt={item.name}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h5 className="font-extrabold text-neutral-950 text-xs sm:text-sm line-clamp-2">{item.name}</h5>
+                                {isRejected && (
+                                  <span className="px-2 py-0.5 rounded-md bg-rose-200 text-rose-800 text-[10px] font-black shrink-0">
+                                    مرفوض / غير متوفر
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex flex-wrap items-center gap-2 text-[11px] text-neutral-500 mt-1">
+                                {item.color && <span>Color: <strong>{item.color}</strong></span>}
+                                {item.size && <span>Size: <strong>{item.size}</strong></span>}
+                                {item.sku && <span className="font-mono">{item.sku}</span>}
+                              </div>
+
+                              {/* Reject / Approve Product Toggle Button */}
+                              <div className="pt-2">
+                                {isRejected ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleItemFieldChange(idx, 'status', 'available')}
+                                    className="px-3 py-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-xs font-bold rounded-xl border border-emerald-300 transition-colors cursor-pointer"
+                                  >
+                                    ✓ استعادة وقبول هذا المنتج
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleItemFieldChange(idx, 'status', 'rejected')}
+                                    className="px-3 py-1 bg-rose-100 hover:bg-rose-200 text-rose-800 text-xs font-bold rounded-xl border border-rose-300 transition-colors cursor-pointer"
+                                  >
+                                    ✕ رفض واستبعاد هذا المنتج
+                                  </button>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                          <div>
-                            <h5 className="font-extrabold text-neutral-950 text-xs sm:text-sm line-clamp-2">{item.name}</h5>
-                            <div className="flex flex-wrap gap-2 text-[11px] text-neutral-500 mt-1">
-                              {item.color && <span>Color: <strong>{item.color}</strong></span>}
-                              {item.size && <span>Size: <strong>{item.size}</strong></span>}
-                              {item.sku && <span className="font-mono">{item.sku}</span>}
+
+                          {/* Price & Quantity Editable Fields */}
+                          <div className="flex items-center gap-3 flex-shrink-0">
+                            <div>
+                              <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
+                                Price (EGP)
+                              </label>
+                              <input
+                                type="number"
+                                disabled={isRejected}
+                                value={item.originalPrice}
+                                onChange={(e) =>
+                                  handleItemFieldChange(idx, 'originalPrice', e.target.value)
+                                }
+                                className={`w-24 px-3 py-1.5 text-xs font-black bg-white border border-neutral-200 rounded-xl text-right focus:outline-none focus:ring-1 focus:ring-rose-500 ${
+                                  isRejected ? 'opacity-40 line-through' : ''
+                                }`}
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
+                                Qty
+                              </label>
+                              <input
+                                type="number"
+                                min={1}
+                                disabled={isRejected}
+                                value={item.quantity}
+                                onChange={(e) =>
+                                  handleItemFieldChange(idx, 'quantity', e.target.value)
+                                }
+                                className={`w-16 px-3 py-1.5 text-xs font-black bg-white border border-neutral-200 rounded-xl text-center focus:outline-none focus:ring-1 focus:ring-rose-500 ${
+                                  isRejected ? 'opacity-40' : ''
+                                }`}
+                              />
+                            </div>
+                            <div className="text-right min-w-[70px]">
+                              <span className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
+                                Subtotal
+                              </span>
+                              {isRejected ? (
+                                <span className="font-black text-xs text-rose-600 block">
+                                  0 EGP (مستبعد)
+                                </span>
+                              ) : (
+                                <span className="font-black text-sm text-neutral-950 font-mono">
+                                  {item.subtotal.toLocaleString()} EGP
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>
 
-                        {/* Price & Quantity Editable Fields */}
-                        <div className="flex items-center gap-3 flex-shrink-0">
-                          <div>
-                            <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
-                              Price (EGP)
-                            </label>
-                            <input
-                              type="number"
-                              value={item.originalPrice}
-                              onChange={(e) =>
-                                handleItemFieldChange(idx, 'originalPrice', e.target.value)
-                              }
-                              className="w-24 px-3 py-1.5 text-xs font-black bg-white border border-neutral-200 rounded-xl text-right focus:outline-none focus:ring-1 focus:ring-rose-500"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
-                              Qty
-                            </label>
-                            <input
-                              type="number"
-                              min={1}
-                              value={item.quantity}
-                              onChange={(e) =>
-                                handleItemFieldChange(idx, 'quantity', e.target.value)
-                              }
-                              className="w-16 px-3 py-1.5 text-xs font-black bg-white border border-neutral-200 rounded-xl text-center focus:outline-none focus:ring-1 focus:ring-rose-500"
-                            />
-                          </div>
-                          <div className="text-right min-w-[70px]">
-                            <span className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
-                              Subtotal
-                            </span>
-                            <span className="font-black text-sm text-neutral-950">
-                              {item.subtotal.toLocaleString()} EGP
-                            </span>
+                        {/* Admin Comment field for THIS specific good */}
+                        <div className="pt-2 border-t border-neutral-200/60">
+                          <label className="block text-[11px] font-bold text-rose-800 mb-1 flex items-center gap-1.5">
+                            <MessageSquare className="w-3.5 h-3.5 text-rose-600" />
+                            {isRejected ? 'سبب رفض المنتج (يظهر للعميل):' : 'ملاحظة خاصة بالمنتج (تظهر للعميل):'}
+                          </label>
+                          <input
+                            type="text"
+                            value={item.adminComment || ''}
+                            onChange={(e) =>
+                              handleItemFieldChange(idx, 'adminComment', e.target.value)
+                            }
+                            placeholder={isRejected ? 'مثال: المقاس المطلوب غير متوفر حالياً على شي إن...' : 'مثال: تم التأكد من المقاس واللون...'}
+                            className="w-full px-3.5 py-2 text-xs bg-white border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 placeholder:text-neutral-400"
+                          />
+
+                          {/* Quick comment chips */}
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {(isRejected
+                              ? ['المقاس غير متوفر على شي إن', 'اللون المطلوب نفذ', 'المنتج غير متاح للشحن لمصر', 'السعر ارتفع كثيراً في شي إن']
+                              : PRESET_ITEM_COMMENTS
+                            ).map((preset) => (
+                              <button
+                                key={preset}
+                                type="button"
+                                onClick={() => handleItemFieldChange(idx, 'adminComment', preset)}
+                                className="text-[10px] font-semibold bg-white hover:bg-neutral-100 text-neutral-600 px-2.5 py-1 rounded-lg border border-neutral-200 transition-colors cursor-pointer"
+                              >
+                                + {preset}
+                              </button>
+                            ))}
                           </div>
                         </div>
                       </div>
-
-                      {/* Admin Comment field for THIS specific good */}
-                      <div className="pt-2 border-t border-neutral-200/60">
-                        <label className="block text-[11px] font-bold text-rose-800 mb-1 flex items-center gap-1.5">
-                          <MessageSquare className="w-3.5 h-3.5 text-rose-600" />
-                          Comment for this Good (Visible to customer):
-                        </label>
-                        <input
-                          type="text"
-                          value={item.adminComment || ''}
-                          onChange={(e) =>
-                            handleItemFieldChange(idx, 'adminComment', e.target.value)
-                          }
-                          placeholder="e.g. Size L confirmed in stock, price checked..."
-                          className="w-full px-3.5 py-2 text-xs bg-white border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 placeholder:text-neutral-400"
-                        />
-
-                        {/* Quick comment chips */}
-                        <div className="flex flex-wrap gap-1.5 mt-2">
-                          {PRESET_ITEM_COMMENTS.map((preset) => (
-                            <button
-                              key={preset}
-                              type="button"
-                              onClick={() => handleItemFieldChange(idx, 'adminComment', preset)}
-                              className="text-[10px] font-semibold bg-white hover:bg-neutral-100 text-neutral-600 px-2.5 py-1 rounded-lg border border-neutral-200 transition-colors cursor-pointer"
-                            >
-                              + {preset}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 

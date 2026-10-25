@@ -28,7 +28,6 @@ export function PaymentSection({ order, settings, onPaymentSubmitted }: PaymentS
   const [method, setMethod] = useState<'instapay' | 'vodafone_cash'>('instapay');
   const [senderIdentifier, setSenderIdentifier] = useState(order.userPhone || '');
   const [transactionReference, setTransactionReference] = useState('');
-  const [receiptImage, setReceiptImage] = useState<string | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(false);
@@ -40,27 +39,10 @@ export function PaymentSection({ order, settings, onPaymentSubmitted }: PaymentS
     setTimeout(() => setCopiedField(null), 2000);
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith('image/')) {
-      setError('Please select an image file (JPG, PNG, WebP) for your payment receipt.');
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      setReceiptImage(reader.result as string);
-      setError(null);
-    };
-    reader.readAsDataURL(file);
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!senderIdentifier.trim()) {
-      setError('Please enter your sender mobile number or InstaPay address.');
+      setError('يرجى إدخال رقم الهاتف أو عنوان إنستاباي المحول منه.');
       return;
     }
 
@@ -75,13 +57,12 @@ export function PaymentSection({ order, settings, onPaymentSubmitted }: PaymentS
           method,
           senderIdentifier: senderIdentifier.trim(),
           transactionReference: transactionReference.trim() || undefined,
-          receiptImage: receiptImage || undefined,
         }),
       });
 
       const resJson = await res.json();
       if (!res.ok) {
-        throw new Error(resJson.error || 'Failed to submit payment proof');
+        throw new Error(resJson.error || 'فشل إرسال بيانات الدفع');
       }
 
       if (resJson.data) {
@@ -296,44 +277,18 @@ export function PaymentSection({ order, settings, onPaymentSubmitted }: PaymentS
             </div>
           </div>
 
-          {/* Screenshot Upload Drag Box */}
-          <div>
-            <label className="block text-xs font-bold text-neutral-700 mb-1">
-              Receipt Screenshot / Photo Proof
-            </label>
-            <div className="mt-1 border-2 border-dashed border-neutral-300 hover:border-neutral-400 rounded-3xl p-6 text-center bg-neutral-50/50 transition-colors">
-              {receiptImage ? (
-                <div className="flex flex-col items-center">
-                  <div className="relative max-w-xs rounded-2xl overflow-hidden border border-neutral-200 shadow-md">
-                    <img src={receiptImage} alt="Receipt proof" className="max-h-56 object-contain" />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setReceiptImage(null)}
-                    className="mt-3 text-xs font-bold text-rose-600 hover:underline cursor-pointer"
-                  >
-                    Remove & Re-upload
-                  </button>
-                </div>
-              ) : (
-                <label className="cursor-pointer flex flex-col items-center justify-center">
-                  <div className="w-12 h-12 rounded-2xl bg-white shadow-sm border border-neutral-200 flex items-center justify-center text-neutral-500 mb-2">
-                    <Upload className="w-5 h-5 text-neutral-700" />
-                  </div>
-                  <span className="text-xs font-black text-neutral-900">
-                    Click to select payment screenshot
-                  </span>
-                  <span className="text-[11px] text-neutral-400 mt-0.5">
-                    Supports PNG, JPG, or screenshot from InstaPay / Vodafone Cash
-                  </span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
-                </label>
-              )}
+          {/* No Image Upload Reassurance Badge */}
+          <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800/60 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 flex items-center justify-center shrink-0">
+              <Check className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-xs font-black text-emerald-950 dark:text-emerald-200">
+                لا حاجة لرفع صورة إيصال أو لقطة شاشة
+              </p>
+              <p className="text-[11px] text-emerald-700 dark:text-emerald-400 mt-0.5">
+                يكتفي المشرف برقم الهاتف المحول منه أو كود العملية للتحقق من وصول المبلغ وتأكيد الطلب فوراً.
+              </p>
             </div>
           </div>
 
@@ -347,7 +302,7 @@ export function PaymentSection({ order, settings, onPaymentSubmitted }: PaymentS
             ) : (
               <>
                 <Check className="w-4 h-4" />
-                <span>Confirm Payment Proof & Send to Admin</span>
+                <span>تأكيد إرسال بيانات الدفع للمشرف</span>
               </>
             )}
           </button>

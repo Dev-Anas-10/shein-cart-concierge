@@ -8,6 +8,7 @@ import { Navbar } from '@/components/Navbar';
 import { AuthModal } from '@/components/AuthModal';
 import { OrderTimeline } from '@/components/OrderTimeline';
 import { PaymentSection } from '@/components/PaymentSection';
+import { OrderTrackingDashboard } from '@/components/OrderTrackingDashboard';
 import { SafeImage } from '@/components/SafeImage';
 import { useThemeLang } from '@/lib/theme-lang-context';
 import { getClientOrders, saveClientOrder } from '@/lib/order-storage';
@@ -29,6 +30,8 @@ import {
   Sparkles,
   Receipt,
   FileCheck,
+  Lock,
+  Truck,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -267,17 +270,99 @@ export default function OrderDetailsPage() {
           )}
         </div>
 
-        {/* PAYMENT SECTION */}
-        {(order.status === 'APPROVED_PENDING_PAYMENT' ||
-          order.status === 'PAYMENT_UNDER_REVIEW' ||
-          order.status === 'PAID') &&
-          settings && (
-            <PaymentSection
-              order={order}
-              settings={settings}
-              onPaymentSubmitted={() => fetchOrder()}
-            />
-          )}
+        {/* 1. PAYMENT UNLOCKED (User can pay) */}
+        {order.status === 'APPROVED_PENDING_PAYMENT' && settings && (
+          <PaymentSection
+            order={order}
+            settings={settings}
+            onPaymentSubmitted={() => fetchOrder()}
+          />
+        )}
+
+        {/* 2. PAYMENT UNDER REVIEW (Locked screen - user cannot enter or re-edit) */}
+        {order.status === 'PAYMENT_UNDER_REVIEW' && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="p-6 sm:p-8 rounded-[32px] bg-white/95 dark:bg-[#13101c]/95 border-2 border-purple-300 dark:border-purple-800/80 shadow-xl shadow-purple-500/5 space-y-6 text-start"
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-neutral-100 dark:border-[#221c30]">
+              <div className="flex items-center gap-3.5">
+                <div className="w-12 h-12 rounded-2xl bg-purple-100 dark:bg-purple-950/60 text-[#7C3AED] dark:text-purple-300 flex items-center justify-center shrink-0 border border-purple-200 dark:border-purple-800">
+                  <Lock className="w-6 h-6 text-[#7C3AED]" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 text-[11px] font-black uppercase tracking-wider border border-blue-200/80 dark:border-blue-800/80">
+                      <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping inline-block" />
+                      {isRtl ? 'جاري مراجعة الدفع' : 'Payment Under Review'}
+                    </span>
+                  </div>
+                  <h3 className="text-xl sm:text-2xl font-black text-neutral-950 dark:text-white mt-1">
+                    {isRtl ? 'تم إرسال بيانات الدفع — قيد المطابقة' : 'Payment Submitted — Under Verification'}
+                  </h3>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-neutral-400">
+                  {isRtl ? 'المبلغ المحول:' : 'Amount Paid:'}
+                </span>
+                <span className="font-mono text-xl font-black text-[#8B5CF6]">
+                  {order.totalCash.toLocaleString()} EGP
+                </span>
+              </div>
+            </div>
+
+            {/* Payment Details Locked Summary */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 text-xs">
+              <div className="p-4 rounded-2xl bg-neutral-50 dark:bg-[#181423] border border-neutral-200/80 dark:border-[#272136]">
+                <span className="text-neutral-400 text-[11px] block font-bold mb-1">
+                  {isRtl ? 'طريقة التحويل' : 'Payment Method'}
+                </span>
+                <div className="flex items-center gap-2 font-black text-neutral-900 dark:text-white">
+                  <div className="w-6 h-6 rounded-lg bg-white p-0.5 border border-neutral-200 shrink-0">
+                    <img
+                      src={order.payment?.method === 'vodafone_cash' ? '/images/vodafone-cash.png' : '/images/instapay.png'}
+                      alt="Payment Method"
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                  <span>{order.payment?.method === 'vodafone_cash' ? 'فودافون كاش' : 'إنستاباي (InstaPay)'}</span>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-neutral-50 dark:bg-[#181423] border border-neutral-200/80 dark:border-[#272136]">
+                <span className="text-neutral-400 text-[11px] block font-bold mb-1">
+                  {isRtl ? 'رقم / حساب المحول' : 'Sender Identifier'}
+                </span>
+                <span className="font-mono font-black text-sm text-neutral-900 dark:text-white">
+                  {order.payment?.senderIdentifier || '—'}
+                </span>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-neutral-50 dark:bg-[#181423] border border-neutral-200/80 dark:border-[#272136]">
+                <span className="text-neutral-400 text-[11px] block font-bold mb-1">
+                  {isRtl ? 'الرقم المرجعي / كود العملية' : 'Transaction Ref'}
+                </span>
+                <span className="font-mono font-black text-sm text-[#8B5CF6]">
+                  {order.payment?.transactionReference || (isRtl ? 'قيد المطابقة' : 'Verifying')}
+                </span>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-purple-50/70 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 text-xs text-purple-950 dark:text-purple-200 leading-relaxed font-medium">
+              {isRtl
+                ? '🔒 تم قفل شاشة الدفع مؤقتاً لحين انتهاء المشرف من مطابقة التحويل. فور التأكيد، ستتحول الصفحة تلقائياً إلى صفحة تتبع الطلب (Tracking) ومتابعة خط سير الشحنة.'
+                : '🔒 Payment screen is locked while our admin matches your transfer. Once verified, live tracking dashboard will automatically unlock here.'}
+            </div>
+          </motion.div>
+        )}
+
+        {/* 3. TRACKING DASHBOARD (Paid, Processing, Shipped, Completed) */}
+        {['PAID', 'PROCESSING', 'SHIPPED', 'COMPLETED'].includes(order.status) && (
+          <OrderTrackingDashboard order={order} dir={dir} />
+        )}
 
         {/* Item-by-Item Breakdown */}
         <div className="bg-white/90 dark:bg-[#13101c]/90 backdrop-blur-2xl rounded-[32px] p-6 sm:p-8 border border-neutral-200/70 dark:border-[#2a243a] shadow-xs space-y-5">
@@ -291,53 +376,80 @@ export default function OrderDetailsPage() {
           </div>
 
           <div className="space-y-3.5">
-            {order.items.map((item, idx) => (
-              <div
-                key={idx}
-                className="p-4 rounded-2xl border border-neutral-200/70 dark:border-[#241e33] bg-[#FAFAFC] dark:bg-[#181423] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
-              >
-                <div className="flex items-center gap-3.5">
-                  <div className="w-16 h-20 rounded-xl overflow-hidden bg-white dark:bg-[#1f1a2d] shrink-0 border border-neutral-100 dark:border-[#2b243b]">
-                    <SafeImage
-                      src={item.image}
-                      alt={item.name}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="space-y-0.5 text-start">
-                    <h4 className="font-black text-neutral-950 dark:text-white text-xs sm:text-sm line-clamp-1">
-                      {item.name}
-                    </h4>
-                    <div className="flex flex-wrap gap-2 text-[11px] text-neutral-500 dark:text-neutral-400">
-                      {item.color && (
-                        <span>
-                          {isRtl ? 'اللون:' : 'Color:'} <strong>{item.color}</strong>
-                        </span>
-                      )}
-                      {item.size && (
-                        <span>
-                          {isRtl ? 'المقاس:' : 'Size:'} <strong>{item.size}</strong>
-                        </span>
+            {order.items.map((item, idx) => {
+              const isRejected = item.status === 'rejected' || item.status === 'out_of_stock';
+              return (
+                <div
+                  key={idx}
+                  className={`p-4 rounded-2xl border transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${
+                    isRejected
+                      ? 'border-rose-200/80 dark:border-rose-900/40 bg-rose-50/40 dark:bg-rose-950/20 opacity-80'
+                      : 'border-neutral-200/70 dark:border-[#241e33] bg-[#FAFAFC] dark:bg-[#181423]'
+                  }`}
+                >
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-16 h-20 rounded-xl overflow-hidden bg-white dark:bg-[#1f1a2d] shrink-0 border border-neutral-100 dark:border-[#2b243b]">
+                      <SafeImage
+                        src={item.image}
+                        alt={item.name}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="space-y-1 text-start">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-black text-neutral-950 dark:text-white text-xs sm:text-sm line-clamp-1">
+                          {item.name}
+                        </h4>
+                        {isRejected && (
+                          <span className="px-2 py-0.5 rounded-md bg-rose-100 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300 text-[10px] font-black shrink-0 border border-rose-200">
+                            {isRtl ? 'مرفوض / غير متوفر' : 'Rejected / Out of Stock'}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-2 text-[11px] text-neutral-500 dark:text-neutral-400">
+                        {item.color && (
+                          <span>
+                            {isRtl ? 'اللون:' : 'Color:'} <strong>{item.color}</strong>
+                          </span>
+                        )}
+                        {item.size && (
+                          <span>
+                            {isRtl ? 'المقاس:' : 'Size:'} <strong>{item.size}</strong>
+                          </span>
+                        )}
+                      </div>
+                      {item.adminComment && (
+                        <p className={`text-[11px] font-bold pt-1 ${isRejected ? 'text-rose-600 dark:text-rose-400' : 'text-[#7C3AED] dark:text-purple-300'}`}>
+                          {isRejected ? '✕ ' : '✓ '}{item.adminComment}
+                        </p>
                       )}
                     </div>
-                    {item.adminComment && (
-                      <p className="text-[11px] text-[#7C3AED] dark:text-purple-300 font-bold pt-1">
-                        ✓ {item.adminComment}
-                      </p>
+                  </div>
+
+                  <div className="text-end shrink-0">
+                    {isRejected ? (
+                      <div>
+                        <span className="text-xs text-neutral-400 line-through block font-mono">
+                          {item.subtotal.toLocaleString()} EGP
+                        </span>
+                        <span className="font-black text-xs text-rose-600 dark:text-rose-400 font-mono">
+                          {isRtl ? 'مستبعد من الحساب (0 EGP)' : 'Excluded (0 EGP)'}
+                        </span>
+                      </div>
+                    ) : (
+                      <div>
+                        <span className="text-xs text-neutral-400 dark:text-neutral-500 block font-mono">
+                          {item.quantity} x {item.originalPrice} EGP
+                        </span>
+                        <span className="font-black text-sm text-neutral-950 dark:text-white font-mono">
+                          {item.subtotal.toLocaleString()} EGP
+                        </span>
+                      </div>
                     )}
                   </div>
                 </div>
-
-                <div className="text-end shrink-0">
-                  <span className="text-xs text-neutral-400 dark:text-neutral-500 block font-mono">
-                    {item.quantity} x {item.originalPrice} EGP
-                  </span>
-                  <span className="font-black text-sm text-neutral-950 dark:text-white font-mono">
-                    {item.subtotal.toLocaleString()} EGP
-                  </span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Pricing Math Bar */}

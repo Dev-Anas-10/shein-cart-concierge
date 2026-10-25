@@ -266,8 +266,25 @@ export function CartExtractorCard({ onExtracted, currentDynamicFeePercent }: Car
           )}
         </AnimatePresence>
 
-        {/* Submit Button with Spring Motion */}
-        <div className="flex items-center justify-end pt-1">
+        {/* Submit Button & Payment Trust Logos */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-3 border-t border-neutral-100 dark:border-[#201a2d]">
+          {/* Payment Logos Badge */}
+          <div className="flex items-center gap-2.5">
+            <span className="text-[11px] font-bold text-neutral-500 dark:text-neutral-400">
+              {dir === 'rtl' ? 'الدفع متاح عبر:' : 'Payment via:'}
+            </span>
+            <div className="flex items-center gap-2">
+              <div className="h-6 px-2 py-0.5 rounded-lg bg-white dark:bg-[#1b1726] border border-purple-200 dark:border-purple-800 flex items-center gap-1.5 shadow-2xs">
+                <img src="/images/instapay.png" alt="InstaPay" className="h-4 object-contain" />
+                <span className="text-[10px] font-black text-purple-700 dark:text-purple-300">InstaPay</span>
+              </div>
+              <div className="h-6 px-2 py-0.5 rounded-lg bg-white dark:bg-[#1b1726] border border-rose-200 dark:border-rose-800 flex items-center gap-1.5 shadow-2xs">
+                <img src="/images/vodafone-cash.png" alt="Vodafone Cash" className="h-4 object-contain" />
+                <span className="text-[10px] font-black text-rose-700 dark:text-rose-300">Vodafone Cash</span>
+              </div>
+            </div>
+          </div>
+
           <motion.button
             whileHover={{ scale: 1.01 }}
             whileTap={{ scale: 0.99 }}

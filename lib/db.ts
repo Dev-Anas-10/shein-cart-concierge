@@ -809,7 +809,8 @@ export const db = {
     };
 
     if (updates.items) {
-      const subtotal = updates.items.reduce((s, it) => s + it.subtotal, 0);
+      const activeItems = updates.items.filter((it) => it.status !== 'rejected' && it.status !== 'out_of_stock');
+      const subtotal = activeItems.reduce((s, it) => s + it.subtotal, 0);
       const feePercent = updates.dynamicFeePercent ?? current.dynamicFeePercent;
       const feeAmount = Math.round(subtotal * (feePercent / 100));
       const shipping = updates.shippingFee ?? current.shippingFee;
@@ -818,7 +819,7 @@ export const db = {
       updated.dynamicFeeAmount = feeAmount;
       updated.shippingFee = shipping;
       updated.totalCash = subtotal + feeAmount + shipping;
-      updated.itemsCount = updates.items.length;
+      updated.itemsCount = activeItems.length;
     }
 
     data.orders[index] = updated;

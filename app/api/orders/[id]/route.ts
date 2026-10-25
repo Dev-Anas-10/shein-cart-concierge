@@ -61,16 +61,25 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       updates.shippingFee = body.shippingFee;
     }
 
-    // Goods items review (price adjustment, individual comment for each good)
+    // Goods items review (price adjustment, individual comment for each good, status: approved / rejected)
     if (Array.isArray(body.items)) {
       const validatedItems: GoodItem[] = body.items.map((it: any) => ({
         ...it,
+        status: it.status || 'available',
         quantity: Math.max(1, Number(it.quantity) || 1),
         originalPrice: Number(it.originalPrice) || 0,
         subtotal: (Math.max(1, Number(it.quantity) || 1)) * (Number(it.originalPrice) || 0),
         adminComment: it.adminComment || undefined,
       }));
       updates.items = validatedItems;
+    }
+
+    // Tracking updates from admin
+    if (body.tracking) {
+      updates.tracking = {
+        ...(existing.tracking || {}),
+        ...body.tracking,
+      };
     }
 
     // Payment status update from admin
@@ -81,11 +90,24 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
           ...existing.payment,
           adminNote: body.adminPaymentNote || 'Payment confirmed by admin',
         };
+        updates.tracking = {
+          ...(existing.tracking || {}),
+          currentStep: 1,
+          history: [
+            ...(existing.tracking?.history || []),
+            {
+              status: 'PAID',
+              title: 'تم تأكيد الدفع بنجاح',
+              description: 'تم التحقق من التحويل من قبل المشرف وبدء معالجة الطلب.',
+              timestamp: new Date().toISOString(),
+            },
+          ],
+        };
       } else if (body.paymentStatus === 'REJECTED') {
-        updates.status = 'APPROVED_PENDING_PAYMENT'; // reset so user can upload again
+        updates.status = 'APPROVED_PENDING_PAYMENT'; // reset so user can submit again
         updates.payment = {
           ...existing.payment,
-          adminNote: body.adminPaymentNote || 'Receipt invalid or amount mismatch. Please re-upload proof.',
+          adminNote: body.adminPaymentNote || 'بيانات التحويل غير مطابقة أو لم تصل. يرجى التأكد وإعادة الإرسال.',
         };
       }
     }

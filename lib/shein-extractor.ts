@@ -338,7 +338,7 @@ export async function extractSheinGoods(
 
     return {
       rawInput,
-      extractedLink,
+      extractedLink: target.landingUrl,
       title: title || 'العناصر التي شاركها صديقك',
       description: `تم استخراج ${items.length} منتج بنجاح من سلة شي إن.`,
       coverImage: items[0]?.image || RELIABLE_FASHION_IMAGES[0],

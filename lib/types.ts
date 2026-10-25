@@ -21,7 +21,25 @@ export type OrderStatus =
   | 'SHIPPED'                   // In transit to delivery address
   | 'COMPLETED';                // Delivered
 
-export type ItemStatus = 'available' | 'out_of_stock' | 'price_changed' | 'approved';
+export type ItemStatus = 'available' | 'out_of_stock' | 'price_changed' | 'approved' | 'rejected';
+
+export interface TrackingUpdate {
+  status: OrderStatus;
+  title: string;
+  description: string;
+  timestamp: string;
+  location?: string;
+}
+
+export interface TrackingInfo {
+  trackingNumber?: string;
+  carrier?: string; // e.g. Bosta, Aramex, مندوب خاص
+  carrierUrl?: string;
+  estimatedDelivery?: string;
+  currentStep: number; // 1: تم الدفع, 2: جاري الشراء, 3: تم الشحن, 4: تم التوصيل
+  history: TrackingUpdate[];
+  adminTrackingNote?: string;
+}
 
 export interface SheinCartProduct {
   goods_id: string;
@@ -98,6 +116,9 @@ export interface Order {
   
   // Payment Proof
   payment?: PaymentDetails;
+
+  // Order Tracking
+  tracking?: TrackingInfo;
   
   createdAt: string;
   updatedAt: string;
