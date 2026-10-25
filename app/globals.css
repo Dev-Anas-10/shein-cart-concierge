@@ -141,3 +141,18 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+
+/* Google Identity Services button container fix for dark mode */
+.google-gsi-wrapper,
+div:has(> iframe[src*="accounts.google.com/gsi"]),
+div[id*="g_id_signin"] {
+  color-scheme: light !important;
+  background-color: transparent !important;
+  background: transparent !important;
+}
+
+iframe[src*="accounts.google.com/gsi"] {
+  color-scheme: light !important;
+  background-color: transparent !important;
+  border-radius: 9999px !important;
+}

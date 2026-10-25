@@ -503,7 +503,16 @@ export function FullPageLoginCard({ onGuestContinue }: FullPageLoginCardProps) {
               <div className="space-y-2.5">
                 {/* Google Identity Services Rendered Official Button */}
                 <div className="flex flex-col items-center justify-center min-h-[44px]">
-                  <div ref={googleBtnContainerRef} className="w-full flex justify-center" />
+                  <div
+                    style={{ colorScheme: 'light' }}
+                    className="w-full flex justify-center items-center google-gsi-wrapper"
+                  >
+                    <div
+                      ref={googleBtnContainerRef}
+                      className="flex justify-center rounded-full overflow-hidden"
+                      style={{ minHeight: '44px' }}
+                    />
+                  </div>
 
                   {/* Fallback button if GSI is still rendering */}
                   {!gsiLoaded && (

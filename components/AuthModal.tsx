@@ -467,9 +467,15 @@ export function AuthModal({ isOpen, onClose, defaultRole = 'user' }: AuthModalPr
                   {/* Google Identity Services Official Direct Button Container */}
                   <div className="flex flex-col items-center justify-center">
                     <div
-                      ref={googleBtnContainerRef}
-                      className="w-full flex justify-center min-h-[44px]"
-                    />
+                      style={{ colorScheme: 'light' }}
+                      className="w-full flex justify-center items-center google-gsi-wrapper"
+                    >
+                      <div
+                        ref={googleBtnContainerRef}
+                        className="flex justify-center rounded-full overflow-hidden"
+                        style={{ minHeight: '44px' }}
+                      />
+                    </div>
 
                     {/* Fallback button if GSI is still rendering */}
                     {!gsiLoaded && (
