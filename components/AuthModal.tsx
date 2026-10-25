@@ -1,11 +1,33 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/lib/auth-context';
 import { useThemeLang } from '@/lib/theme-lang-context';
 import { getSupabase } from '@/lib/supabase';
 import { X, Mail, Lock, User, Phone, ShieldCheck, AlertCircle, Sparkles } from 'lucide-react';
+
+declare global {
+  interface Window {
+    google?: any;
+  }
+}
+
+function parseJwt(token: string) {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    return JSON.parse(jsonPayload);
+  } catch (e) {
+    return null;
+  }
+}
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -15,7 +37,7 @@ interface AuthModalProps {
 
 export function AuthModal({ isOpen, onClose, defaultRole = 'user' }: AuthModalProps) {
   const { login } = useAuth();
-  const { dir, lang } = useThemeLang();
+  const { dir, lang, theme } = useThemeLang();
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [role, setRole] = useState<'user' | 'admin'>(defaultRole);
 
@@ -32,6 +54,126 @@ export function AuthModal({ isOpen, onClose, defaultRole = 'user' }: AuthModalPr
   const [formLoading, setFormLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Google Identity Services (GIS)
+  const googleBtnContainerRef = useRef<HTMLDivElement>(null);
+  const [gsiLoaded, setGsiLoaded] = useState(false);
+
+  const handleCredentialResponse = async (response: any) => {
+    if (!response?.credential) return;
+    setGoogleLoading(true);
+    setError(null);
+
+    try {
+      const payload = parseJwt(response.credential);
+      if (!payload || !payload.email) {
+        throw new Error('Failed to parse Google account information');
+      }
+
+      const cleanEmail = payload.email.toLowerCase();
+      const detectedName = payload.name || payload.given_name || cleanEmail.split('@')[0];
+      const avatar =
+        payload.picture ||
+        `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(detectedName)}`;
+
+      // 1. Sync user to Supabase DB via our API
+      const res = await fetch('/api/auth/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: cleanEmail,
+          name: detectedName,
+          avatar,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.data) {
+        login(data.data);
+      } else {
+        login({
+          id: `google-${payload.sub || Date.now()}`,
+          name: detectedName,
+          email: cleanEmail,
+          avatar,
+          role: 'user',
+          createdAt: new Date().toISOString(),
+        });
+      }
+
+      // 2. Also authenticate Supabase session if supported
+      const sb = getSupabase();
+      if (sb) {
+        sb.auth
+          .signInWithIdToken({
+            provider: 'google',
+            token: response.credential,
+          })
+          .catch((e) => console.warn('Supabase signInWithIdToken sync note:', e));
+      }
+
+      onClose();
+    } catch (err: any) {
+      console.error('Google Sign-In Error:', err);
+      setError(err.message || 'Google Sign-In failed');
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isOpen || role !== 'user' || showGmailInput) return;
+
+    const clientId =
+      process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ||
+      '392409310054-et01pph0ao3gt9mfjaq8equ5rh2coa05.apps.googleusercontent.com';
+
+    const initGsi = () => {
+      if (typeof window === 'undefined' || !window.google?.accounts?.id) return;
+      try {
+        window.google.accounts.id.initialize({
+          client_id: clientId,
+          callback: handleCredentialResponse,
+          auto_select: false,
+          cancel_on_tap_outside: true,
+        });
+
+        if (googleBtnContainerRef.current) {
+          googleBtnContainerRef.current.innerHTML = '';
+          window.google.accounts.id.renderButton(googleBtnContainerRef.current, {
+            type: 'standard',
+            theme: theme === 'dark' ? 'filled_black' : 'outline',
+            size: 'large',
+            text: 'continue_with',
+            shape: 'pill',
+            width: 320,
+            logo_alignment: 'left',
+          });
+          setGsiLoaded(true);
+        }
+      } catch (err) {
+        console.warn('GSI render note:', err);
+      }
+    };
+
+    if (window.google?.accounts?.id) {
+      initGsi();
+    } else {
+      const scriptId = 'google-gsi-client';
+      let script = document.getElementById(scriptId) as HTMLScriptElement | null;
+      if (!script) {
+        script = document.createElement('script');
+        script.id = scriptId;
+        script.src = 'https://accounts.google.com/gsi/client';
+        script.async = true;
+        script.defer = true;
+        script.onload = initGsi;
+        document.body.appendChild(script);
+      } else {
+        script.addEventListener('load', initGsi);
+      }
+    }
+  }, [isOpen, role, showGmailInput, theme]);
 
   if (!isOpen) return null;
 
@@ -321,21 +463,32 @@ export function AuthModal({ isOpen, onClose, defaultRole = 'user' }: AuthModalPr
                   </div>
                 </div>
               ) : (
-                <div className="space-y-2">
-                  <button
-                    type="button"
-                    onClick={handleGoogleSignIn}
-                    disabled={googleLoading}
-                    className="w-full flex items-center justify-center gap-3 py-3 px-4 border border-neutral-300 dark:border-[#2a2538] rounded-2xl bg-white dark:bg-[#1e1a29] hover:bg-neutral-50 dark:hover:bg-[#282236] text-neutral-800 dark:text-neutral-100 font-bold text-xs transition-all shadow-xs active:scale-[0.99] cursor-pointer"
-                  >
-                    <svg className="w-4 h-4" viewBox="0 0 24 24">
-                      <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
-                      <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
-                      <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
-                      <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
-                    </svg>
-                    <span>{googleLoading ? (isRtl ? 'جاري فتح شاشة Google...' : 'Opening Google...') : 'Continue with Google Gmail'}</span>
-                  </button>
+                <div className="space-y-3">
+                  {/* Google Identity Services Official Direct Button Container */}
+                  <div className="flex flex-col items-center justify-center">
+                    <div
+                      ref={googleBtnContainerRef}
+                      className="w-full flex justify-center min-h-[44px]"
+                    />
+
+                    {/* Fallback button if GSI is still rendering */}
+                    {!gsiLoaded && (
+                      <button
+                        type="button"
+                        onClick={handleGoogleSignIn}
+                        disabled={googleLoading}
+                        className="w-full flex items-center justify-center gap-3 py-3 px-4 border border-neutral-300 dark:border-[#2a2538] rounded-2xl bg-white dark:bg-[#1e1a29] hover:bg-neutral-50 dark:hover:bg-[#282236] text-neutral-800 dark:text-neutral-100 font-bold text-xs transition-all shadow-xs active:scale-[0.99] cursor-pointer"
+                      >
+                        <svg className="w-4 h-4" viewBox="0 0 24 24">
+                          <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
+                          <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
+                          <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
+                          <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+                        </svg>
+                        <span>{googleLoading ? (isRtl ? 'جاري فتح شاشة Google...' : 'Opening Google...') : 'Continue with Google Gmail'}</span>
+                      </button>
+                    )}
+                  </div>
 
                   <div className="text-center">
                     <button
