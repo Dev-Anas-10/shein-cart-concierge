@@ -19,7 +19,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'SHEIN Cart Extractor & Concierge — Egypt',
   description:
-    'Extract goods from SHEIN shopping carts, dynamic 20% fees, admin review & payment with InstaPay and Vodafone Cash.',
+    'Extract goods from SHEIN shopping carts, direct conversion, admin review & payment with InstaPay and Vodafone Cash in Egypt.',
 };
 
 export default function RootLayout({

@@ -101,7 +101,7 @@ export interface Order {
   items: GoodItem[];
   itemsCount: number;
   itemsSubtotal: number;
-  dynamicFeePercent: number; // e.g. 20%
+  dynamicFeePercent: number; // e.g. 0%
   dynamicFeeAmount: number;  // itemsSubtotal * (dynamicFeePercent / 100)
   shippingFee: number;
   totalCash: number;         // itemsSubtotal + dynamicFeeAmount + shippingFee
@@ -148,7 +148,7 @@ export interface CustomSection {
 
 export interface SystemSettings {
   // Pricing & Fees
-  dynamicFeePercent: number;    // Default 20
+  dynamicFeePercent: number;    // Default 0
   profitMarginPercent?: number; // e.g. 10% (profit margin baked directly into product EGP price)
   flatShippingFee: number;      // Default 0 or 50 EGP
   currency: string;             // 'EGP'

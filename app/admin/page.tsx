@@ -258,7 +258,7 @@ export default function AdminDashboardPage() {
     setSelectedOrder(order);
     setReviewOrderComment(order.adminComment || '');
     setReviewItems(JSON.parse(JSON.stringify(order.items)));
-    setReviewDynamicFee(order.dynamicFeePercent || 20);
+    setReviewDynamicFee(order.dynamicFeePercent ?? 0);
     setZoomReceipt(false);
     setTrackingStatus(order.status);
     setTrackingCarrier(order.tracking?.carrier || 'بوسطة للشحن السريع (Bosta)');
@@ -779,7 +779,9 @@ export default function AdminDashboardPage() {
                           {order.totalCash.toLocaleString()} EGP
                         </div>
                         <div className="text-[11px] text-neutral-400 dark:text-neutral-500">
-                          Subtotal {order.itemsSubtotal} + Fee {order.dynamicFeePercent}% ({order.dynamicFeeAmount})
+                          {order.dynamicFeeAmount > 0
+                            ? `Subtotal ${order.itemsSubtotal} + Fee ${order.dynamicFeePercent}% (${order.dynamicFeeAmount})`
+                            : `Subtotal ${order.itemsSubtotal} EGP`}
                         </div>
                       </td>
 
@@ -1272,7 +1274,7 @@ export default function AdminDashboardPage() {
                   rows={3}
                   value={reviewOrderComment}
                   onChange={(e) => setReviewOrderComment(e.target.value)}
-                  placeholder="e.g. Cart accurately reviewed! All items are available. 20% concierge fee applied. Please transfer total to Vodafone Cash or InstaPay."
+                  placeholder="e.g. Cart accurately reviewed! All items are available. Please transfer total to Vodafone Cash or InstaPay."
                   className="w-full p-4 text-xs bg-neutral-50 border border-neutral-200 rounded-2xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-neutral-950 font-sans"
                 />
               </div>
@@ -1824,7 +1826,7 @@ export default function AdminDashboardPage() {
                             type="text"
                             value={editAnnouncementText}
                             onChange={(e) => setEditAnnouncementText(e.target.value)}
-                            placeholder="خدمة SHEIN Concierge — رسوم خدمة 20%، متاح الدفع عبر InstaPay أو فودافون كاش"
+                            placeholder="خدمة SHEIN Concierge — تسوق من شي إن والدفع بالجنيه المصري عبر InstaPay أو فودافون كاش"
                             className="w-full px-3.5 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl focus:bg-white font-bold"
                           />
                         </div>

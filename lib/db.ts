@@ -45,7 +45,7 @@ const DEFAULT_SETTINGS: SystemSettings = {
   supportHours: 'يومياً من ٩:٠٠ صباحاً حتى ١١:٠٠ مساءً (بتوقيت القاهرة)',
   announcementEnabled: true,
   announcementText:
-    'خدمة SHEIN Concierge — رسوم خدمة 20%، متاح الدفع عبر InstaPay أو فودافون كاش وتوصيل لكافة محافظات مصر.',
+    'خدمة SHEIN Concierge — تسوق من شي إن والدفع بالجنيه المصري عبر InstaPay أو فودافون كاش وتوصيل لكافة محافظات مصر.',
   announcementBg: 'purple',
   heroBadge: 'الخدمة الرسمية والأسرع في مصر',
   heroTitle: 'استخرج سلة شي إن الخاصة بك وادفع بالجنيه المصري',
@@ -303,7 +303,7 @@ function mapRowToOrder(row: any): Order {
     items: Array.isArray(row.items) ? row.items : [],
     itemsCount: Number(row.items_count ?? row.itemsCount ?? (Array.isArray(row.items) ? row.items.length : 0)),
     itemsSubtotal: Number(row.items_subtotal ?? row.itemsSubtotal ?? 0),
-    dynamicFeePercent: Number(row.dynamic_fee_percent ?? row.dynamicFeePercent ?? 20),
+    dynamicFeePercent: Number(row.dynamic_fee_percent ?? row.dynamicFeePercent ?? 0),
     dynamicFeeAmount: Number(row.dynamic_fee_amount ?? row.dynamicFeeAmount ?? 0),
     shippingFee: Number(row.shipping_fee ?? row.shippingFee ?? 0),
     totalCash: Number(row.total_cash ?? row.totalCash ?? 0),

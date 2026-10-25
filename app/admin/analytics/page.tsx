@@ -269,7 +269,7 @@ export default function AdminAnalyticsPage() {
             </h1>
             <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400 max-w-2xl">
               {isRtl
-                ? 'رؤية مالية وتشغيلية شاملة لحجم المبيعات بالجنيه المصري، أرباح الرسوم الديناميكية (20%)، بوابات الدفع، والعملاء الأكثر طلباً.'
+                ? 'رؤية مالية وتشغيلية شاملة لحجم المبيعات بالجنيه المصري، بوابات الدفع، والعملاء الأكثر طلباً.'
                 : 'Complete operational & financial visibility into EGP order volume, dynamic service fees, payment channels, and top client lifetime values.'}
             </p>
           </div>
@@ -346,7 +346,7 @@ export default function AdminAnalyticsPage() {
             className="col-span-2 bg-white dark:bg-[#14111d] p-6 rounded-3xl border border-neutral-200/80 dark:border-[#2a243a] shadow-xs hover:shadow-md transition-shadow text-start"
           >
             <div className="flex items-center justify-between text-neutral-400 dark:text-neutral-500 text-xs font-bold mb-2">
-              <span>{isRtl ? 'أرباح الرسوم الديناميكية (20%)' : 'Net Dynamic Commission'}</span>
+              <span>{isRtl ? 'أرباح ورسوم الخدمة' : 'Net Dynamic Commission'}</span>
               <Percent className="w-4 h-4 text-purple-600" />
             </div>
             <div className="text-3xl font-black text-emerald-600 dark:text-emerald-400 tracking-tight">

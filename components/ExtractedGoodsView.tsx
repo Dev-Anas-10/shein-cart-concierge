@@ -90,7 +90,10 @@ export function ExtractedGoodsView({
 
   // Calculations
   const itemsSubtotal = items.reduce((sum, it) => sum + it.subtotal, 0);
-  const dynamicFeeAmount = Math.round(itemsSubtotal * (data.dynamicFeePercent / 100));
+  const dynamicFeeAmount =
+    data.dynamicFeePercent && data.dynamicFeePercent > 0
+      ? Math.round(itemsSubtotal * (data.dynamicFeePercent / 100))
+      : 0;
   const totalCash = itemsSubtotal + dynamicFeeAmount;
 
   const handleQuantityChange = (id: string, delta: number) => {
@@ -149,7 +152,8 @@ export function ExtractedGoodsView({
         cartGroupId: data.groupId,
         cartCoverImage: data.coverImage,
         items,
-        dynamicFeePercent: data.dynamicFeePercent,
+        dynamicFeePercent:
+          data.dynamicFeePercent && data.dynamicFeePercent > 0 ? data.dynamicFeePercent : 0,
       };
 
       const res = await fetch('/api/orders', {

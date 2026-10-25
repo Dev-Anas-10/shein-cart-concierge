@@ -173,7 +173,7 @@ export default function HomePage() {
             <motion.div {...heroEntrance}>
               <CartExtractorCard
                 onExtracted={(result) => setExtractedData(result)}
-                currentDynamicFeePercent={settings?.dynamicFeePercent || 20}
+                currentDynamicFeePercent={settings?.dynamicFeePercent ?? 0}
               />
             </motion.div>
 

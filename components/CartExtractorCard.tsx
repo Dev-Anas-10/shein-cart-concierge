@@ -69,7 +69,7 @@ export function CartExtractorCard({ onExtracted, currentDynamicFeePercent }: Car
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           text: inputText.trim(),
-          dynamicFeePercent: currentDynamicFeePercent,
+          dynamicFeePercent: currentDynamicFeePercent > 0 ? currentDynamicFeePercent : 0,
           estimatedSubtotal: estimatedSubtotal ? Number(estimatedSubtotal) : undefined,
           estimatedItemsCount: estimatedItemsCount ? Number(estimatedItemsCount) : undefined,
         }),

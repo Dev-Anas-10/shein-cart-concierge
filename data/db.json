@@ -1,6 +1,17 @@
 {
   "users": [
     {
+      "id": "user-1792921321300",
+      "name": "Gamal",
+      "email": "gamy13.ahmed@gmail.com",
+      "password": "$2b$10$SNXRyuHo9gcuCFEFylAp6uy/f/b1IBToOwiL0zl4CCXNlAUEcvpvq",
+      "role": "user",
+      "phone": "01121349423",
+      "avatar": "https://api.dicebear.com/7.x/initials/svg?seed=Gamal",
+      "createdAt": "2026-10-25T09:42:01.3+00:00",
+      "lastLoginAt": "2026-10-25T15:19:39.301+00:00"
+    },
+    {
       "id": "user-sara",
       "name": "Sara Ahmed",
       "email": "sara@example.com",
@@ -41,17 +52,6 @@
       "avatar": "https://api.dicebear.com/7.x/initials/svg?seed=aaa",
       "createdAt": "2026-10-25T13:05:15.126+00:00",
       "lastLoginAt": "2026-10-25T13:28:42.909+00:00"
-    },
-    {
-      "id": "user-1792921321300",
-      "name": "Gamal",
-      "email": "gamy13.ahmed@gmail.com",
-      "password": "$2b$10$SNXRyuHo9gcuCFEFylAp6uy/f/b1IBToOwiL0zl4CCXNlAUEcvpvq",
-      "role": "user",
-      "phone": "01121349423",
-      "avatar": "https://api.dicebear.com/7.x/initials/svg?seed=Gamal",
-      "createdAt": "2026-10-25T09:42:01.3+00:00",
-      "lastLoginAt": "2026-10-25T14:15:38.526+00:00"
     }
   ],
   "orders": [
@@ -316,11 +316,16 @@
       "shippingFee": 0,
       "totalCash": 1740,
       "currency": "EGP",
-      "status": "APPROVED_PENDING_PAYMENT",
+      "status": "PAYMENT_UNDER_REVIEW",
+      "payment": {
+        "method": "instapay",
+        "submittedAt": "2026-10-25T15:19:54.921Z",
+        "senderIdentifier": "01284947782"
+      },
       "reviewedBy": "Admin",
       "reviewedAt": "2026-10-25T11:27:23.217+00:00",
       "createdAt": "2026-10-25T11:26:02.619+00:00",
-      "updatedAt": "2026-10-25T11:27:23.217+00:00"
+      "updatedAt": "2026-10-25T15:19:54.922+00:00"
     },
     {
       "id": "SH-66169",
@@ -513,7 +518,7 @@
     "supportEmail": "gamallahmedd01@gmail.com",
     "supportHours": "يومياً من ٩:٠٠ صباحاً حتى ١١:٠٠ مساءً (بتوقيت القاهرة)",
     "announcementEnabled": true,
-    "announcementText": "خدمة SHEIN Concierge — رسوم خدمة 20%، متاح الدفع عبر InstaPay أو فودافون كاش وتوصيل لكافة محافظات مصر.",
+    "announcementText": "خدمة SHEIN Concierge — تسوق من شي إن والدفع بالجنيه المصري عبر InstaPay أو فودافون كاش وتوصيل لكافة محافظات مصر.",
     "announcementBg": "purple",
     "heroBadge": "الخدمة الرسمية والأسرع في مصر",
     "heroTitle": "استخرج سلة شي إن الخاصة بك وادفع بالجنيه المصري",
@@ -556,7 +561,7 @@
             "icon": "Truck"
           }
         ],
-        "createdAt": "2026-10-25T15:05:33.126Z"
+        "createdAt": "2026-10-25T15:20:24.387Z"
       }
     ]
   }
