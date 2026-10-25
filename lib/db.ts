@@ -234,21 +234,45 @@ async function loadFromSupabase(): Promise<DatabaseSchema | null> {
   const sb = getSupabase();
   if (!sb) return null;
   try {
-    const { data: orders, error } = await sb
-      .from('orders')
-      .select('*');
+    const [ordersRes, usersRes] = await Promise.all([
+      sb.from('orders').select('*'),
+      sb.from('users').select('*'),
+    ]);
 
-    if (!error && orders && orders.length > 0) {
-      return {
-        users: DEFAULT_USERS,
-        orders: orders as Order[],
-        settings: DEFAULT_SETTINGS,
-      };
-    }
+    const orders = ordersRes.data && ordersRes.data.length > 0 ? (ordersRes.data as Order[]) : DEFAULT_ORDERS;
+    const users = usersRes.data && usersRes.data.length > 0 ? usersRes.data : DEFAULT_USERS;
+
+    return {
+      users,
+      orders,
+      settings: DEFAULT_SETTINGS,
+    };
   } catch (err) {
     console.warn('[Supabase] Read note:', err);
   }
   return null;
+}
+
+async function syncUserToSupabase(user: User & { password?: string }): Promise<void> {
+  const sb = getSupabase();
+  if (!sb) return;
+  try {
+    const { error } = await sb.from('users').upsert({
+      id: user.id,
+      name: user.name,
+      email: user.email.toLowerCase(),
+      password: user.password,
+      role: user.role,
+      phone: user.phone || '',
+      avatar: user.avatar,
+      created_at: user.createdAt,
+    });
+    if (error) {
+      console.warn('[Supabase] User upsert note:', error.message);
+    }
+  } catch (err) {
+    console.warn('[Supabase] User upsert exception:', err);
+  }
 }
 
 async function syncOrderToSupabase(order: Order): Promise<void> {
@@ -410,6 +434,7 @@ export const db = {
     const data = await ensureDb();
     data.users.push(user);
     await persistDb(data);
+    await syncUserToSupabase(user);
     const { password, ...safe } = user;
     return safe;
   },
