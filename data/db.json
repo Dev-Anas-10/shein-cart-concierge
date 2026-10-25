@@ -565,5 +565,21 @@
       }
     ],
     "instapayPaymentUrl": "https://ipn.eg/S/anasashraf10/instapay/6OaEAR"
-  }
+  },
+  "shipments": [
+    {
+      "id": "SHP-202610-01",
+      "code": "شحنة نهاية أكتوبر (دفعة 1)",
+      "status": "PREPARING",
+      "maxItems": 40,
+      "maxOrders": 10,
+      "carrier": "Aramex",
+      "trackingNumber": "ARX-89302194EG",
+      "estimatedArrival": "2026-11-05",
+      "notes": "تجميع طلبيات نهاية شهر أكتوبر - الشحن الجوي السريع",
+      "orderIds": [],
+      "createdAt": "2026-10-25T14:00:00.000Z",
+      "updatedAt": "2026-10-25T14:00:00.000Z"
+    }
+  ]
 }

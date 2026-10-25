@@ -21,6 +21,31 @@ export type OrderStatus =
   | 'SHIPPED'                   // In transit to delivery address
   | 'COMPLETED';                // Delivered
 
+export type ShipmentStatus =
+  | 'PREPARING'        // قيد التجهيز والتجميع
+  | 'PURCHASED'        // تم الشراء من شي إن
+  | 'IN_TRANSIT'       // في الشحن الدولي لمصر
+  | 'CUSTOMS'          // في التخليص الجمركي
+  | 'ARRIVED_LOCAL'    // وصلت المخزن في مصر
+  | 'OUT_FOR_DELIVERY' // جاري التوزيع الداخلي للعملاء
+  | 'COMPLETED';       // مكتملة ومسلمة بالكامل
+
+export interface Shipment {
+  id: string;                 // e.g. "SHP-202610-001"
+  code: string;               // e.g. "شحنة 25 أكتوبر الرياض" or "SHP-NOV-01"
+  status: ShipmentStatus;
+  maxItems?: number;          // الحد الأقصى لعدد القطع في الشحنة (مثلاً 50 قطعة)
+  maxOrders?: number;         // الحد الأقصى لعدد الطلبات (مثلاً 15 طلب)
+  carrier?: string;           // شركة الشحن (مثلاً SMSA, Aramex, DHL, البريد)
+  trackingNumber?: string;    // رقم التتبع الدولي / المحلي
+  trackingUrl?: string;       // رابط تتبع الشحنة
+  estimatedArrival?: string;  // تاريخ الوصول المتوقع
+  notes?: string;             // ملاحظات المشرف
+  orderIds?: string[];        // IDs of orders assigned to this shipment
+  createdAt: string;
+  updatedAt: string;
+}
+
 export type ItemStatus = 'available' | 'out_of_stock' | 'price_changed' | 'approved' | 'rejected';
 
 export interface TrackingUpdate {
@@ -118,8 +143,10 @@ export interface Order {
   // Payment Proof
   payment?: PaymentDetails;
 
-  // Order Tracking
+  // Order Tracking & Shipment Batch
   tracking?: TrackingInfo;
+  shipmentId?: string;       // ID of assigned shipment batch
+  shipmentCode?: string;     // Cached code / label of assigned shipment
   
   createdAt: string;
   updatedAt: string;

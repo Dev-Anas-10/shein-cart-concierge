@@ -8,7 +8,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { Order, SystemSettings, User, GoodItem } from './types';
+import { Order, SystemSettings, User, GoodItem, Shipment, ShipmentStatus } from './types';
 import { RELIABLE_FASHION_IMAGES } from './shein-extractor';
 import { getSupabase } from './supabase';
 
@@ -17,10 +17,28 @@ import { getSupabase } from './supabase';
 interface DatabaseSchema {
   users: (User & { password?: string })[];
   orders: Order[];
+  shipments: Shipment[];
   settings: SystemSettings;
 }
 
 /* ─────────────────────────────── Defaults ─────────────────────────── */
+
+const DEFAULT_SHIPMENTS: Shipment[] = [
+  {
+    id: 'SHP-202610-01',
+    code: 'شحنة نهاية أكتوبر (دفعة 1)',
+    status: 'PREPARING',
+    maxItems: 40,
+    maxOrders: 10,
+    carrier: 'Aramex',
+    trackingNumber: 'ARX-89302194EG',
+    estimatedArrival: '2026-11-05',
+    notes: 'تجميع طلبيات نهاية شهر أكتوبر - الشحن الجوي السريع',
+    orderIds: [],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+];
 
 const DEFAULT_SETTINGS: SystemSettings = {
   dynamicFeePercent: 0,
@@ -268,6 +286,7 @@ async function loadFromRedis(): Promise<DatabaseSchema | null> {
     return {
       users: parsed.users && parsed.users.length > 0 ? parsed.users : DEFAULT_USERS,
       orders: parsed.orders && parsed.orders.length > 0 ? parsed.orders : DEFAULT_ORDERS,
+      shipments: parsed.shipments && parsed.shipments.length > 0 ? parsed.shipments : DEFAULT_SHIPMENTS,
       settings: parsed.settings ?? DEFAULT_SETTINGS,
     };
   } catch (err) {
@@ -311,6 +330,8 @@ function mapRowToOrder(row: any): Order {
     currency: String(row.currency ?? 'EGP'),
     status: row.status ?? 'PENDING_APPROVAL',
     customerNotes: row.customer_notes ?? row.customerNotes ?? undefined,
+    shipmentId: row.shipment_id ?? row.shipmentId ?? undefined,
+    shipmentCode: row.shipment_code ?? row.shipmentCode ?? undefined,
     adminComment: row.admin_comment ?? row.adminComment ?? undefined,
     payment: row.payment ?? undefined,
     reviewedBy: row.reviewed_by ?? row.reviewedBy ?? undefined,
@@ -353,10 +374,15 @@ async function loadFromSupabase(): Promise<DatabaseSchema | null> {
     const users = usersRes.data && usersRes.data.length > 0 ? usersRes.data.map(mapRowToUser) : DEFAULT_USERS;
     const orders = ordersRes.data && ordersRes.data.length > 0 ? ordersRes.data.map(mapRowToOrder) : DEFAULT_ORDERS;
 
+    const fileFallback = loadFromFile();
+    const shipments = fileFallback && fileFallback.shipments && fileFallback.shipments.length > 0 ? fileFallback.shipments : DEFAULT_SHIPMENTS;
+    const settings = fileFallback?.settings ?? DEFAULT_SETTINGS;
+
     return {
       users,
       orders,
-      settings: DEFAULT_SETTINGS,
+      shipments,
+      settings,
     };
   } catch (err) {
     console.warn('[Supabase] Read note:', err);
@@ -464,6 +490,7 @@ function loadFromFile(): DatabaseSchema | null {
         return {
           users: parsed.users && parsed.users.length > 0 ? parsed.users : DEFAULT_USERS,
           orders: parsed.orders && parsed.orders.length > 0 ? parsed.orders : DEFAULT_ORDERS,
+          shipments: parsed.shipments && parsed.shipments.length > 0 ? parsed.shipments : DEFAULT_SHIPMENTS,
           settings: parsed.settings ?? DEFAULT_SETTINGS,
         };
       }
@@ -481,6 +508,7 @@ function loadFromFile(): DatabaseSchema | null {
         return {
           users: parsed.users && parsed.users.length > 0 ? parsed.users : DEFAULT_USERS,
           orders: parsed.orders && parsed.orders.length > 0 ? parsed.orders : DEFAULT_ORDERS,
+          shipments: parsed.shipments && parsed.shipments.length > 0 ? parsed.shipments : DEFAULT_SHIPMENTS,
           settings: parsed.settings ?? DEFAULT_SETTINGS,
         };
       }
@@ -515,6 +543,7 @@ function defaultDb(): DatabaseSchema {
   return {
     users: DEFAULT_USERS,
     orders: DEFAULT_ORDERS,
+    shipments: DEFAULT_SHIPMENTS,
     settings: DEFAULT_SETTINGS,
   };
 }
@@ -841,6 +870,136 @@ export const db = {
       return true;
     }
     return true;
+  },
+
+  // ── Shipments / Consignments Operations ──
+  getShipments: async (): Promise<Shipment[]> => {
+    const data = await ensureDb();
+    if (!data.shipments) data.shipments = [];
+    return data.shipments;
+  },
+
+  getShipmentById: async (id: string): Promise<Shipment | undefined> => {
+    const data = await ensureDb();
+    return (data.shipments || []).find((s) => s.id === id);
+  },
+
+  createShipment: async (shipment: Shipment): Promise<Shipment> => {
+    const data = await ensureDb();
+    if (!data.shipments) data.shipments = [];
+    const existingIndex = data.shipments.findIndex((s) => s.id === shipment.id);
+    if (existingIndex >= 0) {
+      data.shipments[existingIndex] = shipment;
+    } else {
+      data.shipments.unshift(shipment);
+    }
+    await persistDb(data);
+    return shipment;
+  },
+
+  updateShipment: async (id: string, updates: Partial<Shipment>): Promise<Shipment | null> => {
+    const data = await ensureDb();
+    if (!data.shipments) data.shipments = [];
+    const index = data.shipments.findIndex((s) => s.id === id);
+    if (index === -1) return null;
+    const current = data.shipments[index];
+    const updated: Shipment = {
+      ...current,
+      ...updates,
+      updatedAt: new Date().toISOString(),
+    };
+
+    // If shipment code changed, update code on all assigned orders
+    if (updates.code && updates.code !== current.code) {
+      data.orders.forEach((o) => {
+        if (o.shipmentId === id) {
+          o.shipmentCode = updates.code;
+        }
+      });
+    }
+
+    data.shipments[index] = updated;
+    await persistDb(data);
+    return updated;
+  },
+
+  deleteShipment: async (id: string): Promise<boolean> => {
+    const data = await ensureDb();
+    if (!data.shipments) data.shipments = [];
+    const beforeLen = data.shipments.length;
+    data.shipments = data.shipments.filter((s) => s.id !== id);
+    // Unassign orders that belonged to this shipment
+    data.orders.forEach((o) => {
+      if (o.shipmentId === id) {
+        o.shipmentId = undefined;
+        o.shipmentCode = undefined;
+      }
+    });
+    if (data.shipments.length !== beforeLen) {
+      await persistDb(data);
+      return true;
+    }
+    return true;
+  },
+
+  assignOrdersToShipment: async (
+    shipmentId: string,
+    orderIds: string[]
+  ): Promise<{ shipment: Shipment; updatedOrdersCount: number } | null> => {
+    const data = await ensureDb();
+    if (!data.shipments) data.shipments = [];
+    const shipment = data.shipments.find((s) => s.id === shipmentId);
+    if (!shipment) return null;
+
+    if (!shipment.orderIds) shipment.orderIds = [];
+    const orderSet = new Set(shipment.orderIds);
+    let updatedCount = 0;
+
+    for (const oid of orderIds) {
+      orderSet.add(oid);
+      const order = data.orders.find((o) => o.id === oid);
+      if (order) {
+        order.shipmentId = shipment.id;
+        order.shipmentCode = shipment.code;
+        order.updatedAt = new Date().toISOString();
+        updatedCount++;
+        await syncOrderToSupabase(order);
+      }
+    }
+
+    shipment.orderIds = Array.from(orderSet);
+    shipment.updatedAt = new Date().toISOString();
+    await persistDb(data);
+    return { shipment, updatedOrdersCount: updatedCount };
+  },
+
+  removeOrdersFromShipment: async (
+    shipmentId: string,
+    orderIds: string[]
+  ): Promise<{ shipment: Shipment; removedCount: number } | null> => {
+    const data = await ensureDb();
+    if (!data.shipments) data.shipments = [];
+    const shipment = data.shipments.find((s) => s.id === shipmentId);
+    if (!shipment) return null;
+
+    const toRemoveSet = new Set(orderIds);
+    shipment.orderIds = (shipment.orderIds || []).filter((oid) => !toRemoveSet.has(oid));
+    let removedCount = 0;
+
+    for (const oid of orderIds) {
+      const order = data.orders.find((o) => o.id === oid);
+      if (order && order.shipmentId === shipmentId) {
+        order.shipmentId = undefined;
+        order.shipmentCode = undefined;
+        order.updatedAt = new Date().toISOString();
+        removedCount++;
+        await syncOrderToSupabase(order);
+      }
+    }
+
+    shipment.updatedAt = new Date().toISOString();
+    await persistDb(data);
+    return { shipment, removedCount };
   },
 
   invalidateCache: () => {

@@ -52,6 +52,12 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       updates.rejectionReason = body.rejectionReason;
     }
 
+    // Shipment batch assignment
+    if (body.shipmentId !== undefined) {
+      updates.shipmentId = body.shipmentId ? String(body.shipmentId) : null;
+      updates.shipmentCode = body.shipmentCode ? String(body.shipmentCode) : null;
+    }
+
     // Dynamic fee adjustments
     if (typeof body.dynamicFeePercent === 'number') {
       updates.dynamicFeePercent = body.dynamicFeePercent;
