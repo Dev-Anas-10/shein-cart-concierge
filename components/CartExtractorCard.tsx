@@ -226,8 +226,9 @@ export function CartExtractorCard({ onExtracted, currentDynamicFeePercent }: Car
         {/* Submit Button with Spring Motion */}
         <div className="flex items-center justify-end pt-1">
           <motion.button
-            whileHover={{ scale: 1.02, y: -1 }}
-            whileTap={{ scale: 0.98 }}
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
             type="submit"
             disabled={loading}
             className="w-full sm:w-auto px-8 py-3.5 bg-gradient-to-r from-[#8B5CF6] via-[#7C3AED] to-[#6D28D9] hover:from-[#7C3AED] hover:to-[#5B21B6] disabled:opacity-50 text-white font-extrabold text-xs sm:text-sm rounded-2xl shadow-lg shadow-purple-500/25 transition-all flex items-center justify-center gap-2.5 cursor-pointer"
