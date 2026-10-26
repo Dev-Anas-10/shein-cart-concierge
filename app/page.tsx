@@ -15,6 +15,10 @@ import { FullPageLoginCard } from '@/components/FullPageLoginCard';
 import { CustomSectionRenderer } from '@/components/CustomSectionRenderer';
 import { getClientOrders, mergeAndDeduplicateOrders } from '@/lib/order-storage';
 import { SafeImage } from '@/components/SafeImage';
+import { ShipmentBatchLiveNudge } from '@/components/marketing/ShipmentBatchLiveNudge';
+import { TrustAndGuarantees } from '@/components/marketing/TrustAndGuarantees';
+import { ObjectionsFaq } from '@/components/marketing/ObjectionsFaq';
+
 import {
   ShoppingBag,
   ArrowRight,
@@ -169,6 +173,11 @@ export default function HomePage() {
               </motion.div>
             ))}
 
+            {/* Live Shipment Batch Nudge: Urgency & Scarcity */}
+            <motion.div {...heroEntrance}>
+              <ShipmentBatchLiveNudge />
+            </motion.div>
+
             {/* Main Extractor Card: Hero Entrance */}
             <motion.div {...heroEntrance}>
               <CartExtractorCard
@@ -231,6 +240,11 @@ export default function HomePage() {
                 </motion.div>
               </motion.div>
             )}
+
+            {/* Risk Reversal & Trust Guarantees */}
+            <motion.div {...scrollReveal}>
+              <TrustAndGuarantees />
+            </motion.div>
 
             {/* Custom Sections: Middle Position with Scroll Reveal */}
             {middleSections.map((sec) => (
@@ -360,6 +374,11 @@ export default function HomePage() {
                 </div>
               </motion.div>
             )}
+
+            {/* Pre-Purchase Objection Handling FAQ */}
+            <motion.div {...scrollReveal}>
+              <ObjectionsFaq />
+            </motion.div>
 
             {/* Custom Sections: Bottom Position with Scroll Reveal */}
             {bottomSections.map((sec) => (
