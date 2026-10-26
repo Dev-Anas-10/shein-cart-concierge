@@ -159,10 +159,10 @@ export function CartExtractorCard({ onExtracted, currentDynamicFeePercent }: Car
             )}
           </div>
 
-          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-neutral-950 dark:text-white tracking-tight">
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-neutral-950 dark:text-white tracking-tight text-balance">
             {isRtl ? 'معاكي سلة أو فستان من شي إن؟' : t.extractorTitle}
           </h2>
-          <p className="text-xs sm:text-sm text-neutral-600 dark:text-neutral-300 max-w-lg leading-relaxed font-medium">
+          <p className="text-xs sm:text-sm text-neutral-600 dark:text-neutral-300 max-w-lg leading-relaxed font-medium text-balance">
             {isRtl
               ? 'الصقي الرابط في الصندوق بالأسفل، وسنقوم بحساب الإجمالي بالجنيه المصري ومراجعة المقاسات والشراء والتوصيل لباب بيتك!'
               : t.extractorDesc}
@@ -295,7 +295,7 @@ export function CartExtractorCard({ onExtracted, currentDynamicFeePercent }: Car
               <span className="w-2 h-2 rounded-full bg-emerald-500" />
               <span>{isRtl ? 'جاهز لاستقبال الروابط' : 'Ready for links'}</span>
             </span>
-            <span className="font-mono text-[11px]">
+            <span className="font-mono tabular-nums text-[11px]">
               {inputText.length} {t.chars}
             </span>
           </div>
@@ -390,12 +390,15 @@ export function CartExtractorCard({ onExtracted, currentDynamicFeePercent }: Car
             transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
             type="submit"
             disabled={loading}
-            className={`w-full sm:w-auto px-8 py-4 text-white font-black text-sm rounded-2xl shadow-xl transition-all flex items-center justify-center gap-2.5 cursor-pointer ${
+            className={`relative overflow-hidden group w-full sm:w-auto px-8 py-4 text-white font-black text-sm rounded-2xl shadow-xl transition-all flex items-center justify-center gap-2.5 cursor-pointer select-none active:scale-[0.98] ${
               detectedUrl
-                ? 'bg-gradient-to-r from-purple-600 via-[#7C3AED] to-pink-600 hover:from-purple-700 hover:to-pink-700 shadow-purple-500/40 ring-4 ring-purple-500/20 animate-pulse'
+                ? 'bg-gradient-to-r from-purple-600 via-[#7C3AED] to-pink-600 hover:from-purple-700 hover:to-pink-700 shadow-purple-500/40 ring-4 ring-purple-500/25 animate-pulse'
                 : 'bg-gradient-to-r from-[#8B5CF6] via-[#7C3AED] to-[#6D28D9] hover:from-[#7C3AED] hover:to-[#5B21B6] shadow-purple-500/25'
             } disabled:opacity-50`}
           >
+            {/* Subtle transition sheen sweep on hover (transitions.dev & make-interfaces-feel-better) */}
+            <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/25 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out pointer-events-none" />
+
             {loading ? (
               <>
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />

@@ -158,10 +158,10 @@ export default function HomePage() {
                 <Sparkles className="w-3.5 h-3.5 text-[#8B5CF6]" />
                 <span>{settings?.heroBadge || t.heroBadge}</span>
               </div>
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-neutral-950 dark:text-white tracking-tight leading-tight">
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-neutral-950 dark:text-white tracking-tight leading-tight text-balance">
                 {settings?.heroTitle || t.heroTitle}
               </h1>
-              <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400 max-w-xl leading-relaxed">
+              <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400 max-w-xl leading-relaxed text-balance">
                 {settings?.heroSubtitle || t.heroSubtitle}
               </p>
             </motion.div>

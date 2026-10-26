@@ -79,7 +79,7 @@ export function ShipmentBatchLiveNudge() {
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 animate-pulse">
                 <Clock className="w-2.5 h-2.5" />
                 {isRtl
-                  ? `متبقي ${shipmentInfo.remaining} قطع فقط للإغلاق`
+                  ? `متبقي ${shipmentInfo.remaining} قطعة فقط للإغلاق`
                   : `Only ${shipmentInfo.remaining} items remaining`}
               </span>
             </div>
@@ -95,7 +95,7 @@ export function ShipmentBatchLiveNudge() {
         <div className="w-full sm:w-48 space-y-1.5 shrink-0">
           <div className="flex items-center justify-between text-[10px] font-bold text-neutral-600 dark:text-neutral-300">
             <span>{isRtl ? 'اكتمال الشحنة:' : 'Batch Capacity:'}</span>
-            <span className="font-mono text-purple-600 dark:text-purple-400 font-black">
+            <span className="font-mono tabular-nums text-purple-600 dark:text-purple-400 font-black">
               {shipmentInfo.percent}%
             </span>
           </div>
