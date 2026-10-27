@@ -88,6 +88,8 @@ export interface GoodItem {
   name: string;
   image: string;
   originalUrl?: string;
+  url?: string;
+  goodsId?: string | number;
   sku?: string;
   color?: string;
   size?: string;

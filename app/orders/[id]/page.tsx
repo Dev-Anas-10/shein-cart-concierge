@@ -12,6 +12,7 @@ import { OrderTrackingDashboard } from '@/components/OrderTrackingDashboard';
 import { SafeImage } from '@/components/SafeImage';
 import { useThemeLang } from '@/lib/theme-lang-context';
 import { getClientOrders, saveClientOrder } from '@/lib/order-storage';
+import { toUsableSheinUrl } from '@/lib/shein-links';
 import {
   Clock,
   CheckCircle2,
@@ -32,6 +33,10 @@ import {
   FileCheck,
   Lock,
   Truck,
+  XCircle,
+  Check,
+  Tag,
+  Info,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -130,6 +135,15 @@ export default function OrderDetailsPage() {
     );
   }
 
+  const acceptedItems = order.items.filter(
+    (it) => it.status !== 'rejected' && it.status !== 'out_of_stock'
+  );
+  const rejectedItems = order.items.filter(
+    (it) => it.status === 'rejected' || it.status === 'out_of_stock'
+  );
+  const acceptedCount = acceptedItems.length;
+  const rejectedCount = rejectedItems.length;
+
   return (
     <div className="min-h-screen bg-[#FBFBFC] dark:bg-[#0c0a0f] text-neutral-900 dark:text-white pb-32 md:pb-24 transition-colors relative overflow-hidden">
       {/* Background ambient lighting */}
@@ -166,7 +180,7 @@ export default function OrderDetailsPage() {
           </div>
         </div>
 
-        {/* Master Status & Timeline Card (Liquid Glass) */}
+        {/* Master Status & Timeline Card */}
         <div className="bg-white/90 dark:bg-[#13101c]/90 backdrop-blur-2xl rounded-[32px] p-6 sm:p-8 border border-neutral-200/70 dark:border-[#2a243a] shadow-xs space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5 pb-6 border-b border-neutral-100 dark:border-[#201a2d]">
             <div className="space-y-1.5 text-start">
@@ -268,8 +282,26 @@ export default function OrderDetailsPage() {
                 </p>
                 <p className="text-[11px] text-amber-800 dark:text-amber-300 leading-relaxed font-normal">
                   {isRtl
-                    ? 'يقوم المشرف حالياً بالتأكد من توفر جميع المنتجات والمقاسات على شي إن. بمجرد الموافقة، سيتم فتح خيارات الدفع عبر فودافون كاش أو انستاباي.'
-                    : 'Our concierge supervisor is verifying stock and pricing on SHEIN. Once approved, you can pay using InstaPay or Vodafone Cash.'}
+                    ? 'يقوم المشرف حالياً بالتأكد من توفر جميع المنتجات والمقاسات على شي إن وتحديد الأسعار المعتمدة. بمجرد الموافقة، ستفتح لك شاشة مراجعة المنتجات وسداد المبلغ عبر إنستاباي أو فودافون كاش.'
+                    : 'Our concierge supervisor is verifying stock and pricing on SHEIN. Once approved, you can review approved items and pay using InstaPay or Vodafone Cash.'}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {order.status === 'APPROVED_PENDING_PAYMENT' && (
+            <div className="p-4 rounded-2xl bg-emerald-50/90 dark:bg-emerald-950/50 border border-emerald-300/80 dark:border-emerald-800 text-emerald-950 dark:text-emerald-200 text-xs flex items-start gap-3">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+              <div className="space-y-0.5 text-start">
+                <p className="font-black text-xs text-emerald-900 dark:text-emerald-200">
+                  {isRtl
+                    ? 'تمت مراجعة الطلب واعتماد الأسعار النهائية — جاهز للسداد'
+                    : 'Order Approved by Admin — Ready for Payment'}
+                </p>
+                <p className="text-[11px] text-emerald-800 dark:text-emerald-300 leading-relaxed font-normal">
+                  {isRtl
+                    ? 'راجع المشرف منتجاتك واعتمد الأسعار والمبالغ النهائية. يرجى مراجعة تفاصيل المنتجات المقبولة والمستبعدة وإجمالي المبلغ أدناه، ثم المتابعة لاختيار وسيلة الدفع.'
+                    : 'The admin reviewed your cart and approved final unit prices. Please review the itemized breakdown and approved total below, then proceed with payment.'}
                 </p>
               </div>
             </div>
@@ -280,12 +312,29 @@ export default function OrderDetailsPage() {
               <ShieldCheck className="w-4 h-4 text-[#8B5CF6] shrink-0 mt-0.5" />
               <div className="space-y-0.5 text-start">
                 <p className="font-black text-xs text-[#6D28D9] dark:text-purple-300">
-                  {isRtl ? 'تم استلام إيصال الدفع بنجاح' : 'Payment Receipt Received'}
+                  {isRtl ? 'تم استلام إيصال الدفع بنجاح — قيد المطابقة' : 'Payment Receipt Received — Under Verification'}
                 </p>
                 <p className="text-[11px] text-neutral-600 dark:text-neutral-300 leading-relaxed font-normal">
                   {isRtl
-                    ? `لقد قمت بإرسال إيصال التحويل عبر ${order.payment?.method === 'instapay' ? 'InstaPay' : 'Vodafone Cash'}. المشرف يقوم بمراجعته وسيتم تأكيد الطلب فوراً.`
-                    : `You submitted payment proof via ${order.payment?.method === 'instapay' ? 'InstaPay' : 'Vodafone Cash'}. The admin is checking the screenshot and will confirm shortly.`}
+                    ? `لقد قمت بإرسال بيانات التحويل عبر ${order.payment?.method === 'instapay' ? 'InstaPay' : 'Vodafone Cash'}. المشرف يقوم بمطابقة الحساب وسيتم تأكيد الطلب فوراً.`
+                    : `You submitted payment proof via ${order.payment?.method === 'instapay' ? 'InstaPay' : 'Vodafone Cash'}. The admin is verifying the transfer and will confirm shortly.`}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {order.status === 'REJECTED' && (
+            <div className="p-4 rounded-2xl bg-rose-50/80 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-950 dark:text-rose-200 text-xs flex items-start gap-3">
+              <XCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+              <div className="space-y-0.5 text-start">
+                <p className="font-black text-xs text-rose-900 dark:text-rose-200">
+                  {isRtl ? 'تم رفض الطلب من قبل الإدارة' : 'Order Rejected by Supervisor'}
+                </p>
+                <p className="text-[11px] text-rose-800 dark:text-rose-300 leading-relaxed font-normal">
+                  {order.rejectionReason ||
+                    (isRtl
+                      ? 'نعتذر، لم نتمكن من قبول هذا الطلب نظراً لعدم توفر المنتجات أو المقاسات المطلوبة في مخازن شي إن حالياً.'
+                      : 'We were unable to approve this order due to unavailable items or stock limitations.')}
                 </p>
               </div>
             </div>
@@ -296,7 +345,7 @@ export default function OrderDetailsPage() {
             <div className="p-4 rounded-2xl bg-purple-50/60 dark:bg-purple-950/30 border border-purple-200/80 dark:border-purple-800/60 text-xs text-neutral-900 dark:text-neutral-100 space-y-1 text-start">
               <div className="flex items-center gap-1.5 font-black text-[#6D28D9] dark:text-purple-300 text-[11px]">
                 <MessageSquare className="w-3.5 h-3.5 text-[#8B5CF6]" />
-                <span>{isRtl ? 'ملاحظة المشرف:' : 'Admin Supervisor Note:'}</span>
+                <span>{isRtl ? 'ملاحظة المشرف العامة:' : 'Admin Supervisor Note:'}</span>
               </div>
               <p className="text-xs text-neutral-700 dark:text-neutral-300 italic pl-5">
                 &ldquo;{order.adminComment}&rdquo;
@@ -305,7 +354,289 @@ export default function OrderDetailsPage() {
           )}
         </div>
 
-        {/* 1. PAYMENT UNLOCKED (User can pay) */}
+        {/* 1. TRACKING DASHBOARD (For already paid / shipped orders) */}
+        {['PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED'].includes(order.status) && (
+          <OrderTrackingDashboard order={order} dir={dir} />
+        )}
+
+        {/* 2. PRIMARY ITEM-BY-ITEM BREAKDOWN & APPROVED PRICING (Always above payment!) */}
+        <div className="bg-white/95 dark:bg-[#13101c]/95 backdrop-blur-2xl rounded-[32px] p-6 sm:p-8 border border-neutral-200/80 dark:border-[#2a243a] shadow-xs space-y-6 text-start">
+          {/* Card Header with Step Indicator */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-neutral-100 dark:border-[#201a2d]">
+            <div className="space-y-1">
+              {order.status === 'APPROVED_PENDING_PAYMENT' ? (
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-100 dark:bg-purple-950/70 text-[#7C3AED] dark:text-purple-300 text-[11px] font-black uppercase tracking-wider border border-purple-200 dark:border-purple-800 mb-1">
+                  <ShoppingBag className="w-3.5 h-3.5 text-[#8B5CF6]" />
+                  <span>
+                    {isRtl
+                      ? 'الخطوة 1 من 2: مراجعة المنتجات والأسعار المعتمدة قبل السداد'
+                      : 'Step 1 of 2: Review Approved Products & Pricing Before Payment'}
+                  </span>
+                </div>
+              ) : null}
+
+              <h3 className="font-black text-neutral-950 dark:text-white text-lg sm:text-xl">
+                {order.status === 'APPROVED_PENDING_PAYMENT'
+                  ? isRtl
+                    ? 'تفاصيل المنتجات والأسعار بعد مراجعة المشرف'
+                    : 'Itemized Products & Final Approved Pricing'
+                  : isRtl
+                  ? `المنتجات المستخرجة من السلة (${order.items.length})`
+                  : `Extracted Order Items (${order.items.length})`}
+              </h3>
+              <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                {isRtl
+                  ? 'راجع حالة كل منتج والسعر الفردي والإجمالي المعتمد قبل تحويل المبلغ.'
+                  : 'Review each item status, unit price, and subtotal approved by the concierge admin.'}
+              </p>
+            </div>
+
+            {/* Stat Badges */}
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span>
+                  {acceptedCount} {isRtl ? 'منتج معتمد' : 'Approved'}
+                </span>
+              </span>
+
+              {rejectedCount > 0 && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-rose-50 dark:bg-rose-950/50 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-900">
+                  <XCircle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+                  <span>
+                    {rejectedCount} {isRtl ? 'مستبعد / غير متاح' : 'Excluded'}
+                  </span>
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Items List */}
+          <div className="space-y-4">
+            {order.items.map((item, idx) => {
+              const isRejected = item.status === 'rejected' || item.status === 'out_of_stock';
+              const itemUrl = item.url || item.originalUrl;
+              const usableLink = toUsableSheinUrl(itemUrl, { goodsId: item.goodsId });
+
+              return (
+                <div
+                  key={idx}
+                  className={`p-4 sm:p-5 rounded-2xl border transition-all flex flex-col gap-3.5 ${
+                    isRejected
+                      ? 'border-rose-200/90 dark:border-rose-900/40 bg-rose-50/40 dark:bg-rose-950/20'
+                      : 'border-neutral-200/80 dark:border-[#251f35] bg-[#FAFAFC] dark:bg-[#181423] hover:border-purple-300 dark:hover:border-purple-800'
+                  }`}
+                >
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    {/* Left: Image & Info */}
+                    <div className="flex items-center gap-4 min-w-0">
+                      <div className="w-20 h-24 sm:w-24 sm:h-28 rounded-2xl overflow-hidden bg-white dark:bg-[#1f1a2d] shrink-0 border border-neutral-200/80 dark:border-[#2b243b] relative shadow-2xs">
+                        <SafeImage
+                          src={item.image}
+                          alt={item.name}
+                          className={`w-full h-full object-cover transition-transform duration-300 ${
+                            isRejected ? 'grayscale opacity-75' : ''
+                          }`}
+                        />
+                        {isRejected ? (
+                          <div className="absolute inset-0 bg-rose-950/20 flex items-center justify-center">
+                            <span className="p-1 rounded-full bg-rose-600 text-white shadow-md">
+                              <XCircle className="w-4 h-4" />
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="absolute bottom-1 right-1 sm:bottom-1.5 sm:right-1.5 p-1 rounded-full bg-emerald-600 text-white shadow-xs">
+                            <Check className="w-3 h-3" />
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="space-y-1.5 min-w-0 text-start">
+                        {/* Status Tag */}
+                        <div>
+                          {isRejected ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300 text-[10px] sm:text-[11px] font-black border border-rose-300/80 dark:border-rose-800">
+                              <XCircle className="w-3 h-3 text-rose-600 dark:text-rose-400" />
+                              <span>{isRtl ? 'غير متوفر / مستبعد من الحساب' : 'Rejected / Out of Stock'}</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 text-[10px] sm:text-[11px] font-black border border-emerald-300/80 dark:border-emerald-800">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                              <span>{isRtl ? 'منتج معتمد ومقبول' : 'Approved Item'}</span>
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Title */}
+                        <h4 className="font-black text-neutral-950 dark:text-white text-xs sm:text-sm line-clamp-2 leading-snug">
+                          {item.name}
+                        </h4>
+
+                        {/* Direct Link to SHEIN */}
+                        {(usableLink || itemUrl) && (
+                          <div>
+                            <a
+                              href={usableLink || itemUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-[11px] font-bold text-[#7C3AED] dark:text-purple-400 hover:text-purple-600 dark:hover:text-purple-300 hover:underline transition-colors"
+                            >
+                              <span>{isRtl ? 'عرض المنتج على شي إن' : 'View on SHEIN'}</span>
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
+                          </div>
+                        )}
+
+                        {/* Variants: Color & Size */}
+                        <div className="flex flex-wrap items-center gap-2 text-[11px] text-neutral-600 dark:text-neutral-400 pt-0.5">
+                          {item.color && (
+                            <span className="px-2 py-0.5 rounded-md bg-neutral-100 dark:bg-[#201a2d] border border-neutral-200 dark:border-[#2f2742]">
+                              {isRtl ? 'اللون:' : 'Color:'} <strong className="text-neutral-900 dark:text-white">{item.color}</strong>
+                            </span>
+                          )}
+                          {item.size && (
+                            <span className="px-2 py-0.5 rounded-md bg-neutral-100 dark:bg-[#201a2d] border border-neutral-200 dark:border-[#2f2742]">
+                              {isRtl ? 'المقاس:' : 'Size:'} <strong className="text-neutral-900 dark:text-white">{item.size}</strong>
+                            </span>
+                          )}
+                          <span className="px-2 py-0.5 rounded-md bg-neutral-100 dark:bg-[#201a2d] border border-neutral-200 dark:border-[#2f2742]">
+                            {isRtl ? 'الكمية:' : 'Qty:'} <strong className="text-neutral-900 dark:text-white">{item.quantity}</strong>
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right: Pricing */}
+                    <div className="text-start sm:text-end shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-neutral-100 dark:border-[#201a2d] w-full sm:w-auto">
+                      {isRejected ? (
+                        <div className="space-y-0.5">
+                          <span className="text-xs text-neutral-400 line-through block font-mono">
+                            {item.quantity} × {item.originalPrice.toLocaleString()} EGP
+                          </span>
+                          <span className="font-black text-xs sm:text-sm text-rose-600 dark:text-rose-400 font-mono block">
+                            {isRtl ? '0 ج.م (مستبعد من الحساب)' : '0 EGP (Excluded)'}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="space-y-0.5">
+                          <span className="text-xs text-neutral-500 dark:text-neutral-400 block font-mono">
+                            {item.quantity} × {item.originalPrice.toLocaleString()} EGP
+                          </span>
+                          <div className="font-black text-base sm:text-lg text-neutral-950 dark:text-white font-mono">
+                            {item.subtotal.toLocaleString()}{' '}
+                            <span className="text-xs font-bold text-[#8B5CF6]">EGP</span>
+                          </div>
+                          <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold block">
+                            {isRtl ? 'السعر المعتمد النهائي' : 'Approved Unit Price'}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Rejection Reason Callout Banner */}
+                  {isRejected && (
+                    <div className="mt-1 p-3.5 rounded-2xl bg-rose-100/70 dark:bg-rose-950/50 border border-rose-300 dark:border-rose-900/60 text-xs">
+                      <div className="flex items-center gap-1.5 font-black text-rose-950 dark:text-rose-200 text-[11px] mb-1">
+                        <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                        <span>{isRtl ? 'سبب الرفض والاستبعاد من الحساب:' : 'Reason for Exclusion:'}</span>
+                      </div>
+                      <p className="text-xs text-rose-900 dark:text-rose-200 font-medium pl-5 leading-relaxed">
+                        {item.adminComment ||
+                          order.rejectionReason ||
+                          (isRtl
+                            ? 'المنتج غير متوفر حالياً بمخازن شي إن أو نفدت المقاسات المطلوبة.'
+                            : 'Product is currently out of stock on SHEIN or the selected size is sold out.')}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Admin Note for Accepted Item */}
+                  {!isRejected && item.adminComment && (
+                    <div className="mt-1 p-2.5 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200/80 dark:border-purple-800/60 text-xs flex items-start gap-2">
+                      <MessageSquare className="w-3.5 h-3.5 text-[#8B5CF6] shrink-0 mt-0.5" />
+                      <div className="text-[11px] text-neutral-800 dark:text-neutral-200">
+                        <span className="font-bold text-[#6D28D9] dark:text-purple-300">
+                          {isRtl ? 'ملاحظة المشرف:' : 'Supervisor Note:'}
+                        </span>{' '}
+                        {item.adminComment}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Approved Financial Math Bar */}
+          <div className="p-5 sm:p-6 rounded-3xl bg-neutral-100/80 dark:bg-[#181423] border border-neutral-200/80 dark:border-[#2f2742] space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+              <div className="p-3.5 rounded-2xl bg-white dark:bg-[#1f1a2d] border border-neutral-200/60 dark:border-[#2a233b]">
+                <span className="text-[11px] font-bold text-neutral-400 dark:text-neutral-500 block mb-0.5">
+                  {isRtl ? 'مجموع المنتجات المقبولة' : 'Accepted Items Subtotal'}
+                </span>
+                <span className="text-base font-black text-neutral-950 dark:text-white font-mono">
+                  {order.itemsSubtotal.toLocaleString()} EGP
+                </span>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-white dark:bg-[#1f1a2d] border border-neutral-200/60 dark:border-[#2a233b]">
+                <span className="text-[11px] font-bold text-neutral-400 dark:text-neutral-500 block mb-0.5">
+                  {isRtl
+                    ? `رسوم الخدمة والشراء (${order.dynamicFeePercent || 0}%)`
+                    : `Concierge Fee (${order.dynamicFeePercent || 0}%)`}
+                </span>
+                <span className="text-base font-black text-[#8B5CF6] font-mono">
+                  +{(order.dynamicFeeAmount || 0).toLocaleString()} EGP
+                </span>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-white dark:bg-[#1f1a2d] border border-neutral-200/60 dark:border-[#2a233b]">
+                <span className="text-[11px] font-bold text-neutral-400 dark:text-neutral-500 block mb-0.5">
+                  {isRtl ? 'الشحن والتوصيل' : 'Shipping & Handling'}
+                </span>
+                <span className="text-base font-black text-teal-600 dark:text-teal-400 font-mono">
+                  {order.shippingFee
+                    ? `+${order.shippingFee.toLocaleString()} EGP`
+                    : isRtl
+                    ? 'شحن مجاني / مشمول'
+                    : 'Included / Free'}
+                </span>
+              </div>
+            </div>
+
+            {/* Grand Total Highlight */}
+            <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-purple-500/10 border-2 border-emerald-500/40 dark:border-emerald-500/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <span className="text-xs uppercase font-black text-emerald-800 dark:text-emerald-300 tracking-wider block">
+                  {isRtl ? 'المبلغ النهائي المطلوب سداده' : 'Final Approved Total Cash Due'}
+                </span>
+                <p className="text-[11px] text-neutral-600 dark:text-neutral-400 mt-0.5 leading-relaxed">
+                  {isRtl
+                    ? '💡 هذا المبلغ محسوب بدقة للمنتجات المقبولة فقط، وتم استبعاد أي منتجات مرفوضة نهائياً (0 ج.م).'
+                    : '💡 Calculated strictly for accepted goods. Excluded items are 0 EGP.'}
+                </p>
+              </div>
+              <div className="text-2xl sm:text-3xl font-black text-emerald-950 dark:text-emerald-200 font-mono tracking-tight shrink-0">
+                {order.totalCash.toLocaleString()}{' '}
+                <span className="text-sm font-bold text-emerald-700 dark:text-emerald-400">EGP</span>
+              </div>
+            </div>
+
+            {order.status === 'APPROVED_PENDING_PAYMENT' && (
+              <div className="p-3 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200/80 dark:border-purple-800/60 text-xs text-purple-900 dark:text-purple-200 font-bold flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-[#8B5CF6] shrink-0" />
+                <span>
+                  {isRtl
+                    ? '👇 الآن بعد مراجعة تفاصيل طلبك أعلاه، يرجى النزول أدناه لاختيار طريقة الدفع وإتمام التحويل.'
+                    : '👇 Now that you reviewed your approved order, please proceed below to choose payment method and complete your transfer.'}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 3. PAYMENT UNLOCKED (Step 2: User pays via InstaPay or Vodafone Cash) */}
         {order.status === 'APPROVED_PENDING_PAYMENT' && settings && (
           <PaymentSection
             order={order}
@@ -314,7 +645,7 @@ export default function OrderDetailsPage() {
           />
         )}
 
-        {/* 2. PAYMENT UNDER REVIEW (Locked screen - user cannot enter or re-edit) */}
+        {/* 4. PAYMENT UNDER REVIEW (Locked screen - user cannot re-edit) */}
         {order.status === 'PAYMENT_UNDER_REVIEW' && (
           <motion.div
             initial={{ opacity: 0, scale: 0.98 }}
@@ -358,7 +689,11 @@ export default function OrderDetailsPage() {
                 <div className="flex items-center gap-2 font-black text-neutral-900 dark:text-white">
                   <div className="w-6 h-6 rounded-lg bg-white p-0.5 border border-neutral-200 shrink-0">
                     <img
-                      src={order.payment?.method === 'vodafone_cash' ? '/images/vodafone-cash.png' : '/images/instapay.png'}
+                      src={
+                        order.payment?.method === 'vodafone_cash'
+                          ? '/images/vodafone-cash.png'
+                          : '/images/instapay.png'
+                      }
                       alt="Payment Method"
                       className="w-full h-full object-contain"
                     />
@@ -393,122 +728,6 @@ export default function OrderDetailsPage() {
             </div>
           </motion.div>
         )}
-
-        {/* 3. TRACKING DASHBOARD (Paid, Processing, Shipped, Completed) */}
-        {['PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED'].includes(order.status) && (
-          <OrderTrackingDashboard order={order} dir={dir} />
-        )}
-
-        {/* Item-by-Item Breakdown */}
-        <div className="bg-white/90 dark:bg-[#13101c]/90 backdrop-blur-2xl rounded-[32px] p-6 sm:p-8 border border-neutral-200/70 dark:border-[#2a243a] shadow-xs space-y-5">
-          <div className="flex items-center justify-between pb-3 border-b border-neutral-100 dark:border-[#201a2d]">
-            <h3 className="font-black text-neutral-950 dark:text-white text-base">
-              {isRtl ? `المنتجات المستخرجة (${order.items.length})` : `Extracted Goods (${order.items.length})`}
-            </h3>
-            <span className="text-xs text-neutral-400 dark:text-neutral-500 font-mono">
-              {isRtl ? 'المجموع:' : 'Subtotal:'} {order.itemsSubtotal.toLocaleString()} EGP
-            </span>
-          </div>
-
-          <div className="space-y-3.5">
-            {order.items.map((item, idx) => {
-              const isRejected = item.status === 'rejected' || item.status === 'out_of_stock';
-              return (
-                <div
-                  key={idx}
-                  className={`p-4 rounded-2xl border transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${
-                    isRejected
-                      ? 'border-rose-200/80 dark:border-rose-900/40 bg-rose-50/40 dark:bg-rose-950/20 opacity-80'
-                      : 'border-neutral-200/70 dark:border-[#241e33] bg-[#FAFAFC] dark:bg-[#181423]'
-                  }`}
-                >
-                  <div className="flex items-center gap-3.5">
-                    <div className="w-16 h-20 rounded-xl overflow-hidden bg-white dark:bg-[#1f1a2d] shrink-0 border border-neutral-100 dark:border-[#2b243b]">
-                      <SafeImage
-                        src={item.image}
-                        alt={item.name}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <div className="space-y-1 text-start">
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-black text-neutral-950 dark:text-white text-xs sm:text-sm line-clamp-1">
-                          {item.name}
-                        </h4>
-                        {isRejected && (
-                          <span className="px-2 py-0.5 rounded-md bg-rose-100 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300 text-[10px] font-black shrink-0 border border-rose-200">
-                            {isRtl ? 'مرفوض / غير متوفر' : 'Rejected / Out of Stock'}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex flex-wrap gap-2 text-[11px] text-neutral-500 dark:text-neutral-400">
-                        {item.color && (
-                          <span>
-                            {isRtl ? 'اللون:' : 'Color:'} <strong>{item.color}</strong>
-                          </span>
-                        )}
-                        {item.size && (
-                          <span>
-                            {isRtl ? 'المقاس:' : 'Size:'} <strong>{item.size}</strong>
-                          </span>
-                        )}
-                      </div>
-                      {item.adminComment && (
-                        <p className={`text-[11px] font-bold pt-1 ${isRejected ? 'text-rose-600 dark:text-rose-400' : 'text-[#7C3AED] dark:text-purple-300'}`}>
-                          {isRejected ? '✕ ' : '✓ '}{item.adminComment}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="text-end shrink-0">
-                    {isRejected ? (
-                      <div>
-                        <span className="text-xs text-neutral-400 line-through block font-mono">
-                          {item.subtotal.toLocaleString()} EGP
-                        </span>
-                        <span className="font-black text-xs text-rose-600 dark:text-rose-400 font-mono">
-                          {isRtl ? 'مستبعد من الحساب (0 EGP)' : 'Excluded (0 EGP)'}
-                        </span>
-                      </div>
-                    ) : (
-                      <div>
-                        <span className="text-xs text-neutral-400 dark:text-neutral-500 block font-mono">
-                          {item.quantity} x {item.originalPrice} EGP
-                        </span>
-                        <span className="font-black text-sm text-neutral-950 dark:text-white font-mono">
-                          {item.subtotal.toLocaleString()} EGP
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Pricing Math Bar */}
-          <div className="p-4 rounded-2xl bg-neutral-100/70 dark:bg-[#181423] border border-neutral-200/60 dark:border-[#2f2742] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-4 text-neutral-600 dark:text-neutral-300">
-              <span>
-                {isRtl ? 'إجمالي المنتجات:' : 'Items:'}{' '}
-                <strong className="font-mono">{order.itemsSubtotal.toLocaleString()} EGP</strong>
-              </span>
-              {(order.dynamicFeeAmount || 0) > 0 && (
-                <>
-                  <span>•</span>
-                  <span className="text-[#7C3AED] dark:text-purple-300">
-                    {isRtl ? 'رسوم الخدمة' : 'Concierge Fee'} ({order.dynamicFeePercent}%):{' '}
-                    <strong className="font-mono">+{order.dynamicFeeAmount.toLocaleString()} EGP</strong>
-                  </span>
-                </>
-              )}
-            </div>
-            <div className="font-black text-sm text-neutral-950 dark:text-white font-mono">
-              {isRtl ? 'المبلغ الإجمالي:' : 'Total Cash:'} {order.totalCash.toLocaleString()} EGP
-            </div>
-          </div>
-        </div>
       </motion.main>
 
       <AuthModal isOpen={authOpen} onClose={() => setAuthOpen(false)} />
