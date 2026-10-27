@@ -30,6 +30,7 @@ interface MobileAccountSheetProps {
   onClose: () => void;
   onOpenSupport: () => void;
   onOpenAuth: () => void;
+  onOpenProfile?: () => void;
 }
 
 export function MobileAccountSheet({
@@ -37,6 +38,7 @@ export function MobileAccountSheet({
   onClose,
   onOpenSupport,
   onOpenAuth,
+  onOpenProfile,
 }: MobileAccountSheetProps) {
   const router = useRouter();
   const { user, logout } = useAuth();
@@ -141,7 +143,30 @@ export function MobileAccountSheet({
                     <p className="text-xs text-neutral-500 dark:text-neutral-400 font-mono">
                       {user.email}
                     </p>
+                    {user.phone && (
+                      <p className="text-[11px] text-neutral-400 dark:text-neutral-500 font-mono">
+                        📞 {user.phone}
+                      </p>
+                    )}
+                    {user.address && (
+                      <p className="text-[11px] text-purple-700 dark:text-purple-300 font-medium truncate max-w-[220px]">
+                        📍 {user.address}
+                      </p>
+                    )}
                   </div>
+                </div>
+
+                <div className="pt-2 border-t border-purple-100 dark:border-purple-900/40">
+                  <button
+                    onClick={() => {
+                      onClose();
+                      onOpenProfile?.();
+                    }}
+                    className="w-full py-2 px-3 rounded-xl bg-purple-100/90 dark:bg-purple-950/70 hover:bg-purple-200 dark:hover:bg-purple-900/60 text-[#7C3AED] dark:text-purple-300 text-xs font-black border border-purple-200 dark:border-purple-800 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <UserIcon className="w-3.5 h-3.5" />
+                    <span>{isRtl ? 'عرض وتعديل بيانات الحساب والعنوان' : 'View & Edit Profile / Address'}</span>
+                  </button>
                 </div>
               </div>
             ) : (

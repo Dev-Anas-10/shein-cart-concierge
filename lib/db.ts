@@ -349,6 +349,8 @@ function mapRowToUser(row: any): User & { password?: string } {
     password: row.password ?? undefined,
     role: (row.role === 'admin' ? 'admin' : 'user'),
     phone: row.phone ?? '',
+    address: row.address ?? row.shipping_address ?? '',
+    city: row.city ?? '',
     avatar: row.avatar ?? `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(row.name || 'User')}`,
     createdAt: row.created_at ?? row.createdAt ?? new Date().toISOString(),
     lastLoginAt: row.last_login_at ?? row.lastLoginAt ?? undefined,
@@ -404,6 +406,8 @@ async function syncUserToSupabase(user: User & { password?: string }): Promise<v
       avatar: user.avatar,
       created_at: user.createdAt,
     };
+    if (user.address) payload.address = user.address;
+    if (user.city) payload.city = user.city;
     if (user.lastLoginAt) {
       payload.last_login_at = user.lastLoginAt;
     }
@@ -669,6 +673,8 @@ export const db = {
           if (updates.name) payload.name = updates.name;
           if (updates.password) payload.password = updates.password;
           if (updates.phone) payload.phone = updates.phone;
+          if (updates.address) payload.address = updates.address;
+          if (updates.city) payload.city = updates.city;
           if (updates.lastLoginAt) payload.last_login_at = updates.lastLoginAt;
           await sb.from('users').update(payload).eq('id', id);
         } catch (e) {

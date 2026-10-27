@@ -9,6 +9,7 @@ import { useThemeLang } from '@/lib/theme-lang-context';
 import { SupportModal } from './SupportModal';
 import { MobileBottomNav } from './MobileBottomNav';
 import { MobileAccountSheet } from './MobileAccountSheet';
+import { UserProfileModal } from './UserProfileModal';
 import {
   ShoppingBag,
   ShieldCheck,
@@ -29,6 +30,7 @@ export function Navbar({ onOpenAuth }: { onOpenAuth?: () => void }) {
   const { t, lang, toggleLang, theme, toggleTheme } = useThemeLang();
   const [supportOpen, setSupportOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [isStaging, setIsStaging] = useState(false);
 
   React.useEffect(() => {
@@ -225,7 +227,7 @@ export function Navbar({ onOpenAuth }: { onOpenAuth?: () => void }) {
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.96 }}
-                  onClick={() => setAccountOpen(true)}
+                  onClick={() => setProfileOpen(true)}
                   className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1 bg-neutral-50 dark:bg-[#181422] hover:bg-purple-50 dark:hover:bg-[#221c2f] rounded-full border border-neutral-200/60 dark:border-[#2a243a] transition-colors cursor-pointer group"
                   title={user.name}
                 >
@@ -282,10 +284,18 @@ export function Navbar({ onOpenAuth }: { onOpenAuth?: () => void }) {
         isOpen={accountOpen}
         onClose={() => setAccountOpen(false)}
         onOpenSupport={() => setSupportOpen(true)}
+        onOpenProfile={() => setProfileOpen(true)}
         onOpenAuth={() => {
           setAccountOpen(false);
           onOpenAuth?.();
         }}
+      />
+
+      {/* Customer Profile & Address Management Modal (Desktop & Mobile) */}
+      <UserProfileModal
+        isOpen={profileOpen}
+        onClose={() => setProfileOpen(false)}
+        onOpenSupport={() => setSupportOpen(true)}
       />
 
       {/* Support Contact Modal */}

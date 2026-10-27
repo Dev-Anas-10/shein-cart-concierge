@@ -9,6 +9,8 @@ interface AuthContextType {
   isLoading: boolean;
   login: (user: User) => void;
   logout: () => void;
+  updateUser: (updatedFields: Partial<User>) => Promise<boolean>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -16,6 +18,8 @@ const AuthContext = createContext<AuthContextType>({
   isLoading: true,
   login: () => {},
   logout: () => {},
+  updateUser: async () => false,
+  refreshProfile: async () => {},
 });
 
 const SESSION_KEY = 'shein_user_session';
@@ -32,6 +36,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const parsed = JSON.parse(stored);
         if (parsed?.id && parsed?.email && parsed?.role) {
           setUser(parsed);
+
+          // Asynchronously hydrate fresh profile data from DB (address, phone, city)
+          fetch(
+            `/api/users/profile?userId=${encodeURIComponent(parsed.id)}&email=${encodeURIComponent(
+              parsed.email
+            )}`
+          )
+            .then((res) => res.json())
+            .then((json) => {
+              if (json.success && json.data) {
+                const merged = { ...parsed, ...json.data };
+                setUser(merged);
+                localStorage.setItem(SESSION_KEY, JSON.stringify(merged));
+              }
+            })
+            .catch(() => {});
         }
       }
     } catch {
@@ -60,11 +80,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           role: 'user',
           avatar: detectedAvatar,
           phone: sessionUser.phone || meta.phone || '',
+          address: meta.address || '',
+          city: meta.city || '',
           createdAt: sessionUser.created_at || new Date().toISOString(),
         };
 
-        setUser(mapped);
-        localStorage.setItem(SESSION_KEY, JSON.stringify(mapped));
+        setUser((prev) => {
+          const merged = { ...mapped, ...(prev || {}) };
+          localStorage.setItem(SESSION_KEY, JSON.stringify(merged));
+          return merged;
+        });
 
         // Sync to public.users table in Supabase
         fetch('/api/auth/google', {
@@ -102,6 +127,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = (newUser: User) => {
     setUser(newUser);
     localStorage.setItem(SESSION_KEY, JSON.stringify(newUser));
+
+    // Also fetch extra profile info if available
+    fetch(
+      `/api/users/profile?userId=${encodeURIComponent(newUser.id)}&email=${encodeURIComponent(
+        newUser.email
+      )}`
+    )
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && json.data) {
+          const merged = { ...newUser, ...json.data };
+          setUser(merged);
+          localStorage.setItem(SESSION_KEY, JSON.stringify(merged));
+        }
+      })
+      .catch(() => {});
   };
 
   const logout = () => {
@@ -119,8 +160,59 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const updateUser = async (updatedFields: Partial<User>): Promise<boolean> => {
+    if (!user) return false;
+    const merged: User = { ...user, ...updatedFields };
+    setUser(merged);
+    try {
+      localStorage.setItem(SESSION_KEY, JSON.stringify(merged));
+    } catch {}
+
+    try {
+      const res = await fetch('/api/users/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          email: user.email,
+          ...updatedFields,
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.data) {
+        const finalUser = { ...merged, ...data.data };
+        setUser(finalUser);
+        localStorage.setItem(SESSION_KEY, JSON.stringify(finalUser));
+        return true;
+      }
+      return res.ok;
+    } catch (err) {
+      console.warn('Failed to sync profile update to server:', err);
+      return true; // Still preserved locally
+    }
+  };
+
+  const refreshProfile = async () => {
+    if (!user) return;
+    try {
+      const res = await fetch(
+        `/api/users/profile?userId=${encodeURIComponent(user.id)}&email=${encodeURIComponent(
+          user.email
+        )}`
+      );
+      const data = await res.json();
+      if (data.success && data.data) {
+        const merged = { ...user, ...data.data };
+        setUser(merged);
+        localStorage.setItem(SESSION_KEY, JSON.stringify(merged));
+      }
+    } catch {}
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout }}>
+    <AuthContext.Provider
+      value={{ user, isLoading, login, logout, updateUser, refreshProfile }}
+    >
       {children}
     </AuthContext.Provider>
   );

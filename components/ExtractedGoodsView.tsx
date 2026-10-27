@@ -501,6 +501,18 @@ export function ExtractedGoodsView({
                   </div>
                 )}
 
+                {user && (customerPhone || shippingAddress) && (
+                  <div className="p-2.5 rounded-xl bg-purple-50/80 dark:bg-purple-950/40 border border-purple-200/60 dark:border-purple-800/60 flex items-center justify-between text-xs text-purple-900 dark:text-purple-200">
+                    <span className="flex items-center gap-1.5 font-bold">
+                      <Sparkles className="w-3.5 h-3.5 text-[#8B5CF6]" />
+                      {isRtl ? 'تم ملء بياناتك تلقائياً من حسابك' : 'Auto-filled from your profile'}
+                    </span>
+                    <span className="text-[10px] text-neutral-500 dark:text-neutral-400">
+                      {isRtl ? '(يمكنك تعديلها لهذا الطلب)' : '(editable for this order)'}
+                    </span>
+                  </div>
+                )}
+
                 <div className="text-start">
                   <div className="flex items-center justify-between mb-1">
                     <label className="block font-black text-neutral-700 dark:text-neutral-300">
