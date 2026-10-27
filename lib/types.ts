@@ -36,6 +36,7 @@ export interface Shipment {
   id: string;                 // e.g. "SHP-202610-001"
   code: string;               // e.g. "شحنة 25 أكتوبر الرياض" or "SHP-NOV-01"
   status: ShipmentStatus;
+  paymentStatus?: 'PAID' | 'UNPAID'; // حالة الدفع: مدفوعة أو غير مدفوعة
   maxItems?: number;          // الحد الأقصى لعدد القطع في الشحنة (مثلاً 50 قطعة)
   maxOrders?: number;         // الحد الأقصى لعدد الطلبات (مثلاً 15 طلب)
   carrier?: string;           // شركة الشحن (مثلاً SMSA, Aramex, DHL, البريد)

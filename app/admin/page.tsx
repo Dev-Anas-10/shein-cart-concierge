@@ -212,9 +212,9 @@ export default function AdminDashboardPage() {
     setLoading(true);
     try {
       const [ordersRes, settingsRes, shipmentsRes] = await Promise.all([
-        fetch('/api/orders?admin=true'),
-        fetch('/api/settings'),
-        fetch('/api/shipments'),
+        fetch(`/api/orders?admin=true&_t=${Date.now()}`, { cache: 'no-store' }),
+        fetch(`/api/settings?_t=${Date.now()}`, { cache: 'no-store' }),
+        fetch(`/api/shipments?_t=${Date.now()}`, { cache: 'no-store' }),
       ]);
 
       const ordersJson = await ordersRes.json();

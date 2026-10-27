@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Shipment, Order, ShipmentStatus } from '@/lib/types';
 import { SafeImage } from '@/components/SafeImage';
 import {
@@ -22,6 +22,8 @@ import {
   ChevronRight,
   Boxes,
   Info,
+  CreditCard,
+  Filter,
 } from 'lucide-react';
 
 interface ShipmentsManagerProps {
@@ -89,6 +91,45 @@ export const SHIPMENT_STATUS_MAP: Record<
   },
 };
 
+/**
+ * Checks if an order is verified as PAID in the system.
+ */
+export const isOrderPaid = (o: Order): boolean => {
+  return (
+    o.status === 'PAID' ||
+    o.status === 'PROCESSING' ||
+    o.status === 'SHIPPED' ||
+    o.status === 'COMPLETED' ||
+    Boolean(o.payment && (o.payment.method || o.payment.transactionReference))
+  );
+};
+
+/**
+ * Checks if a shipment is Paid according to the actual payment statuses recorded in the system.
+ */
+export const isShipmentPaid = (shipment: Shipment, allOrders: Order[]): boolean => {
+  if (shipment.paymentStatus === 'UNPAID') return false;
+
+  const sOrders = allOrders.filter(
+    (o) => o.shipmentId === shipment.id || (shipment.orderIds && shipment.orderIds.includes(o.id))
+  );
+
+  // If shipment contains orders, all orders must be paid (no pending approval, rejected or unpaid)
+  if (sOrders.length > 0) {
+    const hasUnpaid = sOrders.some(
+      (o) =>
+        o.status === 'PENDING_APPROVAL' ||
+        o.status === 'APPROVED_PENDING_PAYMENT' ||
+        o.status === 'REJECTED'
+    );
+    if (hasUnpaid) return false;
+    return sOrders.every(isOrderPaid);
+  }
+
+  // If shipment has no orders assigned yet, check shipment.paymentStatus (defaults to PAID for new batches)
+  return shipment.paymentStatus === 'PAID' || !shipment.paymentStatus;
+};
+
 export function ShipmentsManager({
   shipments,
   orders,
@@ -98,6 +139,20 @@ export function ShipmentsManager({
   onExportManifest,
   addToast,
 }: ShipmentsManagerProps) {
+  // Local state for instant optimistic updates without waiting for network re-fetch
+  const [localShipments, setLocalShipments] = useState<Shipment[]>(shipments);
+
+  // Sync with prop changes while keeping deduplicated
+  useEffect(() => {
+    const map = new Map<string, Shipment>();
+    for (const s of shipments) {
+      map.set(s.id, s);
+    }
+    setLocalShipments(Array.from(map.values()));
+  }, [shipments]);
+
+  // Filters: Payment filter (defaults to PAID as requested), Lifecycle status, Search query
+  const [paymentFilter, setPaymentFilter] = useState<'PAID' | 'ALL' | 'UNPAID'>('PAID');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -122,36 +177,75 @@ export function ShipmentsManager({
   const [selectedOrderIdsToAdd, setSelectedOrderIdsToAdd] = useState<string[]>([]);
   const [addingLoading, setAddingLoading] = useState(false);
 
+  // High-performance filtering with useMemo
+  const filteredShipments = useMemo(() => {
+    return localShipments.filter((s) => {
+      // 1. Payment status filter: Exclude unpaid if 'PAID' is selected
+      const isPaid = isShipmentPaid(s, orders);
+      if (paymentFilter === 'PAID' && !isPaid) return false;
+      if (paymentFilter === 'UNPAID' && isPaid) return false;
+
+      // 2. Lifecycle status filter
+      if (statusFilter !== 'ALL' && s.status !== statusFilter) return false;
+
+      // 3. Search query: shipment ID, code, tracking, carrier, notes, or assigned order ID/customer
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const matchesId = s.id.toLowerCase().includes(q);
+        const matchesCode = s.code.toLowerCase().includes(q);
+        const matchesTracking = Boolean(s.trackingNumber && s.trackingNumber.toLowerCase().includes(q));
+        const matchesCarrier = Boolean(s.carrier && s.carrier.toLowerCase().includes(q));
+        const matchesNotes = Boolean(s.notes && s.notes.toLowerCase().includes(q));
+
+        // Check if any order inside matches query
+        const sOrders = orders.filter(
+          (o) => o.shipmentId === s.id || (s.orderIds && s.orderIds.includes(o.id))
+        );
+        const matchesInnerOrder = sOrders.some(
+          (o) =>
+            o.id.toLowerCase().includes(q) ||
+            o.userName.toLowerCase().includes(q) ||
+            (o.userPhone && o.userPhone.includes(q))
+        );
+
+        return matchesId || matchesCode || matchesTracking || matchesCarrier || matchesNotes || matchesInnerOrder;
+      }
+
+      return true;
+    });
+  }, [localShipments, orders, paymentFilter, statusFilter, searchQuery]);
+
   // Compute metrics across shipments
-  const totalShipments = shipments.length;
-  const activeShipments = shipments.filter((s) => s.status !== 'COMPLETED').length;
+  const totalShipments = localShipments.length;
+  const activeShipments = localShipments.filter((s) => s.status !== 'COMPLETED').length;
+  const paidShipmentsCount = useMemo(() => {
+    return localShipments.filter((s) => isShipmentPaid(s, orders)).length;
+  }, [localShipments, orders]);
 
-  const totalItemsInShipments = shipments.reduce((sum, s) => {
-    const sOrders = orders.filter((o) => o.shipmentId === s.id || (s.orderIds && s.orderIds.includes(o.id)));
-    return sum + sOrders.reduce((iSum, o) => iSum + (o.itemsCount || o.items?.length || 0), 0);
-  }, 0);
+  const totalItemsInShipments = useMemo(() => {
+    return localShipments.reduce((sum, s) => {
+      const sOrders = orders.filter((o) => o.shipmentId === s.id || (s.orderIds && s.orderIds.includes(o.id)));
+      return sum + sOrders.reduce((iSum, o) => iSum + (o.itemsCount || o.items?.length || 0), 0);
+    }, 0);
+  }, [localShipments, orders]);
 
-  const totalValueInShipments = shipments.reduce((sum, s) => {
-    const sOrders = orders.filter((o) => o.shipmentId === s.id || (s.orderIds && s.orderIds.includes(o.id)));
-    return sum + sOrders.reduce((vSum, o) => vSum + (o.totalCash || 0), 0);
-  }, 0);
+  const totalValueInShipments = useMemo(() => {
+    return localShipments.reduce((sum, s) => {
+      const sOrders = orders.filter((o) => o.shipmentId === s.id || (s.orderIds && s.orderIds.includes(o.id)));
+      return sum + sOrders.reduce((vSum, o) => vSum + (o.totalCash || 0), 0);
+    }, 0);
+  }, [localShipments, orders]);
 
-  // Filter shipments
-  const filteredShipments = shipments.filter((s) => {
-    if (statusFilter !== 'ALL' && s.status !== statusFilter) return false;
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      return (
-        s.code.toLowerCase().includes(q) ||
-        (s.carrier && s.carrier.toLowerCase().includes(q)) ||
-        (s.trackingNumber && s.trackingNumber.toLowerCase().includes(q)) ||
-        (s.notes && s.notes.toLowerCase().includes(q))
-      );
-    }
-    return true;
-  });
+  // Unassigned orders eligible to be added (Strictly PAID orders only!)
+  const unassignedPaidOrders = useMemo(() => {
+    return orders.filter((o) => !o.shipmentId && isOrderPaid(o));
+  }, [orders]);
 
-  // Handle Create Shipment
+  const unassignedUnpaidCount = useMemo(() => {
+    return orders.filter((o) => !o.shipmentId && !isOrderPaid(o)).length;
+  }, [orders]);
+
+  // Handle Create Shipment with immediate optimistic update
   const handleCreateShipment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCode.trim()) {
@@ -174,19 +268,27 @@ export function ShipmentsManager({
           estimatedArrival: newEstimatedArrival.trim() || undefined,
           notes: newNotes.trim() || undefined,
           status: 'PREPARING',
+          paymentStatus: 'PAID', // Newly created batches are paid/ready for paid orders
         }),
       });
 
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'فشل إنشاء الشحنة');
 
-      addToast('success', `تم إنشاء الشحنة "${newCode}" بنجاح!`);
+      const createdShipment: Shipment = json.data;
+
+      // Optimistically update local state immediately (0ms UI latency)
+      setLocalShipments((prev) => [createdShipment, ...prev.filter((s) => s.id !== createdShipment.id)]);
+
+      addToast('success', `تم إنشاء الشحنة "${createdShipment.code}" (${createdShipment.id}) بنجاح!`);
       setIsCreateOpen(false);
       setNewCode('');
       setNewTracking('');
       setNewTrackingUrl('');
       setNewEstimatedArrival('');
       setNewNotes('');
+
+      // Refresh parent and background DB
       onRefresh();
     } catch (err: any) {
       addToast('error', err.message);
@@ -210,6 +312,11 @@ export function ShipmentsManager({
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'فشل تحديث الشحنة');
 
+      // Optimistic update
+      setLocalShipments((prev) =>
+        prev.map((s) => (s.id === selectedShipmentForEdit.id ? json.data : s))
+      );
+
       addToast('success', `تم تحديث الشحنة "${selectedShipmentForEdit.code}" بنجاح!`);
       setSelectedShipmentForEdit(null);
       onRefresh();
@@ -220,11 +327,18 @@ export function ShipmentsManager({
 
   // Handle Delete Shipment
   const handleDeleteShipment = async (shipment: Shipment) => {
-    if (!confirm(`هل أنت متأكد من حذف الشحنة "${shipment.code}"؟ سيتم إلغاء إسناد جميع الطلبات التابعة لها.`)) {
+    if (
+      !confirm(
+        `هل أنت متأكد من حذف الشحنة "${shipment.code}"؟ سيتم إلغاء إسناد جميع الطلبات التابعة لها.`
+      )
+    ) {
       return;
     }
 
     try {
+      // Optimistic delete
+      setLocalShipments((prev) => prev.filter((s) => s.id !== shipment.id));
+
       const res = await fetch(`/api/shipments?id=${shipment.id}`, {
         method: 'DELETE',
       });
@@ -235,6 +349,7 @@ export function ShipmentsManager({
       onRefresh();
     } catch (err: any) {
       addToast('error', err.message);
+      onRefresh(); // revert if failed
     }
   };
 
@@ -254,21 +369,20 @@ export function ShipmentsManager({
     }
   };
 
-  // Unassigned orders eligible to be added
-  const unassignedOrders = orders.filter((o) => !o.shipmentId);
-
   return (
     <div className="space-y-6 animate-in fade-in">
       {/* Shipments High-Impact Metrics */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white dark:bg-[#14111d] p-5 rounded-3xl border border-neutral-200/80 dark:border-[#2a243a] shadow-xs">
           <div className="flex items-center justify-between text-neutral-400 dark:text-neutral-500 text-xs font-bold mb-2">
-            <span>إجمالي الشحنات</span>
-            <Package className="w-4 h-4 text-purple-600" />
+            <span>الشحنات المدفوعة</span>
+            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
           </div>
-          <div className="text-3xl font-black text-neutral-950 dark:text-white">{totalShipments}</div>
+          <div className="text-3xl font-black text-neutral-950 dark:text-white">
+            {paidShipmentsCount}
+          </div>
           <div className="text-[11px] text-neutral-400 dark:text-neutral-500 mt-1">
-            {activeShipments} شحنات جارية
+            من إجمالي {totalShipments} شحنات مسجلة
           </div>
         </div>
 
@@ -300,81 +414,157 @@ export function ShipmentsManager({
           </div>
         </div>
 
-        <div className="bg-white dark:bg-[#14111d] p-5 rounded-3xl border border-amber-200 dark:border-amber-900/50 shadow-xs flex flex-col justify-between">
-          <div className="flex items-center justify-between text-amber-800 dark:text-amber-400 text-xs font-bold mb-2">
-            <span>طلبات بدون شحنة</span>
-            <AlertCircle className="w-4 h-4 text-amber-600" />
+        <div className="bg-white dark:bg-[#14111d] p-5 rounded-3xl border border-purple-200 dark:border-purple-900/50 shadow-xs flex flex-col justify-between">
+          <div className="flex items-center justify-between text-purple-800 dark:text-purple-300 text-xs font-bold mb-2">
+            <span>طلبات مدفوعة غير مسندة</span>
+            <AlertCircle className="w-4 h-4 text-[#8B5CF6]" />
           </div>
-          <div className="text-3xl font-black text-amber-600 dark:text-amber-400">
-            {unassignedOrders.length}
+          <div className="text-3xl font-black text-[#8B5CF6]">
+            {unassignedPaidOrders.length}
           </div>
-          <div className="text-[11px] text-amber-700 dark:text-amber-400 mt-1">
-            تحتاج للتوزيع على شحنة
+          <div className="text-[11px] text-purple-700 dark:text-purple-300 mt-1">
+            جاهزة للتوزيع والإسناد للشحن
           </div>
         </div>
       </div>
 
-      {/* Control Bar & Actions */}
-      <div className="bg-white dark:bg-[#14111d] p-4 rounded-3xl border border-neutral-200/80 dark:border-[#2a243a] shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto">
-          {[
-            { key: 'ALL', label: 'الكل' },
-            { key: 'PREPARING', label: '🟡 قيد التجهيز' },
-            { key: 'IN_TRANSIT', label: '🟣 شحن دولي' },
-            { key: 'CUSTOMS', label: '🟠 في الجمارك' },
-            { key: 'ARRIVED_LOCAL', label: '🟢 بالمخزن' },
-            { key: 'COMPLETED', label: '✓ مكتملة' },
-          ].map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setStatusFilter(tab.key)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                statusFilter === tab.key
-                  ? 'bg-neutral-950 dark:bg-purple-600 text-white shadow-xs'
-                  : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-[#201a2e]'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
-          <div className="relative w-full sm:w-64">
-            <Search className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+      {/* ── TOP CONTROL & DEDICATED SEARCH BAR ── */}
+      <div className="bg-white dark:bg-[#14111d] p-5 rounded-3xl border border-neutral-200/80 dark:border-[#2a243a] shadow-xs space-y-4">
+        {/* Row 1: Dedicated Search Bar with instant search by Shipment Number/Code */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="relative w-full sm:max-w-md">
+            <Search className="w-4 h-4 absolute right-3.5 top-1/2 -translate-y-1/2 text-[#8B5CF6]" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="ابحث بكود الشحنة أو شركة الشحن..."
-              className="w-full pr-8 pl-3 py-2 text-xs bg-neutral-50 dark:bg-[#1a1626] border border-neutral-200 dark:border-[#2f2742] text-neutral-900 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-600"
+              placeholder="🔍 ابحث برقم الشحنة (مثال: SHP-...) أو الكود أو رقم الطلب..."
+              className="w-full pr-10 pl-9 py-2.5 text-xs font-medium bg-neutral-50 dark:bg-[#1a1626] border border-neutral-200 dark:border-[#2f2742] text-neutral-900 dark:text-white rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent transition-all shadow-inner"
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 rounded-full bg-neutral-200 dark:bg-neutral-700 text-neutral-500 hover:text-neutral-900 dark:hover:text-white flex items-center justify-center text-[10px]"
+                title="مسح البحث"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
           </div>
 
-          <button
-            onClick={() => setIsCreateOpen(true)}
-            className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl text-xs font-black transition-all flex items-center gap-1.5 shadow-md shadow-purple-600/20 active:scale-95 cursor-pointer shrink-0"
-          >
-            <Plus className="w-4 h-4" />
-            <span>إنشاء شحنة جديدة</span>
-          </button>
+          <div className="flex items-center gap-2.5 w-full sm:w-auto justify-between sm:justify-end">
+            <span className="text-xs font-bold text-neutral-500 dark:text-neutral-400 bg-neutral-100 dark:bg-[#1f192c] px-3 py-1.5 rounded-xl border border-neutral-200/60 dark:border-[#2a243a]">
+              عرض <strong className="text-purple-600">{filteredShipments.length}</strong> شحنة
+            </span>
+
+            <button
+              onClick={() => setIsCreateOpen(true)}
+              className="px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-2xl text-xs font-black transition-all flex items-center gap-2 shadow-md shadow-purple-600/25 active:scale-95 cursor-pointer shrink-0"
+            >
+              <Plus className="w-4 h-4" />
+              <span>إنشاء شحنة جديدة</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Row 2: Payment Status Filter & Lifecycle Status Tabs */}
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 pt-3 border-t border-neutral-100 dark:border-[#201a2d]">
+          {/* Payment Status Switcher (Active = PAID by default) */}
+          <div className="flex items-center gap-1 p-1 bg-neutral-100/90 dark:bg-[#1c1729] rounded-2xl border border-neutral-200/80 dark:border-[#2c243c]">
+            <button
+              type="button"
+              onClick={() => setPaymentFilter('PAID')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer ${
+                paymentFilter === 'PAID'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
+              }`}
+            >
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>الشحنات المدفوعة فقط (Paid)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setPaymentFilter('ALL')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1 cursor-pointer ${
+                paymentFilter === 'ALL'
+                  ? 'bg-neutral-900 dark:bg-purple-600 text-white shadow-sm'
+                  : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
+              }`}
+            >
+              <span>جميع الشحنات</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setPaymentFilter('UNPAID')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1 cursor-pointer ${
+                paymentFilter === 'UNPAID'
+                  ? 'bg-rose-600 text-white shadow-sm'
+                  : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
+              }`}
+            >
+              <span>غير المدفوعة</span>
+            </button>
+          </div>
+
+          {/* Lifecycle Status Pills */}
+          <div className="flex flex-wrap items-center gap-1">
+            {[
+              { key: 'ALL', label: 'كل الحالات' },
+              { key: 'PREPARING', label: '🟡 تجهيز' },
+              { key: 'IN_TRANSIT', label: '🟣 شحن دولي' },
+              { key: 'CUSTOMS', label: '🟠 جمارك' },
+              { key: 'ARRIVED_LOCAL', label: '🟢 بالمخزن' },
+              { key: 'COMPLETED', label: '✓ مكتملة' },
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setStatusFilter(tab.key)}
+                className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${
+                  statusFilter === tab.key
+                    ? 'bg-neutral-950 dark:bg-purple-600 text-white shadow-xs'
+                    : 'text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-[#201a2e]'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* Shipments Cards Grid */}
       {filteredShipments.length === 0 ? (
-        <div className="p-12 text-center bg-white dark:bg-[#14111d] rounded-3xl border border-neutral-200/80 dark:border-[#2a243a]">
-          <Package className="w-10 h-10 text-neutral-300 mx-auto mb-3" />
-          <h4 className="font-black text-neutral-950 dark:text-white text-base">لا توجد شحنات مطابقة</h4>
-          <p className="text-xs text-neutral-500 mt-1">
-            اضغط على زر &quot;إنشاء شحنة جديدة&quot; لبدء تقسيم وتجميع الطلبيات في دفعات شحن.
+        <div className="p-12 text-center bg-white dark:bg-[#14111d] rounded-3xl border border-neutral-200/80 dark:border-[#2a243a] space-y-3">
+          <Package className="w-12 h-12 text-neutral-300 dark:text-neutral-600 mx-auto" />
+          <h4 className="font-black text-neutral-950 dark:text-white text-base">
+            لا توجد شحنات مطابقة للبحث أو حالة الدفع
+          </h4>
+          <p className="text-xs text-neutral-500 max-w-md mx-auto">
+            {paymentFilter === 'PAID'
+              ? 'يتم حالياً عرض الشحنات المؤكدة والمدفوعة فقط. يمكنك إنشاء شحنة جديدة وتوزيع الطلبات المدفوعة عليها.'
+              : 'لم نجد أي شحنة تطابق هذا الرقم أو الكود. اضغط على زر "إنشاء شحنة جديدة".'}
           </p>
+          {paymentFilter === 'PAID' && (
+            <button
+              onClick={() => setPaymentFilter('ALL')}
+              className="mt-2 px-4 py-2 rounded-xl bg-neutral-100 dark:bg-[#201a2e] text-xs font-bold text-neutral-700 dark:text-neutral-300 hover:bg-neutral-200"
+            >
+              عرض جميع الشحنات
+            </button>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredShipments.map((shipment) => {
             const shipmentOrders = orders.filter(
-              (o) => o.shipmentId === shipment.id || (shipment.orderIds && shipment.orderIds.includes(o.id))
+              (o) =>
+                o.shipmentId === shipment.id ||
+                (shipment.orderIds && shipment.orderIds.includes(o.id))
             );
 
             const totalItems = shipmentOrders.reduce(
@@ -387,13 +577,11 @@ export function ShipmentsManager({
             const percentage = Math.min(100, Math.round((totalItems / maxItems) * 100));
 
             const isFull = totalItems >= maxItems;
-            const statusConfig = SHIPMENT_STATUS_MAP[shipment.status] || SHIPMENT_STATUS_MAP.PREPARING;
+            const statusConfig =
+              SHIPMENT_STATUS_MAP[shipment.status] || SHIPMENT_STATUS_MAP.PREPARING;
             const StatusIcon = statusConfig.icon;
 
-            // Unique customers roster
-            const uniqueCustomers = Array.from(
-              new Map(shipmentOrders.map((o) => [o.userPhone || o.userName, o])).values()
-            );
+            const isPaid = isShipmentPaid(shipment, orders);
 
             return (
               <div
@@ -402,13 +590,26 @@ export function ShipmentsManager({
               >
                 {/* Card Top */}
                 <div className="p-5 space-y-4">
-                  {/* Header & Status */}
+                  {/* Header, ID, Payment Badge & Status */}
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-[10px] text-neutral-400 bg-neutral-100 dark:bg-[#201a2e] px-2 py-0.5 rounded-md font-bold">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="font-mono text-[10px] text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/60 border border-purple-200/60 dark:border-purple-800/60 px-2 py-0.5 rounded-md font-bold">
                           {shipment.id}
                         </span>
+
+                        {isPaid ? (
+                          <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-300 dark:border-emerald-800">
+                            <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
+                            PAID
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-amber-800 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/60 px-2 py-0.5 rounded-full border border-amber-300 dark:border-amber-800">
+                            <Clock className="w-2.5 h-2.5 text-amber-600" />
+                            UNPAID
+                          </span>
+                        )}
+
                         {isFull && (
                           <span className="text-[10px] bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 font-black px-2 py-0.5 rounded-full border border-rose-200">
                             مكتملة السعة
@@ -436,7 +637,9 @@ export function ShipmentsManager({
                       </span>
                       <span className="font-black text-neutral-900 dark:text-white">
                         {totalItems} / {maxItems} قطعة{' '}
-                        <span className="text-[10px] text-neutral-400 font-mono">({percentage}%)</span>
+                        <span className="text-[10px] text-neutral-400 font-mono">
+                          ({percentage}%)
+                        </span>
                       </span>
                     </div>
 
@@ -448,56 +651,47 @@ export function ShipmentsManager({
                             ? 'bg-rose-500'
                             : percentage >= 75
                             ? 'bg-amber-500'
-                            : 'bg-emerald-500'
+                            : 'bg-gradient-to-r from-purple-500 to-indigo-500'
                         }`}
                         style={{ width: `${percentage}%` }}
                       />
                     </div>
+                  </div>
 
-                    <div className="flex items-center justify-between text-[11px] text-neutral-400 pt-1">
-                      <span>{shipmentOrders.length} طلبات</span>
-                      <span>{totalEgp.toLocaleString()} ج.م الإجمالي</span>
+                  {/* Shipment Info Roster */}
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="p-2.5 rounded-xl bg-neutral-50 dark:bg-[#181423] border border-neutral-200/60 dark:border-[#2f2742]">
+                      <span className="text-[10px] text-neutral-400 block font-medium">الطلبات المسندة</span>
+                      <span className="font-black text-neutral-900 dark:text-white font-mono text-sm">
+                        {shipmentOrders.length} طلبات
+                      </span>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-neutral-50 dark:bg-[#181423] border border-neutral-200/60 dark:border-[#2f2742]">
+                      <span className="text-[10px] text-neutral-400 block font-medium">إجمالي القيمة</span>
+                      <span className="font-black text-emerald-600 font-mono text-sm">
+                        {totalEgp.toLocaleString()} ج.م
+                      </span>
                     </div>
                   </div>
 
-                  {/* Logistics Carrier Info */}
-                  <div className="flex items-center justify-between text-xs text-neutral-600 dark:text-neutral-300 pt-1 border-t border-neutral-100 dark:border-[#241e33]">
-                    <div className="flex items-center gap-2">
-                      <Truck className="w-3.5 h-3.5 text-purple-600" />
-                      <span className="font-bold">{shipment.carrier || 'الشحن الدولي'}</span>
-                    </div>
-                    {shipment.trackingNumber ? (
-                      <span className="font-mono text-[11px] font-black text-purple-600 dark:text-purple-400">
-                        {shipment.trackingNumber}
+                  {/* Tracking & Carrier Info */}
+                  {(shipment.carrier || shipment.trackingNumber) && (
+                    <div className="text-[11px] text-neutral-500 flex items-center justify-between pt-1">
+                      <span>
+                        الناقل: <strong>{shipment.carrier || 'غير محدد'}</strong>
                       </span>
-                    ) : (
-                      <span className="text-[11px] text-neutral-400">لم يسجل كود تتبع</span>
-                    )}
-                  </div>
+                      {shipment.trackingNumber && (
+                        <span className="font-mono text-purple-600 dark:text-purple-400 font-bold">
+                          {shipment.trackingNumber}
+                        </span>
+                      )}
+                    </div>
+                  )}
 
-                  {/* Customers Roster Preview */}
-                  {uniqueCustomers.length > 0 && (
-                    <div className="space-y-1.5 pt-2 border-t border-neutral-100 dark:border-[#241e33]">
-                      <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">
-                        عملاء هذه الشحنة ({uniqueCustomers.length}):
-                      </span>
-                      <div className="flex flex-wrap gap-1.5">
-                        {uniqueCustomers.slice(0, 4).map((c) => (
-                          <span
-                            key={c.id}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-neutral-100 dark:bg-[#201a2e] text-[11px] font-bold text-neutral-800 dark:text-neutral-200"
-                          >
-                            <Users className="w-3 h-3 text-purple-600" />
-                            <span className="truncate max-w-[120px]">{c.userName}</span>
-                          </span>
-                        ))}
-                        {uniqueCustomers.length > 4 && (
-                          <span className="text-[10px] font-black text-purple-600 bg-purple-50 dark:bg-purple-950/50 px-2 py-0.5 rounded-lg">
-                            +{uniqueCustomers.length - 4} آخرين
-                          </span>
-                        )}
-                      </div>
-                    </div>
+                  {shipment.notes && (
+                    <p className="text-[11px] text-neutral-500 dark:text-neutral-400 bg-neutral-50 dark:bg-[#181423] p-2 rounded-xl line-clamp-1">
+                      📝 {shipment.notes}
+                    </p>
                   )}
                 </div>
 
@@ -772,13 +966,17 @@ export function ShipmentsManager({
                     <div className="flex items-center justify-between text-xs font-bold text-neutral-500 pb-2 border-b border-neutral-100 dark:border-[#241e33]">
                       <span>تفاصيل العملاء والمنتجات في هذا الكشف ({sOrders.length} طلبات):</span>
                       <span>
-                        الإجمالي: {sOrders.reduce((s, o) => s + (o.totalCash || 0), 0).toLocaleString()} ج.م
+                        الإجمالي:{' '}
+                        {sOrders.reduce((s, o) => s + (o.totalCash || 0), 0).toLocaleString()} ج.م
                       </span>
                     </div>
 
                     <div className="divide-y divide-neutral-100 dark:divide-[#241e33]">
                       {sOrders.map((ord) => (
-                        <div key={ord.id} className="py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div
+                          key={ord.id}
+                          className="py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+                        >
                           <div className="space-y-1.5 min-w-0 flex-1">
                             <div className="flex items-center gap-2">
                               <span className="font-mono font-black text-sm text-neutral-900 dark:text-white">
@@ -853,7 +1051,7 @@ export function ShipmentsManager({
         </div>
       )}
 
-      {/* ── MODAL 3: ADD ORDERS TO SHIPMENT ── */}
+      {/* ── MODAL 3: ADD ORDERS TO SHIPMENT (PAID ONLY) ── */}
       {selectedShipmentForAddOrders && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in">
           <div className="relative w-full max-w-2xl max-h-[88vh] bg-white dark:bg-[#14111d] rounded-3xl shadow-2xl border border-neutral-200 dark:border-[#2a243a] flex flex-col overflow-hidden text-right">
@@ -863,7 +1061,7 @@ export function ShipmentsManager({
                   إضافة طلبات إلى الشحنة: {selectedShipmentForAddOrders.code}
                 </h3>
                 <p className="text-xs text-neutral-500 mt-0.5">
-                  حدد الطلبات غير المسندة لإضافتها ضمن هذه الدفعة.
+                  حدد الطلبات المدفوعة غير المسندة لإضافتها ضمن هذه الدفعة.
                 </p>
               </div>
               <button
@@ -874,14 +1072,24 @@ export function ShipmentsManager({
               </button>
             </div>
 
+            {/* Informative notice if unpaid orders exist */}
+            {unassignedUnpaidCount > 0 && (
+              <div className="mx-6 mt-4 p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-[11px] text-amber-800 dark:text-amber-300 font-bold flex items-center gap-2">
+                <Info className="w-4 h-4 shrink-0 text-amber-600" />
+                <span>
+                  ملاحظة: تم استبعاد ({unassignedUnpaidCount}) طلبات غير مدفوعة تلقائياً. تظهر هنا الطلبات المؤكدة والمدفوعة فقط.
+                </span>
+              </div>
+            )}
+
             <div className="p-6 overflow-y-auto space-y-3">
-              {unassignedOrders.length === 0 ? (
+              {unassignedPaidOrders.length === 0 ? (
                 <div className="p-8 text-center text-neutral-400">
                   <CheckCircle2 className="w-8 h-8 mx-auto mb-2 text-emerald-500" />
-                  <p className="font-bold text-sm">جميع الطلبات مسندة إلى شحنات بالفعل!</p>
+                  <p className="font-bold text-sm">جميع الطلبات المدفوعة مسندة إلى شحنات بالفعل!</p>
                 </div>
               ) : (
-                unassignedOrders.map((ord) => {
+                unassignedPaidOrders.map((ord) => {
                   const isSelected = selectedOrderIdsToAdd.includes(ord.id);
                   return (
                     <div
@@ -914,6 +1122,9 @@ export function ShipmentsManager({
                             </span>
                             <span className="text-[10px] text-neutral-400 font-mono">
                               {ord.userPhone}
+                            </span>
+                            <span className="text-[9px] font-black text-emerald-700 bg-emerald-100 dark:bg-emerald-950/60 px-1.5 py-0.2 rounded-md">
+                              PAID
                             </span>
                           </div>
                           <span className="text-[11px] text-neutral-500 block mt-0.5">
@@ -958,7 +1169,7 @@ export function ShipmentsManager({
                   type="button"
                   disabled={selectedOrderIdsToAdd.length === 0 || addingLoading}
                   onClick={handleSubmitAddOrders}
-                  className="px-5 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white rounded-xl text-xs font-black shadow-sm transition-all"
+                  className="px-5 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white rounded-xl text-xs font-black shadow-sm transition-all cursor-pointer"
                 >
                   {addingLoading ? 'جاري الإسناد...' : 'تأكيد الإسناد للشحنة'}
                 </button>
@@ -1006,6 +1217,25 @@ export function ShipmentsManager({
                   <option value="ARRIVED_LOCAL">🟢 وصلت المخزن بمصر</option>
                   <option value="OUT_FOR_DELIVERY">🚚 جاري التوزيع الداخلي للعملاء</option>
                   <option value="COMPLETED">✓ مكتملة ومسلمة بالكامل</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-neutral-700 dark:text-neutral-300 mb-1">
+                  حالة الدفع
+                </label>
+                <select
+                  value={selectedShipmentForEdit.paymentStatus || 'PAID'}
+                  onChange={(e) =>
+                    setSelectedShipmentForEdit({
+                      ...selectedShipmentForEdit,
+                      paymentStatus: e.target.value as 'PAID' | 'UNPAID',
+                    })
+                  }
+                  className="w-full px-3.5 py-2.5 bg-neutral-50 dark:bg-[#1a1626] border border-neutral-200 dark:border-[#2f2742] rounded-xl text-xs font-bold text-neutral-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-600 cursor-pointer"
+                >
+                  <option value="PAID">🟢 مدفوعة بالكامل (Paid)</option>
+                  <option value="UNPAID">🟠 غير مدفوعة (Unpaid)</option>
                 </select>
               </div>
 
