@@ -1,4 +1,5 @@
 import { ExtractedCartResult, GoodItem, SheinCartProduct } from './types';
+import { toUsableSheinUrl } from './shein-links';
 
 // Regex to extract SHEIN URL from any conversational context or share message
 export const SHEIN_URL_REGEX = /(?:https?:\/\/|sheinlink:\/\/)(?:[a-zA-Z0-9-]+\.)*(?:shein\.com|onelink\.shein\.com)[^\s<>"')]+/i;
@@ -386,12 +387,13 @@ export async function extractSheinGoods(
         ? Math.round(estimatedItemsCount)
         : 1;
 
+    const usableLink = toUsableSheinUrl(extractedLink, { shc: meta.shc, groupId: meta.groupId });
     const fallbackItems: GoodItem[] = [
       {
         id: `shein-${Date.now()}`,
         name: meta.title || 'منتج شي إن المستخرج',
         image: meta.image || RELIABLE_FASHION_IMAGES[0],
-        originalUrl: extractedLink,
+        originalUrl: usableLink,
         sku: meta.shc ? `SHC: ${meta.shc}` : 'SHEIN-ITEM',
         color: 'حسب الاختيار في شي إن',
         size: count > 1 ? `${count} قطع` : 'حسب الاختيار في شي إن',
@@ -409,7 +411,7 @@ export async function extractSheinGoods(
 
     return {
       rawInput,
-      extractedLink,
+      extractedLink: usableLink,
       title: meta.title || 'منتج شي إن المستخرج',
       description: meta.description || 'تم استخراج بيانات المنتج من رابط شي إن.',
       coverImage: meta.image || RELIABLE_FASHION_IMAGES[0],
@@ -421,6 +423,7 @@ export async function extractSheinGoods(
       dynamicFeeAmount,
       totalCash,
       currency: 'EGP',
+      landingUrl: usableLink,
     };
   }
 }

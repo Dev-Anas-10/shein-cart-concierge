@@ -8,6 +8,7 @@ import { Navbar } from '@/components/Navbar';
 import { AuthModal } from '@/components/AuthModal';
 import { SafeImage } from '@/components/SafeImage';
 import { ShipmentsManager } from '@/components/admin/ShipmentsManager';
+import { toUsableSheinUrl } from '@/lib/shein-links';
 import {
   ShieldCheck,
   Search,
@@ -686,7 +687,7 @@ export default function AdminDashboardPage() {
             ? `${o.payment.senderIdentifier} (${o.payment.transactionReference || ''})`
             : '—'
         ),
-        escapeCell(o.extractedLink || ''),
+        escapeCell(toUsableSheinUrl(o.extractedLink, { shc: o.cartShareCode, groupId: o.cartGroupId }) || ''),
       ].join(',');
     });
 
@@ -728,6 +729,8 @@ export default function AdminDashboardPage() {
       'ملاحظات العميل',
       'عدد القطع',
       'تفاصيل المنتجات',
+      'روابط المنتجات (m.shein)',
+      'رابط سلة شي إن (m.shein)',
       'المبلغ الإجمالي (ج.م)',
       'حالة الدفع',
     ];
@@ -743,6 +746,23 @@ export default function AdminDashboardPage() {
         .map((it) => `${it.name} [${it.size || ''}]`)
         .join(' | ');
 
+      const itemsUrls = (o.items || [])
+        .map((it) =>
+          toUsableSheinUrl(it.originalUrl, {
+            goodsId: it.id,
+            sku: it.sku,
+            shc: o.cartShareCode,
+            groupId: o.cartGroupId,
+            cartLandingUrl: o.extractedLink,
+          })
+        )
+        .join(' | ');
+
+      const cartUrl = toUsableSheinUrl(o.extractedLink, {
+        shc: o.cartShareCode,
+        groupId: o.cartGroupId,
+      });
+
       return [
         escapeCell(shipment.code),
         escapeCell(shipment.status),
@@ -756,6 +776,8 @@ export default function AdminDashboardPage() {
         escapeCell(o.customerNotes || '—'),
         escapeCell(o.itemsCount || o.items?.length || 0),
         escapeCell(itemsSummary),
+        escapeCell(itemsUrls),
+        escapeCell(cartUrl),
         escapeCell(o.totalCash || 0),
         escapeCell(o.status === 'PAID' ? 'مسدد بالكامل' : o.status),
       ].join(',');
@@ -1363,9 +1385,19 @@ export default function AdminDashboardPage() {
                                   {order.items.length} goods
                                 </span>
                               </div>
-                              <div className="text-[11px] text-rose-600 dark:text-rose-400 font-mono truncate mt-1">
-                                {order.extractedLink}
-                              </div>
+                              <a
+                                href={toUsableSheinUrl(order.extractedLink, { shc: order.cartShareCode, groupId: order.cartGroupId })}
+                                target="_blank"
+                                rel="noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="text-[11px] text-purple-600 dark:text-purple-400 hover:underline font-mono truncate mt-1 flex items-center gap-1 max-w-[200px]"
+                                title="فتح الرابط في شي إن (m.shein)"
+                              >
+                                <ExternalLink className="w-3 h-3 shrink-0" />
+                                <span className="truncate">
+                                  {toUsableSheinUrl(order.extractedLink, { shc: order.cartShareCode, groupId: order.cartGroupId })}
+                                </span>
+                              </a>
                             </td>
 
                             <td className="py-5 px-5">
@@ -1469,16 +1501,18 @@ export default function AdminDashboardPage() {
               {/* SHEIN Link Bar */}
               <div className="p-4 bg-neutral-950 text-white rounded-2xl flex items-center justify-between text-xs border border-white/10">
                 <div className="flex items-center gap-2 overflow-hidden mr-3">
-                  <span className="font-bold text-neutral-400">Scraped Cart Link:</span>
-                  <span className="font-mono truncate text-rose-300">{selectedOrder.extractedLink}</span>
+                  <span className="font-bold text-neutral-400">SHEIN Cart Link (m.shein):</span>
+                  <span className="font-mono truncate text-emerald-400">
+                    {toUsableSheinUrl(selectedOrder.extractedLink, { shc: selectedOrder.cartShareCode, groupId: selectedOrder.cartGroupId })}
+                  </span>
                 </div>
                 <a
-                  href={selectedOrder.extractedLink}
+                  href={toUsableSheinUrl(selectedOrder.extractedLink, { shc: selectedOrder.cartShareCode, groupId: selectedOrder.cartGroupId })}
                   target="_blank"
                   rel="noreferrer"
-                  className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl transition-colors inline-flex items-center gap-1.5 whitespace-nowrap"
+                  className="px-3.5 py-1.5 bg-purple-600 hover:bg-purple-700 text-white font-black rounded-xl transition-colors inline-flex items-center gap-1.5 whitespace-nowrap shadow-xs cursor-pointer active:scale-95"
                 >
-                  Open on SHEIN <ExternalLink className="w-3.5 h-3.5" />
+                  Open on SHEIN (m.shein) <ExternalLink className="w-3.5 h-3.5" />
                 </a>
               </div>
 
@@ -1779,8 +1813,25 @@ export default function AdminDashboardPage() {
                                 )}
                               </div>
 
-                              {/* Reject / Approve Product Toggle Button */}
-                              <div className="pt-2">
+                              {/* Product Link & Reject / Approve Toggle */}
+                              <div className="pt-2 flex flex-wrap items-center gap-2">
+                                <a
+                                  href={toUsableSheinUrl(item.originalUrl, {
+                                    goodsId: item.id,
+                                    sku: item.sku,
+                                    shc: selectedOrder.cartShareCode,
+                                    groupId: selectedOrder.cartGroupId,
+                                    cartLandingUrl: selectedOrder.extractedLink,
+                                  })}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="px-3 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-bold rounded-xl border border-purple-200 transition-colors inline-flex items-center gap-1 cursor-pointer"
+                                  title="فتح صفحة هذا المنتج على موقع شي إن (m.shein)"
+                                >
+                                  <ExternalLink className="w-3 h-3" />
+                                  <span>رابط المنتج (m.shein) ↗</span>
+                                </a>
+
                                 {isRejected ? (
                                   <button
                                     type="button"

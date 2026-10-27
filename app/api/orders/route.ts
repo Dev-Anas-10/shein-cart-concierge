@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { normalizeOrderLinks } from '@/lib/shein-links';
 import { Order, GoodItem } from '@/lib/types';
 
 export async function GET(req: NextRequest) {
@@ -77,7 +78,7 @@ export async function POST(req: NextRequest) {
 
     const orderId = body.id || `SH-${Math.floor(10000 + Math.random() * 90000)}`;
 
-    const newOrder: Order = {
+    const newOrder: Order = normalizeOrderLinks({
       id: orderId,
       userId: userId || 'guest-user',
       userName: userName.trim(),
@@ -101,7 +102,7 @@ export async function POST(req: NextRequest) {
       status: 'PENDING_APPROVAL',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-    };
+    });
 
     const saved = await db.createOrder(newOrder);
 

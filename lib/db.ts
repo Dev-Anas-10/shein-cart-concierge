@@ -10,6 +10,7 @@ import fs from 'fs';
 import path from 'path';
 import { Order, SystemSettings, User, GoodItem, Shipment, ShipmentStatus } from './types';
 import { RELIABLE_FASHION_IMAGES } from './shein-extractor';
+import { normalizeOrderLinks } from './shein-links';
 import { getSupabase } from './supabase';
 
 /* ─────────────────────────────── Types ─────────────────────────────── */
@@ -187,7 +188,7 @@ const DEFAULT_ORDERS: Order[] = [
     shippingAddress: 'Building 14, St 9, Maadi, Cairo, Egypt',
     rawInput:
       'I found some great items at SHEIN!\nThese items in my shopping cart are great. I highly recommend them to everyone!\nhttps://onelink.shein.com/58/662zlco9zrsd?shc=2_RNmYr2Mxf4g',
-    extractedLink: 'https://onelink.shein.com/58/662zlco9zrsd?shc=2_RNmYr2Mxf4g',
+    extractedLink: 'https://m.shein.com/ar/cart/share/landing?group_id=912245215&shc=2_RNmYr2Mxf4g&local_country=SA&cart_share=1',
     cartShareCode: '2_RNmYr2Mxf4g',
     cartGroupId: '912245215',
     cartCoverImage: RELIABLE_FASHION_IMAGES[0],
@@ -196,7 +197,7 @@ const DEFAULT_ORDERS: Order[] = [
         id: 'item-1',
         name: 'SHEIN Frenchy Solid Notch Neck Long Sleeve Top & Trousers Set',
         image: RELIABLE_FASHION_IMAGES[0],
-        originalUrl: 'https://onelink.shein.com/58/662zlco9zrsd?shc=2_RNmYr2Mxf4g',
+        originalUrl: 'https://m.shein.com/ar/cart/share/landing?group_id=912245215&shc=2_RNmYr2Mxf4g&local_country=SA&cart_share=1',
         sku: 'sz240819129532890',
         color: 'Mocha Brown',
         size: 'M',
@@ -210,7 +211,7 @@ const DEFAULT_ORDERS: Order[] = [
         id: 'item-2',
         name: 'SHEIN EZwear Casual Drop Shoulder Ribbed Knit Cardigan',
         image: RELIABLE_FASHION_IMAGES[1],
-        originalUrl: 'https://onelink.shein.com/58/662zlco9zrsd?shc=2_RNmYr2Mxf4g',
+        originalUrl: 'https://m.shein.com/ar/cart/share/landing?group_id=912245215&shc=2_RNmYr2Mxf4g&local_country=SA&cart_share=1',
         sku: 'sw23080447382910',
         color: 'Oatmeal Beige',
         size: 'L',
@@ -224,7 +225,7 @@ const DEFAULT_ORDERS: Order[] = [
         id: 'item-3',
         name: 'SHEIN Minimalist Quilted Shoulder Crossbody Bag With Chain',
         image: RELIABLE_FASHION_IMAGES[2],
-        originalUrl: 'https://onelink.shein.com/58/662zlco9zrsd?shc=2_RNmYr2Mxf4g',
+        originalUrl: 'https://m.shein.com/ar/cart/share/landing?group_id=912245215&shc=2_RNmYr2Mxf4g&local_country=SA&cart_share=1',
         sku: 'sg2310118837190',
         color: 'Classic Black',
         size: 'One Size',
@@ -308,7 +309,7 @@ async function saveToRedis(data: DatabaseSchema): Promise<void> {
 /* ────────────────────────── Supabase Layer ───────────────────────── */
 
 function mapRowToOrder(row: any): Order {
-  return {
+  return normalizeOrderLinks({
     id: String(row.id),
     userId: String(row.user_id ?? row.userId ?? ''),
     userName: String(row.user_name ?? row.userName ?? ''),
@@ -338,7 +339,7 @@ function mapRowToOrder(row: any): Order {
     reviewedAt: row.reviewed_at ?? row.reviewedAt ?? undefined,
     createdAt: row.created_at ?? row.createdAt ?? new Date().toISOString(),
     updatedAt: row.updated_at ?? row.updatedAt ?? new Date().toISOString(),
-  };
+  });
 }
 
 function mapRowToUser(row: any): User & { password?: string } {
@@ -803,7 +804,7 @@ export const db = {
       );
     }
 
-    return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return list.map(normalizeOrderLinks).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   },
 
   getOrderById: async (id: string): Promise<Order | undefined> => {
@@ -818,7 +819,9 @@ export const db = {
         console.warn('[DB] Supabase getOrderById fallback:', err);
       }
     }
-    return (await ensureDb()).orders.find((o) => o.id === id);
+    const found = (await ensureDb()).orders.find((o) => o.id === id);
+
+    return found ? normalizeOrderLinks(found) : undefined;
   },
 
   createOrder: async (order: Order): Promise<Order> => {

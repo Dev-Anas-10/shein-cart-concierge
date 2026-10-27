@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Shipment, Order, ShipmentStatus } from '@/lib/types';
+import { toUsableSheinUrl } from '@/lib/shein-links';
 import { SafeImage } from '@/components/SafeImage';
 import {
   Package,
@@ -1003,21 +1004,61 @@ export function ShipmentsManager({
                               </p>
                             )}
 
-                            {/* Items Thumbnails */}
-                            <div className="flex items-center gap-2 pt-1 overflow-x-auto">
-                              {ord.items.map((it, idx) => (
-                                <div
-                                  key={idx}
-                                  className="w-9 h-11 rounded-lg overflow-hidden border border-neutral-200 dark:border-[#2f2742] shrink-0"
-                                  title={`${it.name} (${it.size || ''})`}
+                            {/* SHEIN Cart Link Button for this Order in Shipment */}
+                            {ord.extractedLink && (
+                              <div className="pt-0.5">
+                                <a
+                                  href={toUsableSheinUrl(ord.extractedLink, { shc: ord.cartShareCode, groupId: ord.cartGroupId })}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/60 hover:bg-purple-100 dark:hover:bg-purple-900/60 border border-purple-200 dark:border-purple-800 text-[11px] font-black text-purple-700 dark:text-purple-300 transition-colors shadow-xs"
+                                  title="فتح سلة شي إن الكاملة للطلب في تبويب جديد (m.shein)"
                                 >
-                                  <SafeImage
-                                    src={it.image}
-                                    alt={it.name || 'item'}
-                                    className="w-full h-full object-cover"
-                                  />
-                                </div>
-                              ))}
+                                  <ExternalLink className="w-3.5 h-3.5" />
+                                  <span>فتح سلة شي إن للطلب (m.shein) ↗</span>
+                                </a>
+                              </div>
+                            )}
+
+                            {/* Items Thumbnails & Links (m.shein) */}
+                            <div className="flex flex-wrap items-center gap-2 pt-1.5">
+                              {ord.items.map((it, idx) => {
+                                const itemUrl = toUsableSheinUrl(it.originalUrl, {
+                                  goodsId: it.id,
+                                  sku: it.sku,
+                                  shc: ord.cartShareCode,
+                                  groupId: ord.cartGroupId,
+                                  cartLandingUrl: ord.extractedLink,
+                                });
+                                return (
+                                  <a
+                                    key={idx}
+                                    href={itemUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="group/item flex items-center gap-2 p-1.5 pr-3 rounded-2xl border border-neutral-200 dark:border-[#2f2742] bg-white dark:bg-[#181423] hover:border-purple-400 dark:hover:border-purple-600 transition-all shadow-xs cursor-pointer"
+                                    title={`${it.name} - اضغط لفتح المنتج في شي إن`}
+                                  >
+                                    <div className="w-9 h-11 rounded-lg overflow-hidden shrink-0 bg-purple-50 dark:bg-purple-950/40">
+                                      <SafeImage
+                                        src={it.image}
+                                        alt={it.name || 'item'}
+                                        className="w-full h-full object-cover group-hover/item:scale-105 transition-transform"
+                                      />
+                                    </div>
+                                    <div className="text-[11px] text-start max-w-[150px] truncate">
+                                      <p className="font-bold text-neutral-900 dark:text-neutral-100 truncate group-hover/item:text-purple-600 transition-colors">
+                                        {it.name}
+                                      </p>
+                                      <div className="text-[10px] text-neutral-400 flex items-center gap-1.5 mt-0.5">
+                                        {it.size && <span>{it.size}</span>}
+                                        {it.size && <span>•</span>}
+                                        <span className="text-purple-600 dark:text-purple-400 font-mono font-bold">m.shein ↗</span>
+                                      </div>
+                                    </div>
+                                  </a>
+                                );
+                              })}
                               <span className="text-[11px] font-bold text-neutral-500">
                                 {ord.items.length} قطع
                               </span>
