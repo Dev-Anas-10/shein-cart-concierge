@@ -337,6 +337,10 @@ function mapRowToOrder(row: any): Order {
     payment: row.payment ?? undefined,
     reviewedBy: row.reviewed_by ?? row.reviewedBy ?? undefined,
     reviewedAt: row.reviewed_at ?? row.reviewedAt ?? undefined,
+    pricingExpiresAt: row.pricing_expires_at ?? row.pricingExpiresAt ?? undefined,
+    cancelledAt: row.cancelled_at ?? row.cancelledAt ?? undefined,
+    cancelledBy: row.cancelled_by ?? row.cancelledBy ?? undefined,
+    cancellationReason: row.cancellation_reason ?? row.cancellationReason ?? undefined,
     createdAt: row.created_at ?? row.createdAt ?? new Date().toISOString(),
     updatedAt: row.updated_at ?? row.updatedAt ?? new Date().toISOString(),
   });
@@ -427,7 +431,10 @@ async function syncOrderToSupabase(order: Order): Promise<void> {
   const sb = getSupabase();
   if (!sb) return;
   try {
-    const { error } = await sb.from('orders').upsert({
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Supabase sync timeout (6s)')), 6000)
+    );
+    const syncPromise = sb.from('orders').upsert({
       id: order.id,
       user_id: order.userId,
       user_name: order.userName,
@@ -452,8 +459,9 @@ async function syncOrderToSupabase(order: Order): Promise<void> {
       created_at: order.createdAt,
       updated_at: order.updatedAt,
     });
-    if (error) {
-      console.warn('[Supabase] Order upsert error:', error.message);
+    const result: any = await Promise.race([syncPromise, timeoutPromise]);
+    if (result && result.error) {
+      console.warn('[Supabase] Order upsert error:', result.error.message);
     } else {
       console.log('[Supabase] Order synced successfully:', order.id);
     }
@@ -724,6 +732,44 @@ export const db = {
     return data.settings;
   },
 
+  checkAndExpireOrders: async (): Promise<number> => {
+    const data = await ensureDb();
+    const now = Date.now();
+    let expiredCount = 0;
+
+    for (let i = 0; i < data.orders.length; i++) {
+      const order = data.orders[i];
+      if (order.status === 'APPROVED_PENDING_PAYMENT') {
+        // Safe check: If payment was already submitted or recorded, NEVER expire!
+        if (order.payment?.submittedAt || order.payment?.method) {
+          continue;
+        }
+
+        // Expiration threshold: 1 hour (3600000 ms)
+        const expiryTime = order.pricingExpiresAt
+          ? new Date(order.pricingExpiresAt).getTime()
+          : order.reviewedAt
+          ? new Date(order.reviewedAt).getTime() + 60 * 60 * 1000
+          : new Date(order.createdAt).getTime() + 60 * 60 * 1000;
+
+        if (now > expiryTime) {
+          order.status = 'CANCELLED';
+          order.cancelledAt = new Date().toISOString();
+          order.cancelledBy = 'system';
+          order.cancellationReason = 'انتهت مهلة سداد السعر المعتمد (ساعة واحدة) دون إتمام الدفع';
+          order.updatedAt = new Date().toISOString();
+          expiredCount++;
+          await syncOrderToSupabase(order);
+        }
+      }
+    }
+
+    if (expiredCount > 0) {
+      await persistDb(data);
+    }
+    return expiredCount;
+  },
+
   getOrders: async (filter?: {
     userId?: string;
     userEmail?: string;
@@ -731,6 +777,11 @@ export const db = {
     status?: string;
     search?: string;
   }): Promise<Order[]> => {
+    try {
+      await db.checkAndExpireOrders();
+    } catch (err) {
+      console.warn('[DB] Auto-expire error in getOrders:', err);
+    }
     const sb = getSupabase();
     if (sb) {
       try {
@@ -808,20 +859,33 @@ export const db = {
   },
 
   getOrderById: async (id: string): Promise<Order | undefined> => {
+    try {
+      await db.checkAndExpireOrders();
+    } catch (err) {
+      console.warn('[DB] Auto-expire error in getOrderById:', err);
+    }
+    const foundInMemory = (await ensureDb()).orders.find((o) => o.id === id);
     const sb = getSupabase();
     if (sb) {
       try {
         const { data, error } = await sb.from('orders').select('*').eq('id', id).maybeSingle();
         if (data && !error) {
-          return mapRowToOrder(data);
+          const fromSb = mapRowToOrder(data);
+          return normalizeOrderLinks({
+            ...foundInMemory,
+            ...fromSb,
+            pricingExpiresAt: fromSb.pricingExpiresAt || foundInMemory?.pricingExpiresAt,
+            cancelledAt: fromSb.cancelledAt || foundInMemory?.cancelledAt,
+            cancelledBy: fromSb.cancelledBy || foundInMemory?.cancelledBy,
+            cancellationReason: fromSb.cancellationReason || foundInMemory?.cancellationReason,
+          });
         }
       } catch (err) {
         console.warn('[DB] Supabase getOrderById fallback:', err);
       }
     }
-    const found = (await ensureDb()).orders.find((o) => o.id === id);
 
-    return found ? normalizeOrderLinks(found) : undefined;
+    return foundInMemory ? normalizeOrderLinks(foundInMemory) : undefined;
   },
 
   createOrder: async (order: Order): Promise<Order> => {

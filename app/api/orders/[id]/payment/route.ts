@@ -15,6 +15,32 @@ export async function POST(req: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
+    // Check pricing validity window (1 hour)
+    const now = Date.now();
+    const expiryTime = order.pricingExpiresAt
+      ? new Date(order.pricingExpiresAt).getTime()
+      : order.reviewedAt
+      ? new Date(order.reviewedAt).getTime() + 60 * 60 * 1000
+      : new Date(order.createdAt).getTime() + 60 * 60 * 1000;
+
+    if (order.status === 'CANCELLED' || (order.status === 'APPROVED_PENDING_PAYMENT' && now > expiryTime)) {
+      if (order.status !== 'CANCELLED') {
+        await db.updateOrder(id, {
+          status: 'CANCELLED',
+          cancelledAt: new Date().toISOString(),
+          cancelledBy: 'system',
+          cancellationReason: 'انتهت مهلة صلاحية السعر المعتمد (ساعة واحدة) دون إتمام الدفع',
+        });
+      }
+      return NextResponse.json(
+        {
+          error:
+            'نعتذر، انتهت مهلة سداد هذا الطلب (ساعة واحدة من وقت الاعتماد) أو تم إلغاؤه. لا يمكن قبول السداد بالأسعار القديمة. يرجى إنشاء طلب جديد.',
+        },
+        { status: 400 }
+      );
+    }
+
     if (order.status !== 'APPROVED_PENDING_PAYMENT') {
       return NextResponse.json(
         { error: `Payment cannot be submitted while order status is ${order.status}` },

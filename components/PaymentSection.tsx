@@ -13,15 +13,18 @@ import {
   ShieldCheck,
   AlertCircle,
   ExternalLink,
+  XCircle,
 } from 'lucide-react';
+import { PricingExpiryTimer } from './PricingExpiryTimer';
 
 interface PaymentSectionProps {
   order: Order;
   settings: SystemSettings;
   onPaymentSubmitted: () => void;
+  onCancelClick?: () => void;
 }
 
-export function PaymentSection({ order, settings, onPaymentSubmitted }: PaymentSectionProps) {
+export function PaymentSection({ order, settings, onPaymentSubmitted, onCancelClick }: PaymentSectionProps) {
   const { dir, lang } = useThemeLang();
   const isRtl = dir === 'rtl';
 
@@ -115,6 +118,16 @@ export function PaymentSection({ order, settings, onPaymentSubmitted }: PaymentS
               <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">EGP</span>
             </div>
           </div>
+        </div>
+
+        {/* Approved Pricing Expiry Countdown Timer */}
+        <div className="mt-6">
+          <PricingExpiryTimer
+            expiresAt={order.pricingExpiresAt}
+            createdAt={order.createdAt}
+            reviewedAt={order.reviewedAt}
+            onExpire={onPaymentSubmitted}
+          />
         </div>
 
         {/* Payment Channels Tabs */}
@@ -380,6 +393,23 @@ export function PaymentSection({ order, settings, onPaymentSubmitted }: PaymentS
               </>
             )}
           </button>
+
+          {onCancelClick && (
+            <div className="pt-2 text-center">
+              <button
+                type="button"
+                onClick={onCancelClick}
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-neutral-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors py-1.5 px-4 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer"
+              >
+                <XCircle className="w-4 h-4" />
+                <span>
+                  {isRtl
+                    ? 'لا ترغب في إكمال الشراء بهذا السعر؟ اضغط هنا لإلغاء الطلب'
+                    : 'Do not want to proceed with this price? Click here to cancel order'}
+                </span>
+              </button>
+            </div>
+          )}
         </form>
       </div>
     </div>

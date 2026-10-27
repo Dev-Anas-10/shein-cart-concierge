@@ -10,6 +10,8 @@ import { OrderTimeline } from '@/components/OrderTimeline';
 import { PaymentSection } from '@/components/PaymentSection';
 import { OrderTrackingDashboard } from '@/components/OrderTrackingDashboard';
 import { SafeImage } from '@/components/SafeImage';
+import { PricingExpiryTimer } from '@/components/PricingExpiryTimer';
+import { CancelOrderModal } from '@/components/CancelOrderModal';
 import { useThemeLang } from '@/lib/theme-lang-context';
 import { getClientOrders, saveClientOrder } from '@/lib/order-storage';
 import { toUsableSheinUrl } from '@/lib/shein-links';
@@ -51,6 +53,7 @@ export default function OrderDetailsPage() {
   const [settings, setSettings] = useState<SystemSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [authOpen, setAuthOpen] = useState(false);
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
 
   const fetchOrder = async () => {
     if (!id) return;
@@ -234,6 +237,11 @@ export default function OrderDetailsPage() {
                     {t.statusRejected}
                   </span>
                 )}
+                {order.status === 'CANCELLED' && (
+                  <span className="px-3.5 py-1 rounded-full text-xs font-black bg-rose-50 dark:bg-rose-950/40 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
+                    {t.statusCancelled}
+                  </span>
+                )}
               </div>
               <p className="text-xs text-neutral-400 dark:text-neutral-500">
                 {isRtl ? 'تم الإنشاء في' : 'Created on'} {new Date(order.createdAt).toLocaleDateString()} • {order.userName}
@@ -340,6 +348,46 @@ export default function OrderDetailsPage() {
             </div>
           )}
 
+          {order.status === 'CANCELLED' && (
+            <div className="p-5 rounded-2xl bg-rose-50/90 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-900 text-rose-950 dark:text-rose-200 text-xs space-y-2 text-start">
+              <div className="flex items-center gap-2 font-black text-sm text-rose-900 dark:text-rose-200">
+                <XCircle className="w-5 h-5 text-rose-600 shrink-0" />
+                <span>{isRtl ? 'تم إلغاء هذا الطلب (ملغي)' : 'This Order is Cancelled'}</span>
+              </div>
+              <p className="text-xs text-rose-800 dark:text-rose-300 leading-relaxed font-normal">
+                {order.cancellationReason ||
+                  (isRtl
+                    ? 'تم إلغاء هذا الطلب ولم تعد أسعاره المعتمدة سارية. لا يمكن سداد هذا الطلب حالياً.'
+                    : 'This order has been cancelled and pricing is no longer valid.')}
+              </p>
+              {order.cancelledAt && (
+                <p className="text-[11px] text-rose-700/80 dark:text-rose-400 font-medium">
+                  {isRtl ? 'وقت الإلغاء:' : 'Cancelled at:'} {new Date(order.cancelledAt).toLocaleString()} •{' '}
+                  {order.cancelledBy === 'customer'
+                    ? isRtl
+                      ? 'تم الإلغاء بطلب من العميل'
+                      : 'Cancelled by customer'
+                    : order.cancelledBy === 'system'
+                    ? isRtl
+                      ? 'تم الإلغاء تلقائياً لانتهاء مهلة السداد (ساعة واحدة)'
+                      : 'Auto-expired (1-hour window elapsed)'
+                    : isRtl
+                    ? 'تم الإلغاء بواسطة الإدارة'
+                    : 'Cancelled by admin'}
+                </p>
+              )}
+              <div className="pt-2">
+                <Link
+                  href="/"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#8B5CF6] hover:bg-[#7C3AED] text-white font-black text-xs shadow-sm transition-colors"
+                >
+                  <ShoppingBag className="w-4 h-4" />
+                  <span>{isRtl ? 'استخراج سلة جديدة بأسعار محدثة' : 'Extract a New Cart with Fresh Pricing'}</span>
+                </Link>
+              </div>
+            </div>
+          )}
+
           {/* Admin Order Comment */}
           {order.adminComment && (
             <div className="p-4 rounded-2xl bg-purple-50/60 dark:bg-purple-950/30 border border-purple-200/80 dark:border-purple-800/60 text-xs text-neutral-900 dark:text-neutral-100 space-y-1 text-start">
@@ -407,6 +455,25 @@ export default function OrderDetailsPage() {
                     {rejectedCount} {isRtl ? 'مستبعد / غير متاح' : 'Excluded'}
                   </span>
                 </span>
+              )}
+              {order.status === 'APPROVED_PENDING_PAYMENT' && (
+                <>
+                  <PricingExpiryTimer
+                    expiresAt={order.pricingExpiresAt}
+                    createdAt={order.createdAt}
+                    reviewedAt={order.reviewedAt}
+                    onExpire={fetchOrder}
+                    compact={true}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setCancelModalOpen(true)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 hover:bg-rose-100 dark:hover:bg-rose-900/40 transition-colors cursor-pointer"
+                  >
+                    <XCircle className="w-3.5 h-3.5" />
+                    <span>{isRtl ? 'إلغاء الطلب' : 'Cancel Order'}</span>
+                  </button>
+                </>
               )}
             </div>
           </div>
@@ -642,6 +709,7 @@ export default function OrderDetailsPage() {
             order={order}
             settings={settings}
             onPaymentSubmitted={() => fetchOrder()}
+            onCancelClick={() => setCancelModalOpen(true)}
           />
         )}
 
@@ -731,6 +799,15 @@ export default function OrderDetailsPage() {
       </motion.main>
 
       <AuthModal isOpen={authOpen} onClose={() => setAuthOpen(false)} />
+      {order && (
+        <CancelOrderModal
+          isOpen={cancelModalOpen}
+          onClose={() => setCancelModalOpen(false)}
+          orderId={order.id}
+          totalCash={order.totalCash}
+          onSuccess={() => fetchOrder()}
+        />
+      )}
     </div>
   );
 }

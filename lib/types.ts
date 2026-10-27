@@ -16,6 +16,7 @@ export interface User {
 export type OrderStatus =
   | 'PENDING_APPROVAL'          // Submitted by user, awaiting admin review
   | 'REJECTED'                  // Rejected by admin
+  | 'CANCELLED'                 // Cancelled by customer or expired automatically (ملغي)
   | 'APPROVED_PENDING_PAYMENT'  // Approved by admin, waiting for user to pay
   | 'PAYMENT_UNDER_REVIEW'      // User submitted InstaPay/Vodafone Cash proof, admin reviewing
   | 'PAID'                      // Payment verified by admin, items being purchased
@@ -145,6 +146,10 @@ export interface Order {
   rejectionReason?: string;
   reviewedBy?: string;
   reviewedAt?: string;
+  pricingExpiresAt?: string;    // Expiration timestamp for approved pricing (e.g. 1 hour)
+  cancelledAt?: string;
+  cancelledBy?: 'customer' | 'admin' | 'system';
+  cancellationReason?: string;
   
   // Payment Proof
   payment?: PaymentDetails;

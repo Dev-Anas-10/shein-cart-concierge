@@ -40,6 +40,12 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       if (body.status === 'APPROVED_PENDING_PAYMENT') {
         updates.reviewedBy = body.reviewedBy || 'Admin';
         updates.reviewedAt = new Date().toISOString();
+        updates.pricingExpiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+      }
+      if (body.status === 'CANCELLED') {
+        updates.cancelledAt = new Date().toISOString();
+        updates.cancelledBy = body.cancelledBy || 'admin';
+        updates.cancellationReason = body.cancellationReason || 'تم إلغاء الطلب من قبل الإدارة';
       }
     }
 
@@ -65,6 +71,10 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
 
     if (typeof body.shippingFee === 'number') {
       updates.shippingFee = body.shippingFee;
+    }
+
+    if (body.pricingExpiresAt) {
+      updates.pricingExpiresAt = body.pricingExpiresAt;
     }
 
     // Goods items review (price adjustment, individual comment for each good, status: approved / rejected)

@@ -10,6 +10,20 @@ interface OrderTimelineProps {
 }
 
 export function OrderTimeline({ status }: OrderTimelineProps) {
+  if (status === 'CANCELLED') {
+    return (
+      <div className="p-4 bg-rose-50/90 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-3xl flex items-center gap-3.5 text-rose-900 dark:text-rose-200 text-xs shadow-xs">
+        <XCircle className="w-5 h-5 text-rose-600 dark:text-rose-400 flex-shrink-0" />
+        <div>
+          <p className="font-black text-rose-950 dark:text-rose-100">تم إلغاء هذا الطلب (Order Cancelled)</p>
+          <p className="text-[11px] text-rose-700 dark:text-rose-300 mt-0.5">
+            تم إلغاء الطلب (سواء باختيارك أو لانتهاء مهلة سداد السعر المعتمد البالغة ساعة واحدة). لم تعد هذه الأسعار سارية، ويمكنك استخراج سلة جديدة في أي وقت.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (status === 'REJECTED') {
     return (
       <div className="p-4 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-3xl flex items-center gap-3.5 text-rose-900 dark:text-rose-200 text-xs shadow-xs">

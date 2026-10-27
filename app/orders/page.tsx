@@ -47,7 +47,7 @@ export default function UserOrdersPage() {
       awaitingPayment: orders.filter((o) => o.status === 'APPROVED_PENDING_PAYMENT').length,
       paid: orders.filter((o) => ['PAID', 'PROCESSING', 'SHIPPED'].includes(o.status)).length,
       delivered: orders.filter((o) => o.status === 'DELIVERED' || o.status === 'COMPLETED').length,
-      rejected: orders.filter((o) => o.status === 'REJECTED').length,
+      cancelled: orders.filter((o) => o.status === 'CANCELLED' || o.status === 'REJECTED').length,
     };
   }, [orders]);
 
@@ -65,8 +65,8 @@ export default function UserOrdersPage() {
     if (statusFilter === 'DELIVERED') {
       return orders.filter((o) => o.status === 'DELIVERED' || o.status === 'COMPLETED');
     }
-    if (statusFilter === 'REJECTED') {
-      return orders.filter((o) => o.status === 'REJECTED');
+    if (statusFilter === 'CANCELLED' || statusFilter === 'REJECTED') {
+      return orders.filter((o) => o.status === 'CANCELLED' || o.status === 'REJECTED');
     }
     return orders;
   }, [orders, statusFilter]);
@@ -154,6 +154,13 @@ export default function UserOrdersPage() {
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700">
             <CheckCircle2 className="w-3.5 h-3.5" />
             {status === 'DELIVERED' ? t.statusDelivered : t.statusCompleted}
+          </span>
+        );
+      case 'CANCELLED':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
+            <XCircle className="w-3.5 h-3.5" />
+            {t.statusCancelled}
           </span>
         );
       case 'REJECTED':
@@ -308,7 +315,7 @@ export default function UserOrdersPage() {
                   { key: 'AWAITING_PAYMENT', label: dir === 'rtl' ? '🔵 في انتظار الدفع' : '🔵 Awaiting Payment', count: counts.awaitingPayment },
                   { key: 'PAID', label: dir === 'rtl' ? '🟢 مدفوع' : '🟢 Paid', count: counts.paid },
                   { key: 'DELIVERED', label: dir === 'rtl' ? '📦 تم التوصيل' : '📦 Delivered', count: counts.delivered },
-                  { key: 'REJECTED', label: dir === 'rtl' ? '🔴 ملغي' : '🔴 Rejected', count: counts.rejected },
+                  { key: 'CANCELLED', label: dir === 'rtl' ? '🔴 ملغي' : '🔴 Cancelled', count: counts.cancelled },
                 ].map((tab) => (
                   <button
                     key={tab.key}

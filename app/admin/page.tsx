@@ -602,7 +602,7 @@ export default function AdminDashboardPage() {
   const pendingTotalCount = pendingApprovalCount + paymentReviewCount;
   const paidCount = orders.filter((o) => ['PAID', 'PROCESSING', 'SHIPPED'].includes(o.status)).length;
   const deliveredCount = orders.filter((o) => o.status === 'DELIVERED' || o.status === 'COMPLETED').length;
-  const rejectedCount = orders.filter((o) => o.status === 'REJECTED').length;
+  const rejectedCount = orders.filter((o) => o.status === 'REJECTED' || o.status === 'CANCELLED').length;
   const completedCount = orders.filter((o) => ['PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED'].includes(o.status)).length;
   const totalVolumeEgp = orders
     .filter((o) => o.status !== 'REJECTED')
@@ -664,8 +664,8 @@ export default function AdminDashboardPage() {
         if (!['PAID', 'PROCESSING', 'SHIPPED'].includes(order.status)) return false;
       } else if (statusFilter === 'DELIVERED') {
         if (!['DELIVERED', 'COMPLETED'].includes(order.status)) return false;
-      } else if (statusFilter === 'REJECTED') {
-        if (order.status !== 'REJECTED') return false;
+      } else if (statusFilter === 'REJECTED' || statusFilter === 'CANCELLED') {
+        if (!['REJECTED', 'CANCELLED'].includes(order.status)) return false;
       } else {
         if (order.status !== statusFilter) return false;
       }
@@ -1612,6 +1612,28 @@ export default function AdminDashboardPage() {
             {/* Scrollable Body */}
             <div className="p-6 overflow-y-auto space-y-6">
               {/* Payment Phase Alert / Unsaved Edits Alerts */}
+              {selectedOrder.status === 'CANCELLED' && (
+                <div className="p-4 rounded-2xl bg-rose-50/90 border border-rose-300 text-rose-950 text-xs space-y-1.5 text-start">
+                  <div className="flex items-center gap-2 font-black text-rose-900 text-sm">
+                    <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                    <span>طلب ملغي (Cancelled Order)</span>
+                  </div>
+                  <p className="text-xs text-rose-800 leading-relaxed font-normal">
+                    {selectedOrder.cancellationReason || 'تم إلغاء هذا الطلب وانتهت مهلة صلاحية السعر المعتمد.'}
+                  </p>
+                  {selectedOrder.cancelledAt && (
+                    <p className="text-[11px] text-rose-700 font-medium">
+                      وقت الإلغاء: {new Date(selectedOrder.cancelledAt).toLocaleString()} • جهة الإلغاء:{' '}
+                      {selectedOrder.cancelledBy === 'customer'
+                        ? 'العميل من صفحة الدفع'
+                        : selectedOrder.cancelledBy === 'system'
+                        ? 'النظام تلقائياً لانتهاء مهلة السداد (ساعة واحدة)'
+                        : 'الإدارة'}
+                    </p>
+                  )}
+                </div>
+              )}
+
               {selectedOrder.status === 'APPROVED_PENDING_PAYMENT' && (
                 <div className="p-4 rounded-2xl bg-blue-50/90 border border-blue-200 text-blue-950 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex items-center gap-2.5">
@@ -2260,7 +2282,7 @@ export default function AdminDashboardPage() {
                   )}
                 </button>
 
-                {selectedOrder.status !== 'REJECTED' && (
+                {selectedOrder.status !== 'REJECTED' && selectedOrder.status !== 'CANCELLED' && (
                   <button
                     type="button"
                     disabled={updating}
@@ -2272,7 +2294,7 @@ export default function AdminDashboardPage() {
                   </button>
                 )}
 
-                {(selectedOrder.status === 'PENDING_APPROVAL' || selectedOrder.status === 'REJECTED') && (
+                {(selectedOrder.status === 'PENDING_APPROVAL' || selectedOrder.status === 'REJECTED' || selectedOrder.status === 'CANCELLED') && (
                   <button
                     type="button"
                     disabled={updating}
@@ -3381,6 +3403,11 @@ function StatusBadge({ status }: { status: OrderStatus }) {
       label: 'Delivered (مكتمل)',
       className: 'bg-emerald-100 text-emerald-900 border-emerald-300 font-bold',
       icon: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />,
+    },
+    CANCELLED: {
+      label: 'ملغي (Cancelled)',
+      className: 'bg-rose-100 text-rose-900 border-rose-300 font-black',
+      icon: <XCircle className="w-3.5 h-3.5 text-rose-600" />,
     },
     REJECTED: {
       label: 'Rejected',

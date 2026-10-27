@@ -90,6 +90,7 @@ export interface Translations {
   statusDelivered: string;
   statusCompleted: string;
   statusRejected: string;
+  statusCancelled: string;
 
   // Support Modal
   supportTitle: string;
@@ -195,6 +196,7 @@ const TRANSLATIONS: Record<Language, Translations> = {
     statusDelivered: 'تم التوصيل للعميل',
     statusCompleted: 'تم التسليم بنجاح',
     statusRejected: 'تم رفض الطلب',
+    statusCancelled: 'ملغي',
 
     // Support Modal
     supportTitle: 'خدمة العملاء والدعم الفني',
@@ -299,6 +301,7 @@ const TRANSLATIONS: Record<Language, Translations> = {
     statusDelivered: 'Delivered to Customer',
     statusCompleted: 'Delivered Successfully',
     statusRejected: 'Order Rejected',
+    statusCancelled: 'Order Cancelled',
 
     // Support Modal
     supportTitle: 'Customer Support & Hotline',
