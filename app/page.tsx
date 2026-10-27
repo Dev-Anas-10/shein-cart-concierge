@@ -13,7 +13,7 @@ import { ExtractedGoodsView } from '@/components/ExtractedGoodsView';
 import { AuthModal } from '@/components/AuthModal';
 import { FullPageLoginCard } from '@/components/FullPageLoginCard';
 import { CustomSectionRenderer } from '@/components/CustomSectionRenderer';
-import { getClientOrders, mergeAndDeduplicateOrders } from '@/lib/order-storage';
+import { getClientOrders, mergeAndDeduplicateOrders, syncClientOrdersWithServer } from '@/lib/order-storage';
 import { SafeImage } from '@/components/SafeImage';
 import { ShipmentBatchLiveNudge } from '@/components/marketing/ShipmentBatchLiveNudge';
 import { TrustAndGuarantees } from '@/components/marketing/TrustAndGuarantees';
@@ -65,9 +65,9 @@ export default function HomePage() {
     )
       .then((r) => r.json())
       .then((data) => {
-        if (data.success) {
-          const merged = mergeAndDeduplicateOrders(data.data, clientSaved);
-          setRecentOrders(merged.slice(0, 3));
+        if (data.success && Array.isArray(data.data)) {
+          syncClientOrdersWithServer(user.id, user.email, data.data);
+          setRecentOrders(data.data.slice(0, 3));
         } else if (clientSaved.length > 0) {
           setRecentOrders(clientSaved.slice(0, 3));
         }

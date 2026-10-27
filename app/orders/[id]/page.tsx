@@ -61,8 +61,8 @@ export default function OrderDetailsPage() {
     setLoading(true);
     try {
       const [orderRes, settingsRes] = await Promise.all([
-        fetch(`/api/orders/${id}`),
-        fetch('/api/settings'),
+        fetch(`/api/orders/${id}?_t=${Date.now()}`, { cache: 'no-store' }),
+        fetch(`/api/settings?_t=${Date.now()}`, { cache: 'no-store' }),
       ]);
 
       const orderJson = await orderRes.json();

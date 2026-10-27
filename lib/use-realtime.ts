@@ -8,6 +8,7 @@ export interface UseRealtimeOptions {
   orderId?: string;
   channel?: 'admin' | 'customer' | 'orders';
   onOrderChange?: (order: Order, eventType?: string) => void;
+  onOrderDelete?: (orderId: string) => void;
   onShipmentChange?: (shipmentId?: string) => void;
   onRefresh?: () => void | Promise<void>;
   pollIntervalMs?: number;
@@ -18,6 +19,7 @@ export function useRealtimeSubscription({
   orderId,
   channel = 'customer',
   onOrderChange,
+  onOrderDelete,
   onShipmentChange,
   onRefresh,
   pollIntervalMs = orderId ? 4000 : channel === 'admin' ? 6000 : 5000,
@@ -29,11 +31,13 @@ export function useRealtimeSubscription({
 
   // Keep callback refs fresh without resetting effect
   const onOrderChangeRef = useRef(onOrderChange);
+  const onOrderDeleteRef = useRef(onOrderDelete);
   const onShipmentChangeRef = useRef(onShipmentChange);
   const onRefreshRef = useRef(onRefresh);
 
   useEffect(() => {
     onOrderChangeRef.current = onOrderChange;
+    onOrderDeleteRef.current = onOrderDelete;
     onShipmentChangeRef.current = onShipmentChange;
     onRefreshRef.current = onRefresh;
   });
@@ -74,6 +78,12 @@ export function useRealtimeSubscription({
           if (payload.type.startsWith('ORDER_') && payload.order) {
             if (onOrderChangeRef.current) {
               onOrderChangeRef.current(payload.order, payload.type);
+            }
+          }
+
+          if (payload.type === 'ORDER_DELETED' && payload.orderId) {
+            if (onOrderDeleteRef.current) {
+              onOrderDeleteRef.current(payload.orderId);
             }
           }
 

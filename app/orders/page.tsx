@@ -10,7 +10,13 @@ import { Order } from '@/lib/types';
 import { Navbar } from '@/components/Navbar';
 import { AuthModal } from '@/components/AuthModal';
 import { SafeImage } from '@/components/SafeImage';
-import { getClientOrders, mergeAndDeduplicateOrders } from '@/lib/order-storage';
+import {
+  getClientOrders,
+  mergeAndDeduplicateOrders,
+  syncClientOrdersWithServer,
+  saveClientOrder,
+  removeClientOrder,
+} from '@/lib/order-storage';
 import { useRealtimeSubscription } from '@/lib/use-realtime';
 import {
   ShoppingBag,
@@ -89,12 +95,13 @@ export default function UserOrdersPage() {
     setLoading(true);
     const clientSaved = getClientOrders(user.id, user.email);
     try {
-      const url = `/api/orders?userId=${encodeURIComponent(user.id)}&userEmail=${encodeURIComponent(user.email || '')}`;
-      const res = await fetch(url);
+      const url = `/api/orders?userId=${encodeURIComponent(user.id)}&userEmail=${encodeURIComponent(user.email || '')}&_t=${Date.now()}`;
+      const res = await fetch(url, { cache: 'no-store' });
       const json = await res.json();
-      if (json.success) {
-        const merged = mergeAndDeduplicateOrders(json.data, clientSaved);
-        setOrders(merged);
+      if (json.success && Array.isArray(json.data)) {
+        // Server database is the Single Source of Truth
+        setOrders(json.data);
+        syncClientOrdersWithServer(user.id, user.email, json.data);
       } else {
         setOrders(clientSaved);
       }
@@ -118,13 +125,14 @@ export default function UserOrdersPage() {
       const url = `/api/orders?userId=${encodeURIComponent(user.id)}&userEmail=${encodeURIComponent(user.email || '')}&_t=${Date.now()}`;
       const res = await fetch(url, { cache: 'no-store' });
       const json = await res.json();
-      if (json.success) {
-        const merged = mergeAndDeduplicateOrders(json.data, clientSaved);
+      if (json.success && Array.isArray(json.data)) {
+        const serverData: Order[] = json.data;
+        syncClientOrdersWithServer(user.id, user.email, serverData);
         setOrders((prev) => {
-          const prevSig = prev.map((o) => `${o.id}:${o.status}:${o.totalCash}:${o.updatedAt}`).join('|');
-          const newSig = merged.map((o) => `${o.id}:${o.status}:${o.totalCash}:${o.updatedAt}`).join('|');
+          const prevSig = prev.map((o) => `${o.id}:${o.status}:${o.totalCash}:${o.shipmentId || ''}:${o.updatedAt}`).join('|');
+          const newSig = serverData.map((o) => `${o.id}:${o.status}:${o.totalCash}:${o.shipmentId || ''}:${o.updatedAt}`).join('|');
           if (prevSig !== newSig) {
-            return merged;
+            return serverData;
           }
           return prev;
         });
@@ -134,12 +142,13 @@ export default function UserOrdersPage() {
     }
   }, [user]);
 
-  // Real-time live updates subscription (Task 14)
+  // Real-time live updates subscription (Task 14 & 15)
   useRealtimeSubscription({
     channel: 'orders',
     onOrderChange: (incoming) => {
       if (!user) return;
       if (incoming.userId === user.id || incoming.userEmail?.toLowerCase() === user.email?.toLowerCase()) {
+        saveClientOrder(incoming);
         setOrders((prev) => {
           const idx = prev.findIndex((o) => o.id === incoming.id);
           if (idx >= 0) {
@@ -150,6 +159,10 @@ export default function UserOrdersPage() {
           return [incoming, ...prev];
         });
       }
+    },
+    onOrderDelete: (deletedOrderId) => {
+      removeClientOrder(deletedOrderId);
+      setOrders((prev) => prev.filter((o) => o.id !== deletedOrderId));
     },
     onRefresh: fetchOrdersSilently,
     pollIntervalMs: 5000,

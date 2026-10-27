@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { GoodItem, OrderStatus } from '@/lib/types';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 interface RouteContext {
   params: Promise<{ id: string }>;
 }
@@ -15,7 +18,16 @@ export async function GET(req: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true, data: order });
+    return NextResponse.json(
+      { success: true, data: order },
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+          Pragma: 'no-cache',
+          Expires: '0',
+        },
+      }
+    );
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Failed to fetch order' }, { status: 500 });
   }
@@ -124,9 +136,10 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     if (body.paymentStatus && existing.payment) {
       if (body.paymentStatus === 'VERIFIED') {
         updates.status = 'PAID';
+        updates.reviewedBy = 'Admin';
         updates.payment = {
           ...existing.payment,
-          adminNote: body.adminPaymentNote || 'Payment confirmed by admin',
+          adminNote: body.adminPaymentNote || 'تم تأكيد استلام التحويل واعتماد الدفع بنجاح',
         };
         updates.tracking = {
           ...(existing.tracking || {}),
@@ -143,6 +156,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         };
       } else if (body.paymentStatus === 'REJECTED') {
         updates.status = 'APPROVED_PENDING_PAYMENT'; // reset so user can submit again
+        updates.reviewedBy = 'Admin';
         updates.payment = {
           ...existing.payment,
           adminNote: body.adminPaymentNote || 'بيانات التحويل غير مطابقة أو لم تصل. يرجى التأكد وإعادة الإرسال.',

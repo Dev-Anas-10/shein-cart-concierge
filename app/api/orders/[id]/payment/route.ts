@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { PaymentDetails } from '@/lib/types';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 interface RouteContext {
   params: Promise<{ id: string }>;
 }
@@ -21,7 +24,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
       ? new Date(order.pricingExpiresAt).getTime()
       : order.reviewedAt
       ? new Date(order.reviewedAt).getTime() + 60 * 60 * 1000
-      : new Date(order.createdAt).getTime() + 60 * 60 * 1000;
+      : new Date(order.updatedAt || order.createdAt).getTime() + 60 * 60 * 1000;
 
     if (order.status === 'CANCELLED' || (order.status === 'APPROVED_PENDING_PAYMENT' && now > expiryTime)) {
       if (order.status !== 'CANCELLED') {

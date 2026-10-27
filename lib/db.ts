@@ -311,6 +311,13 @@ async function saveToRedis(data: DatabaseSchema): Promise<void> {
 
 /* ────────────────────────── Concurrency & Merging ──────────────────────── */
 
+function mergeAuditLogs(a?: OrderAuditEntry[], b?: OrderAuditEntry[]): OrderAuditEntry[] {
+  const combined = [...(a || []), ...(b || [])];
+  return combined
+    .filter((v, i, arr) => arr.findIndex((t) => t.timestamp === v.timestamp && t.action === v.action) === i)
+    .sort((x, y) => new Date(x.timestamp).getTime() - new Date(y.timestamp).getTime());
+}
+
 let dbMutationQueue: Promise<any> = Promise.resolve();
 function runWithDbMutex<T>(fn: () => Promise<T>): Promise<T> {
   const next = dbMutationQueue.then(fn, fn);
@@ -393,10 +400,7 @@ function mergeOrderLists(primary: Order[], secondary: Order[]): Order[] {
         : fallback.payment || base.payment;
 
       // SAFEGUARD 5: Audit Log accumulation
-      const combinedAudit = [
-        ...(existing.auditLog || []),
-        ...(o.auditLog || []),
-      ].filter((v, i, a) => a.findIndex((t) => t.timestamp === v.timestamp && t.action === v.action) === i);
+      const combinedAudit = mergeAuditLogs(existing.auditLog, o.auditLog);
 
       // SAFEGUARD 6: Cancellation info
       const cancelledAt = base.cancelledAt || fallback.cancelledAt || undefined;
@@ -961,7 +965,8 @@ export const db = {
   },
 
   updateSettings: async (newSettings: Partial<SystemSettings>): Promise<SystemSettings> => {
-    const data = await ensureDb();
+    return runWithDbMutex(async () => {
+      const data = await ensureDb();
     const oldSettings = { ...data.settings };
     const mergedSettings = { ...data.settings, ...newSettings };
     data.settings = mergedSettings;
@@ -1053,6 +1058,7 @@ export const db = {
     await persistDb(data);
     broadcastRealtimeEvent('SETTINGS_UPDATED', { settings: data.settings });
     return data.settings;
+    });
   },
 
   checkAndExpireOrders: async (): Promise<number> => {
@@ -1179,7 +1185,7 @@ export const db = {
             exchangeRateUsed: fromSb.exchangeRateUsed ?? foundInMemory?.exchangeRateUsed,
             profitMarginPercentUsed: fromSb.profitMarginPercentUsed ?? foundInMemory?.profitMarginPercentUsed,
             lockedPricingSnapshot: fromSb.lockedPricingSnapshot ?? foundInMemory?.lockedPricingSnapshot,
-            auditLog: [...(foundInMemory?.auditLog || []), ...(fromSb.auditLog || [])],
+            auditLog: mergeAuditLogs(foundInMemory?.auditLog, fromSb.auditLog),
           });
           // Cache merged order in memory to guarantee immediate retrieval
           if (foundInMemory) {
@@ -1248,19 +1254,39 @@ export const db = {
         updatedAt: new Date().toISOString(),
       };
 
-      // State transition audit log (Task 12)
+      // State transition audit log (Task 12 & 15)
       if (updates.status && updates.status !== previousStatus) {
-        const actor = updates.reviewedBy || updates.cancelledBy || (updates.payment ? 'customer' : 'admin');
+        let actor = updates.reviewedBy || updates.cancelledBy || (updates.payment ? 'customer' : 'admin');
+        let action = `STATUS_CHANGE_${previousStatus}_TO_${targetStatus}`;
+        let note = updates.adminComment || updates.cancellationReason || updates.payment?.adminNote || undefined;
+
+        if (targetStatus === 'PAYMENT_UNDER_REVIEW' && updates.payment) {
+          actor = 'customer';
+          action = 'PAYMENT_SUBMITTED';
+          note = `تم إرسال إشعار تحويل عبر ${updates.payment.method} (الراسل: ${updates.payment.senderIdentifier})`;
+        } else if (previousStatus === 'PAYMENT_UNDER_REVIEW' && targetStatus === 'PAID') {
+          actor = updates.reviewedBy || 'Admin';
+          action = 'PAYMENT_VERIFIED';
+          note = updates.payment?.adminNote || 'تم تأكيد التحويل واعتماد الدفع بنجاح';
+        } else if (previousStatus === 'PAYMENT_UNDER_REVIEW' && targetStatus === 'APPROVED_PENDING_PAYMENT') {
+          actor = updates.reviewedBy || 'Admin';
+          action = 'PAYMENT_REJECTED';
+          note = updates.payment?.adminNote || 'بيانات التحويل غير مطابقة أو لم تصل';
+        } else if (targetStatus === 'CANCELLED') {
+          action = 'ORDER_CANCELLED';
+          note = updates.cancellationReason || 'تم إلغاء الطلب';
+        }
+
         const auditEntry: OrderAuditEntry = {
           timestamp: new Date().toISOString(),
-          action: `STATUS_CHANGE_${previousStatus}_TO_${targetStatus}`,
+          action,
           fromStatus: previousStatus,
           toStatus: targetStatus,
           actor,
-          note: updates.adminComment || updates.cancellationReason || updates.payment?.adminNote || undefined,
+          note,
         };
-        updated.auditLog = [...(current.auditLog || []), auditEntry];
-        console.log(`[ORDER AUDIT] ${id}: ${previousStatus} -> ${targetStatus} (actor: ${actor})`);
+        updated.auditLog = mergeAuditLogs(current.auditLog, [auditEntry]);
+        console.log(`[ORDER AUDIT] ${id}: ${action} (${previousStatus} -> ${targetStatus}, actor: ${actor})`);
       }
 
       if (updates.items) {
@@ -1277,7 +1303,7 @@ export const db = {
         updated.itemsCount = activeItems.length;
       }
 
-      // Task 13: Audit log any price modifications
+      // Task 13 & 15: Audit log any price modifications
       if (typeof updated.totalCash === 'number' && updated.totalCash !== current.totalCash) {
         const actor = updates.reviewedBy || 'Admin';
         const priceAudit: OrderAuditEntry = {
@@ -1286,9 +1312,9 @@ export const db = {
           fromStatus: previousStatus,
           toStatus: targetStatus,
           actor,
-          note: `Total modified: Previous ${current.totalCash.toLocaleString()} EGP -> New ${updated.totalCash.toLocaleString()} EGP`,
+          note: `تعديل السعر: السابق ${current.totalCash.toLocaleString()} EGP -> الجديد ${updated.totalCash.toLocaleString()} EGP`,
         };
-        updated.auditLog = [...(updated.auditLog || current.auditLog || []), priceAudit];
+        updated.auditLog = mergeAuditLogs(updated.auditLog || current.auditLog, [priceAudit]);
         console.log(`[ORDER AUDIT] ${id}: Price updated from ${current.totalCash} to ${updated.totalCash} by ${actor}`);
       }
 
@@ -1336,17 +1362,19 @@ export const db = {
   },
 
   deleteOrder: async (id: string): Promise<boolean> => {
-    const data = await ensureDb();
-    const lenBefore = data.orders.length;
-    data.orders = data.orders.filter((o) => o.id !== id);
-    await deleteOrderFromSupabase(id);
-    if (data.orders.length !== lenBefore) {
-      await persistDb(data);
+    return runWithDbMutex(async () => {
+      const data = await ensureDb();
+      const lenBefore = data.orders.length;
+      data.orders = data.orders.filter((o) => o.id !== id);
+      await deleteOrderFromSupabase(id);
+      if (data.orders.length !== lenBefore) {
+        await persistDb(data);
+        broadcastRealtimeEvent('ORDER_DELETED', { orderId: id });
+        return true;
+      }
       broadcastRealtimeEvent('ORDER_DELETED', { orderId: id });
       return true;
-    }
-    broadcastRealtimeEvent('ORDER_DELETED', { orderId: id });
-    return true;
+    });
   },
 
   // ── Shipments / Consignments Operations ──
@@ -1362,127 +1390,157 @@ export const db = {
   },
 
   createShipment: async (shipment: Shipment): Promise<Shipment> => {
-    const data = await ensureDb();
-    if (!data.shipments) data.shipments = [];
-    const existingIndex = data.shipments.findIndex((s) => s.id === shipment.id);
-    if (existingIndex >= 0) {
-      data.shipments[existingIndex] = shipment;
-    } else {
-      data.shipments.unshift(shipment);
-    }
-    await persistDb(data);
-    broadcastRealtimeEvent('SHIPMENT_CREATED', { shipmentId: shipment.id, shipment });
-    return shipment;
+    return runWithDbMutex(async () => {
+      const data = await ensureDb();
+      if (!data.shipments) data.shipments = [];
+      const existingIndex = data.shipments.findIndex((s) => s.id === shipment.id);
+      if (existingIndex >= 0) {
+        data.shipments[existingIndex] = shipment;
+      } else {
+        data.shipments.unshift(shipment);
+      }
+      await persistDb(data);
+      broadcastRealtimeEvent('SHIPMENT_CREATED', { shipmentId: shipment.id, shipment });
+      return shipment;
+    });
   },
 
   updateShipment: async (id: string, updates: Partial<Shipment>): Promise<Shipment | null> => {
-    const data = await ensureDb();
-    if (!data.shipments) data.shipments = [];
-    const index = data.shipments.findIndex((s) => s.id === id);
-    if (index === -1) return null;
-    const current = data.shipments[index];
-    const updated: Shipment = {
-      ...current,
-      ...updates,
-      updatedAt: new Date().toISOString(),
-    };
+    return runWithDbMutex(async () => {
+      const data = await ensureDb();
+      if (!data.shipments) data.shipments = [];
+      const index = data.shipments.findIndex((s) => s.id === id);
+      if (index === -1) return null;
+      const current = data.shipments[index];
+      const updated: Shipment = {
+        ...current,
+        ...updates,
+        updatedAt: new Date().toISOString(),
+      };
 
-    // If shipment code changed, update code on all assigned orders
-    if (updates.code && updates.code !== current.code) {
-      data.orders.forEach((o) => {
-        if (o.shipmentId === id) {
-          o.shipmentCode = updates.code;
-        }
-      });
-    }
+      // If shipment code changed, update code on all assigned orders
+      if (updates.code && updates.code !== current.code) {
+        data.orders.forEach((o) => {
+          if (o.shipmentId === id) {
+            o.shipmentCode = updates.code;
+          }
+        });
+      }
 
-    data.shipments[index] = updated;
-    await persistDb(data);
-    broadcastRealtimeEvent('SHIPMENT_UPDATED', { shipmentId: updated.id, shipment: updated });
-    return updated;
+      data.shipments[index] = updated;
+      await persistDb(data);
+      broadcastRealtimeEvent('SHIPMENT_UPDATED', { shipmentId: updated.id, shipment: updated });
+      return updated;
+    });
   },
 
   deleteShipment: async (id: string): Promise<boolean> => {
-    const data = await ensureDb();
-    if (!data.shipments) data.shipments = [];
-    const beforeLen = data.shipments.length;
-    data.shipments = data.shipments.filter((s) => s.id !== id);
-    // Unassign orders that belonged to this shipment
-    data.orders.forEach((o) => {
-      if (o.shipmentId === id) {
-        o.shipmentId = undefined;
-        o.shipmentCode = undefined;
+    return runWithDbMutex(async () => {
+      const data = await ensureDb();
+      if (!data.shipments) data.shipments = [];
+      const beforeLen = data.shipments.length;
+      data.shipments = data.shipments.filter((s) => s.id !== id);
+      // Unassign orders that belonged to this shipment
+      data.orders.forEach((o) => {
+        if (o.shipmentId === id) {
+          o.shipmentId = undefined;
+          o.shipmentCode = undefined;
+        }
+      });
+      if (data.shipments.length !== beforeLen) {
+        await persistDb(data);
+        broadcastRealtimeEvent('SHIPMENT_DELETED', { shipmentId: id });
+        return true;
       }
-    });
-    if (data.shipments.length !== beforeLen) {
-      await persistDb(data);
       broadcastRealtimeEvent('SHIPMENT_DELETED', { shipmentId: id });
       return true;
-    }
-    broadcastRealtimeEvent('SHIPMENT_DELETED', { shipmentId: id });
-    return true;
+    });
   },
 
   assignOrdersToShipment: async (
     shipmentId: string,
     orderIds: string[]
   ): Promise<{ shipment: Shipment; updatedOrdersCount: number } | null> => {
-    const data = await ensureDb();
-    if (!data.shipments) data.shipments = [];
-    const shipment = data.shipments.find((s) => s.id === shipmentId);
-    if (!shipment) return null;
+    return runWithDbMutex(async () => {
+      const data = await ensureDb();
+      if (!data.shipments) data.shipments = [];
+      const shipment = data.shipments.find((s) => s.id === shipmentId);
+      if (!shipment) return null;
 
-    if (!shipment.orderIds) shipment.orderIds = [];
-    const orderSet = new Set(shipment.orderIds);
-    let updatedCount = 0;
+      if (!shipment.orderIds) shipment.orderIds = [];
+      const orderSet = new Set(shipment.orderIds);
+      let updatedCount = 0;
 
-    for (const oid of orderIds) {
-      orderSet.add(oid);
-      const order = data.orders.find((o) => o.id === oid);
-      if (order) {
-        order.shipmentId = shipment.id;
-        order.shipmentCode = shipment.code;
-        order.updatedAt = new Date().toISOString();
-        updatedCount++;
-        await syncOrderToSupabase(order);
+      for (const oid of orderIds) {
+        orderSet.add(oid);
+        const order = data.orders.find((o) => o.id === oid);
+        if (order) {
+          order.shipmentId = shipment.id;
+          order.shipmentCode = shipment.code;
+          order.updatedAt = new Date().toISOString();
+          const auditEntry: OrderAuditEntry = {
+            timestamp: new Date().toISOString(),
+            action: 'SHIPMENT_ASSIGNED',
+            fromStatus: order.status,
+            toStatus: order.status,
+            actor: 'Admin',
+            note: `تم تعيين الطلب إلى الشحنة #${shipment.code || shipment.id}`,
+          };
+          order.auditLog = mergeAuditLogs(order.auditLog, [auditEntry]);
+          updatedCount++;
+          await syncOrderToSupabase(order);
+          broadcastRealtimeEvent('ORDER_UPDATED', { orderId: order.id, order });
+        }
       }
-    }
 
-    shipment.orderIds = Array.from(orderSet);
-    shipment.updatedAt = new Date().toISOString();
-    await persistDb(data);
-    broadcastRealtimeEvent('SHIPMENT_UPDATED', { shipmentId: shipment.id, shipment });
-    return { shipment, updatedOrdersCount: updatedCount };
+      shipment.orderIds = Array.from(orderSet);
+      shipment.updatedAt = new Date().toISOString();
+      await persistDb(data);
+      broadcastRealtimeEvent('SHIPMENT_UPDATED', { shipmentId: shipment.id, shipment });
+      return { shipment, updatedOrdersCount: updatedCount };
+    });
   },
 
   removeOrdersFromShipment: async (
     shipmentId: string,
     orderIds: string[]
   ): Promise<{ shipment: Shipment; removedCount: number } | null> => {
-    const data = await ensureDb();
-    if (!data.shipments) data.shipments = [];
-    const shipment = data.shipments.find((s) => s.id === shipmentId);
-    if (!shipment) return null;
+    return runWithDbMutex(async () => {
+      const data = await ensureDb();
+      if (!data.shipments) data.shipments = [];
+      const shipment = data.shipments.find((s) => s.id === shipmentId);
+      if (!shipment) return null;
 
-    const toRemoveSet = new Set(orderIds);
-    shipment.orderIds = (shipment.orderIds || []).filter((oid) => !toRemoveSet.has(oid));
-    let removedCount = 0;
+      const toRemoveSet = new Set(orderIds);
+      shipment.orderIds = (shipment.orderIds || []).filter((oid) => !toRemoveSet.has(oid));
+      let removedCount = 0;
 
-    for (const oid of orderIds) {
-      const order = data.orders.find((o) => o.id === oid);
-      if (order && order.shipmentId === shipmentId) {
-        order.shipmentId = undefined;
-        order.shipmentCode = undefined;
-        order.updatedAt = new Date().toISOString();
-        removedCount++;
-        await syncOrderToSupabase(order);
+      for (const oid of orderIds) {
+        const order = data.orders.find((o) => o.id === oid);
+        if (order && order.shipmentId === shipmentId) {
+          order.shipmentId = undefined;
+          order.shipmentCode = undefined;
+          order.updatedAt = new Date().toISOString();
+          const auditEntry: OrderAuditEntry = {
+            timestamp: new Date().toISOString(),
+            action: 'SHIPMENT_REMOVED',
+            fromStatus: order.status,
+            toStatus: order.status,
+            actor: 'Admin',
+            note: `تم فصل الطلب من الشحنة #${shipment.code || shipment.id}`,
+          };
+          order.auditLog = mergeAuditLogs(order.auditLog, [auditEntry]);
+          removedCount++;
+          await syncOrderToSupabase(order);
+          broadcastRealtimeEvent('ORDER_UPDATED', { orderId: order.id, order });
+        }
       }
-    }
 
-    shipment.updatedAt = new Date().toISOString();
-    await persistDb(data);
-    broadcastRealtimeEvent('SHIPMENT_UPDATED', { shipmentId: shipment.id, shipment });
-    return { shipment, removedCount };
+      shipment.updatedAt = new Date().toISOString();
+      await persistDb(data);
+      broadcastRealtimeEvent('SHIPMENT_UPDATED', { shipmentId: shipment.id, shipment });
+      return { shipment, removedCount };
+    });
   },
 
   invalidateCache: () => {
