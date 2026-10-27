@@ -2086,9 +2086,21 @@ export default function AdminDashboardPage() {
                           {/* Price & Quantity Editable Fields */}
                           <div className="flex items-center gap-3 flex-shrink-0">
                             <div>
-                              <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
-                                Price (EGP)
-                              </label>
+                              <div className="flex items-center justify-between gap-1 mb-0.5">
+                                <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
+                                  Price (EGP)
+                                </label>
+                                {Boolean(item.discountPercent && item.discountPercent > 0) && (
+                                  <span className="text-[10px] font-black text-rose-600 bg-rose-50 px-1.5 py-0.2 rounded border border-rose-200">
+                                    -{item.discountPercent}%
+                                  </span>
+                                )}
+                              </div>
+                              {item.originalPriceBeforeDiscount && item.originalPriceBeforeDiscount > item.originalPrice ? (
+                                <span className="text-[10px] text-neutral-400 line-through font-mono block text-right mb-0.5">
+                                  {item.originalPriceBeforeDiscount.toLocaleString()} EGP
+                                </span>
+                              ) : null}
                               {(() => {
                                 const isPaidOrder = ['PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED'].includes(selectedOrder.status);
                                 const isPriceInputDisabled = isRejected || (isPaidOrder && !unlockPaidEdit);

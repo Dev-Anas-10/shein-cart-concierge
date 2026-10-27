@@ -321,7 +321,24 @@ function mapRowToOrder(row: any): Order {
     cartShareCode: row.cart_share_code ?? row.cartShareCode ?? undefined,
     cartGroupId: row.cart_group_id ?? row.cartGroupId ?? undefined,
     cartCoverImage: row.cart_cover_image ?? row.cartCoverImage ?? undefined,
-    items: Array.isArray(row.items) ? row.items : [],
+    items: Array.isArray(row.items)
+      ? row.items.map((it: any) => ({
+          ...it,
+          originalPrice: Number(it.originalPrice) || 0,
+          originalPriceBeforeDiscount:
+            typeof it.originalPriceBeforeDiscount === 'number'
+              ? it.originalPriceBeforeDiscount
+              : it.originalPriceBeforeDiscount
+              ? Number(it.originalPriceBeforeDiscount)
+              : undefined,
+          discountPercent:
+            typeof it.discountPercent === 'number'
+              ? it.discountPercent
+              : it.discountPercent
+              ? Number(it.discountPercent)
+              : undefined,
+        }))
+      : [],
     itemsCount: Number(row.items_count ?? row.itemsCount ?? (Array.isArray(row.items) ? row.items.length : 0)),
     itemsSubtotal: Number(row.items_subtotal ?? row.itemsSubtotal ?? 0),
     dynamicFeePercent: Number(row.dynamic_fee_percent ?? row.dynamicFeePercent ?? 0),

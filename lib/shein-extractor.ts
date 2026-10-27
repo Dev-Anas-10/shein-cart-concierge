@@ -26,6 +26,83 @@ export interface SheinPageMetadata {
   groupId?: string;
   redirectUrl?: string;
   deeplink?: string;
+  retailPrice?: number;
+  salePrice?: number;
+  currency?: string;
+}
+
+/**
+ * Safely parses any number or price string/object from SHEIN JSON responses
+ */
+export function extractPriceValue(val: any): number {
+  if (val === null || val === undefined) return 0;
+  if (typeof val === 'number') return isNaN(val) ? 0 : val;
+  if (typeof val === 'object') {
+    if (val.amount !== undefined) return extractPriceValue(val.amount);
+    if (val.value !== undefined) return extractPriceValue(val.value);
+    if (val.price !== undefined) return extractPriceValue(val.price);
+    if (val.usdAmount !== undefined) return extractPriceValue(val.usdAmount);
+  }
+  if (typeof val === 'string') {
+    const cleaned = val.replace(/[^0-9.]/g, '');
+    const num = parseFloat(cleaned);
+    return isNaN(num) ? 0 : num;
+  }
+  return 0;
+}
+
+/**
+ * Normalizes original and discounted sale prices, prevents inverted prices,
+ * and calculates genuine discount percentage automatically.
+ */
+export function resolveItemPricing(
+  rawRetailInput: any,
+  rawSaleInput: any,
+  sarToEgpRate: number = 15.0,
+  profitMarginPercent: number = 10.0
+): {
+  sourceSalePrice: number;
+  sourceRetailPrice: number;
+  salePriceEgp: number;
+  retailPriceEgp: number;
+  discountPercent: number;
+} {
+  let retail = extractPriceValue(rawRetailInput);
+  let sale = extractPriceValue(rawSaleInput);
+
+  // If one is missing or 0, fall back to the other
+  if (sale <= 0 && retail > 0) sale = retail;
+  if (retail <= 0 && sale > 0) retail = sale;
+
+  // Safeguard: Ensure retail (before discount) is not lower than sale (after discount)
+  // If inverted in the data source, swap them so the higher is retail and the lower is sale
+  if (retail > 0 && sale > 0 && retail < sale) {
+    const tmp = retail;
+    retail = sale;
+    sale = tmp;
+  }
+
+  // Calculate discount percentage from genuine source prices
+  let discountPercent = 0;
+  if (retail > sale && retail > 0 && sale > 0) {
+    discountPercent = Math.round(((retail - sale) / retail) * 100);
+    // Boundary check
+    if (discountPercent < 0) discountPercent = 0;
+    if (discountPercent > 99) discountPercent = 99;
+  }
+
+  // Convert to EGP with the configured formula: (SAR * rate) + profit margin %
+  const multiplier = sarToEgpRate * (1 + profitMarginPercent / 100);
+  const salePriceEgp = Math.round(sale * multiplier);
+  const retailPriceEgp = discountPercent > 0 ? Math.round(retail * multiplier) : salePriceEgp;
+
+  return {
+    sourceSalePrice: sale,
+    sourceRetailPrice: retail,
+    salePriceEgp,
+    retailPriceEgp,
+    discountPercent,
+  };
 }
 
 // Fallback high-res, verified fashion product images (100% reliable, no 404s, CORS-friendly)
@@ -268,6 +345,40 @@ export async function scrapeSheinLinkMetadata(url: string): Promise<SheinPageMet
       if (imgMatch && imgMatch[1] && imgMatch[1].startsWith('http')) {
         result.image = imgMatch[1].trim();
       }
+
+      // Extract JSON-LD product offers
+      const jsonLdMatch = html.match(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
+      if (jsonLdMatch) {
+        for (const tag of jsonLdMatch) {
+          try {
+            const inner = tag.replace(/<\/?script[^>]*>/gi, '').trim();
+            const parsed = JSON.parse(inner);
+            const product = Array.isArray(parsed) ? parsed.find((x) => x && x['@type'] === 'Product') : (parsed && parsed['@type'] === 'Product' ? parsed : null);
+            if (product && product.offers) {
+              const offers = product.offers;
+              const sale = parseFloat(offers.price || offers.lowPrice);
+              const retail = parseFloat(offers.highPrice || offers.price);
+              if (!isNaN(sale) && sale > 0) result.salePrice = sale;
+              if (!isNaN(retail) && retail > 0) result.retailPrice = retail;
+              if (offers.priceCurrency) result.currency = String(offers.priceCurrency);
+            }
+          } catch (e) {}
+        }
+      }
+
+      // Fallback: check product:price meta tags
+      if (!result.salePrice) {
+        const metaPrice = html.match(/<meta[^>]+property=["']product:price:amount["'][^>]+content=["']([^"']+)["']/i);
+        if (metaPrice && metaPrice[1]) {
+          const val = parseFloat(metaPrice[1]);
+          if (!isNaN(val) && val > 0) result.salePrice = val;
+        }
+        const metaRetail = html.match(/<meta[^>]+property=["']product:original_price:amount["'][^>]+content=["']([^"']+)["']/i);
+        if (metaRetail && metaRetail[1]) {
+          const val = parseFloat(metaRetail[1]);
+          if (!isNaN(val) && val > 0) result.retailPrice = val;
+        }
+      }
     }
   } catch (err) {
     console.warn('Metadata scrape failed:', err);
@@ -303,17 +414,21 @@ export async function extractSheinGoods(
       throw new Error('السلة المشاركة فارغة أو انتهت صلاحيتها في شي إن.');
     }
 
-    // 3. Normalize products to user-specified JSON format
+    // 3. Normalize products to user-specified JSON format with genuine prices & discount %
     const sheinProducts: SheinCartProduct[] = rawProducts.map((p: any) => {
-      const retail = p.retailPrice || {};
-      const sale = p.salePrice || {};
+      const retailRaw = p.retailPrice ?? p.retail_price ?? p.originPrice ?? p.origin_price ?? p.originalPrice ?? p.original_price;
+      const saleRaw = p.salePrice ?? p.sale_price ?? p.currentPrice ?? p.current_price ?? p.price ?? p.unit_price;
+
+      const pricing = resolveItemPricing(retailRaw, saleRaw, sarToEgpRate, profitMarginPercent);
+
       return {
         goods_id: String(p.goods_id || ''),
         goods_sn: String(p.goods_sn || ''),
         name: String(p.goods_name || ''),
         image: formatImageUrl(p.goods_img),
-        original_price: String(retail.amount || sale.amount || ''),
-        sale_price: String(sale.amount || ''),
+        original_price: pricing.sourceRetailPrice > 0 ? pricing.sourceRetailPrice.toFixed(2) : '',
+        sale_price: pricing.sourceSalePrice > 0 ? pricing.sourceSalePrice.toFixed(2) : '',
+        discount_percent: pricing.discountPercent > 0 ? pricing.discountPercent : undefined,
         currency: 'SAR',
         selected_variant: String(p.goodsAttr || ''),
         sku_code: String(p.sku_code || ''),
@@ -321,27 +436,38 @@ export async function extractSheinGoods(
       };
     });
 
-    // 4. Map to GoodItem[] in EGP using Dynamic Formula: (SAR Price * Exchange Rate) + Profit Margin %
-    const items: GoodItem[] = sheinProducts.map((sp) => {
+    // 4. Map to GoodItem[] in EGP using Dynamic Formula with verified original and discounted unit prices
+    const items: GoodItem[] = rawProducts.map((p: any, idx: number) => {
+      const sp = sheinProducts[idx];
       const { color, size } = parseVariantAttr(sp.selected_variant);
-      const saleNum = parseFloat(sp.sale_price) || 0;
-      
-      // Dynamic Pricing: e.g. 10 SAR * 15 EGP = 150 EGP + 10% profit margin = 165 EGP
-      const baseEgp = saleNum * sarToEgpRate;
-      const egpPrice = Math.round(baseEgp * (1 + profitMarginPercent / 100));
+
+      const retailRaw = p.retailPrice ?? p.retail_price ?? p.originPrice ?? p.origin_price ?? p.originalPrice ?? p.original_price;
+      const saleRaw = p.salePrice ?? p.sale_price ?? p.currentPrice ?? p.current_price ?? p.price ?? p.unit_price;
+
+      const pricing = resolveItemPricing(retailRaw, saleRaw, sarToEgpRate, profitMarginPercent);
+
+      const usableProductUrl = toUsableSheinUrl(`https://m.shein.com/ar/product-p-${sp.goods_id}.html`, {
+        goodsId: sp.goods_id,
+        shc: target.shc,
+        groupId: target.groupId,
+      });
 
       return {
-        id: sp.goods_id,
+        id: sp.goods_id || `item-${idx + 1}`,
+        goodsId: sp.goods_id,
         name: sp.name,
         image: sp.image,
-        originalUrl: `https://m.shein.com/ar/product-p-${sp.goods_id}.html`,
+        originalUrl: usableProductUrl,
+        url: usableProductUrl,
         sku: sp.sku_code || sp.goods_sn,
         color,
         size,
-        originalPrice: egpPrice,
+        originalPrice: pricing.salePriceEgp, // The current selling price in EGP (customer pays this)
+        originalPriceBeforeDiscount: pricing.discountPercent > 0 ? pricing.retailPriceEgp : undefined,
+        discountPercent: pricing.discountPercent > 0 ? pricing.discountPercent : undefined,
         currency: 'EGP',
         quantity: 1,
-        subtotal: egpPrice,
+        subtotal: pricing.salePriceEgp,
         status: sp.sold_out ? 'out_of_stock' : 'available',
         sourcePrice: sp.sale_price,
         sourceCurrency: sp.currency,
@@ -350,9 +476,16 @@ export async function extractSheinGoods(
     });
 
     const itemsSubtotal = items.reduce((sum, item) => sum + item.subtotal, 0);
-    // Dynamic fee is already baked into each product's price, keep 0 to avoid double charging
     const dynamicFeeAmount = dynamicFeePercent > 0 ? Math.round(itemsSubtotal * (dynamicFeePercent / 100)) : 0;
     const totalCash = itemsSubtotal + dynamicFeeAmount;
+
+    // Calculate total discount savings across all cart items
+    const totalSavingsAmount = items.reduce((sum, item) => {
+      if (item.originalPriceBeforeDiscount && item.originalPriceBeforeDiscount > item.originalPrice) {
+        return sum + (item.originalPriceBeforeDiscount - item.originalPrice) * item.quantity;
+      }
+      return sum;
+    }, 0);
 
     return {
       rawInput,
@@ -371,21 +504,27 @@ export async function extractSheinGoods(
       totalCash,
       currency: 'EGP',
       sourceCurrency: 'SAR',
+      totalSavingsAmount: totalSavingsAmount > 0 ? totalSavingsAmount : undefined,
     };
   } catch (bffError: any) {
     console.warn('SHEIN BFF extraction failed, checking fallback metadata:', bffError.message);
 
     // Fallback: If not a cart link (e.g. single product link) or BFF blocked
     const meta = await scrapeSheinLinkMetadata(extractedLink);
-    const subtotal =
-      typeof estimatedSubtotal === 'number' && !isNaN(estimatedSubtotal) && estimatedSubtotal > 0
-        ? Math.round(estimatedSubtotal)
-        : 500;
-
     const count =
       typeof estimatedItemsCount === 'number' && !isNaN(estimatedItemsCount) && estimatedItemsCount > 0
         ? Math.round(estimatedItemsCount)
         : 1;
+
+    const pricing = (meta.salePrice && meta.salePrice > 0)
+      ? resolveItemPricing(meta.retailPrice, meta.salePrice, sarToEgpRate, profitMarginPercent)
+      : null;
+
+    const subtotal = pricing
+      ? pricing.salePriceEgp
+      : typeof estimatedSubtotal === 'number' && !isNaN(estimatedSubtotal) && estimatedSubtotal > 0
+      ? Math.round(estimatedSubtotal)
+      : 500;
 
     const usableLink = toUsableSheinUrl(extractedLink, { shc: meta.shc, groupId: meta.groupId });
     const fallbackItems: GoodItem[] = [
@@ -394,14 +533,20 @@ export async function extractSheinGoods(
         name: meta.title || 'منتج شي إن المستخرج',
         image: meta.image || RELIABLE_FASHION_IMAGES[0],
         originalUrl: usableLink,
+        url: usableLink,
         sku: meta.shc ? `SHC: ${meta.shc}` : 'SHEIN-ITEM',
         color: 'حسب الاختيار في شي إن',
         size: count > 1 ? `${count} قطع` : 'حسب الاختيار في شي إن',
         originalPrice: subtotal,
+        originalPriceBeforeDiscount: pricing && pricing.discountPercent > 0 ? pricing.retailPriceEgp : undefined,
+        discountPercent: pricing && pricing.discountPercent > 0 ? pricing.discountPercent : undefined,
         currency: 'EGP',
         quantity: 1,
         subtotal: subtotal,
         status: 'available',
+        sourcePrice: meta.salePrice ? String(meta.salePrice) : undefined,
+        sourceCurrency: meta.currency || 'SAR',
+        sourceOriginalPrice: meta.retailPrice ? String(meta.retailPrice) : undefined,
       },
     ];
 

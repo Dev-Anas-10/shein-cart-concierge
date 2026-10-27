@@ -70,6 +70,14 @@ export function ExtractedGoodsView({
       : 0;
   const totalCash = itemsSubtotal + dynamicFeeAmount;
 
+  // Genuine total savings from discounts across all items
+  const totalSavings = items.reduce((sum, it) => {
+    if (it.originalPriceBeforeDiscount && it.originalPriceBeforeDiscount > it.originalPrice) {
+      return sum + (it.originalPriceBeforeDiscount - it.originalPrice) * it.quantity;
+    }
+    return sum;
+  }, 0);
+
   const handleQuantityChange = (id: string, delta: number) => {
     setItems((prev) =>
       prev.map((it) => {
@@ -289,11 +297,27 @@ export function ExtractedGoodsView({
                         </span>
                       )}
                     </div>
-                    <div className="pt-2 flex flex-wrap items-center gap-2">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-sm font-black text-purple-700 dark:text-purple-300 font-mono">
+                    <div className="pt-2 flex flex-wrap items-center gap-2.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {/* Current sale price after discount */}
+                        <span className="text-sm sm:text-base font-black text-purple-700 dark:text-purple-300 font-mono">
                           {item.originalPrice.toLocaleString()} EGP
                         </span>
+
+                        {/* Strikethrough retail price before discount */}
+                        {item.originalPriceBeforeDiscount && item.originalPriceBeforeDiscount > item.originalPrice && (
+                          <span className="text-xs text-neutral-400 dark:text-neutral-500 line-through font-mono">
+                            {item.originalPriceBeforeDiscount.toLocaleString()} EGP
+                          </span>
+                        )}
+
+                        {/* Genuine discount percentage badge */}
+                        {Boolean(item.discountPercent && item.discountPercent > 0) && (
+                          <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300 text-[10px] sm:text-[11px] font-black border border-rose-200 dark:border-rose-900 shadow-2xs">
+                            <Percent className="w-2.5 h-2.5 text-rose-600 dark:text-rose-400" />
+                            <span>{isRtl ? `خصم ${item.discountPercent}%` : `-${item.discountPercent}%`}</span>
+                          </span>
+                        )}
                       </div>
 
                       {item.originalUrl && (
@@ -301,7 +325,7 @@ export function ExtractedGoodsView({
                           href={item.originalUrl}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-[11px] font-bold text-[#8B5CF6] hover:text-[#7C3AED] flex items-center gap-0.5 transition-colors"
+                          className="text-[11px] font-bold text-[#8B5CF6] hover:text-[#7C3AED] flex items-center gap-0.5 transition-colors ms-auto sm:ms-0"
                         >
                           <span>{isRtl ? 'عرض في شي إن' : 'View on SHEIN'}</span>
                           <ExternalLink className="w-2.5 h-2.5" />
@@ -333,10 +357,22 @@ export function ExtractedGoodsView({
                     </button>
                   </div>
 
-                  <div className="text-right min-w-[80px]">
-                    <span className="font-black text-base text-neutral-950 dark:text-white font-mono">
+                  <div className="text-start sm:text-end min-w-[90px] space-y-0.5">
+                    {item.originalPriceBeforeDiscount && item.originalPriceBeforeDiscount > item.originalPrice && (
+                      <span className="text-xs text-neutral-400 dark:text-neutral-500 line-through font-mono block">
+                        {(item.quantity * item.originalPriceBeforeDiscount).toLocaleString()} EGP
+                      </span>
+                    )}
+                    <span className="font-black text-base sm:text-lg text-neutral-950 dark:text-white font-mono block">
                       {item.subtotal.toLocaleString()} EGP
                     </span>
+                    {Boolean(item.discountPercent && item.discountPercent > 0) && (
+                      <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 block font-mono">
+                        {isRtl
+                          ? `وفرت ${((item.originalPriceBeforeDiscount! - item.originalPrice) * item.quantity).toLocaleString()} ج.م`
+                          : `Saved ${((item.originalPriceBeforeDiscount! - item.originalPrice) * item.quantity).toLocaleString()} EGP`}
+                      </span>
+                    )}
                   </div>
 
                   <button
@@ -367,6 +403,18 @@ export function ExtractedGoodsView({
                   {itemsSubtotal.toLocaleString()} EGP
                 </span>
               </div>
+
+              {totalSavings > 0 && (
+                <div className="flex items-center justify-between p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200/80 dark:border-rose-900/60 text-xs text-rose-900 dark:text-rose-200">
+                  <span className="flex items-center gap-1.5 font-bold">
+                    <Percent className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+                    <span>{isRtl ? 'إجمالي وفر الخصم على المنتجات:' : 'Total Items Discount Savings:'}</span>
+                  </span>
+                  <span className="font-black font-mono text-rose-700 dark:text-rose-300">
+                    -{totalSavings.toLocaleString()} EGP
+                  </span>
+                </div>
+              )}
 
               {(data.dynamicFeePercent || 0) > 0 && dynamicFeeAmount > 0 && (
                 <div className="flex items-center justify-between text-neutral-600 dark:text-neutral-300">

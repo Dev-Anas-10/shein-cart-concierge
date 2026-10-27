@@ -79,14 +79,32 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
 
     // Goods items review (price adjustment, individual comment for each good, status: approved / rejected)
     if (Array.isArray(body.items)) {
-      const validatedItems: GoodItem[] = body.items.map((it: any) => ({
-        ...it,
-        status: it.status || 'available',
-        quantity: Math.max(1, Number(it.quantity) || 1),
-        originalPrice: Number(it.originalPrice) || 0,
-        subtotal: (Math.max(1, Number(it.quantity) || 1)) * (Number(it.originalPrice) || 0),
-        adminComment: it.adminComment || undefined,
-      }));
+      const validatedItems: GoodItem[] = body.items.map((it: any) => {
+        const qty = Math.max(1, Number(it.quantity) || 1);
+        const price = Number(it.originalPrice) || 0;
+        const retail = typeof it.originalPriceBeforeDiscount === 'number'
+          ? it.originalPriceBeforeDiscount
+          : it.originalPriceBeforeDiscount
+          ? Number(it.originalPriceBeforeDiscount)
+          : undefined;
+        let discountPercent = typeof it.discountPercent === 'number' ? it.discountPercent : undefined;
+        if (retail && retail > price) {
+          discountPercent = Math.round(((retail - price) / retail) * 100);
+        } else if (retail && retail <= price) {
+          discountPercent = undefined;
+        }
+
+        return {
+          ...it,
+          status: it.status || 'available',
+          quantity: qty,
+          originalPrice: price,
+          originalPriceBeforeDiscount: retail,
+          discountPercent,
+          subtotal: qty * price,
+          adminComment: it.adminComment || undefined,
+        };
+      });
       updates.items = validatedItems;
     }
 

@@ -147,6 +147,13 @@ export default function OrderDetailsPage() {
   const acceptedCount = acceptedItems.length;
   const rejectedCount = rejectedItems.length;
 
+  const totalOrderSavings = acceptedItems.reduce((sum, it) => {
+    if (it.originalPriceBeforeDiscount && it.originalPriceBeforeDiscount > it.originalPrice) {
+      return sum + (it.originalPriceBeforeDiscount - it.originalPrice) * it.quantity;
+    }
+    return sum;
+  }, 0);
+
   return (
     <div className="min-h-screen bg-[#FBFBFC] dark:bg-[#0c0a0f] text-neutral-900 dark:text-white pb-32 md:pb-24 transition-colors relative overflow-hidden">
       {/* Background ambient lighting */}
@@ -586,6 +593,21 @@ export default function OrderDetailsPage() {
                         </div>
                       ) : (
                         <div className="space-y-0.5">
+                          {/* Strikethrough original price if discounted */}
+                          {item.originalPriceBeforeDiscount && item.originalPriceBeforeDiscount > item.originalPrice ? (
+                            <div className="flex items-center justify-start sm:justify-end gap-1.5 font-mono">
+                              <span className="text-xs text-neutral-400 dark:text-neutral-500 line-through">
+                                {item.quantity} × {item.originalPriceBeforeDiscount.toLocaleString()} EGP
+                              </span>
+                              {Boolean(item.discountPercent && item.discountPercent > 0) && (
+                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-md bg-rose-100 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300 text-[10px] font-black border border-rose-200 dark:border-rose-900">
+                                  <Percent className="w-2.5 h-2.5" />
+                                  <span>-{item.discountPercent}%</span>
+                                </span>
+                              )}
+                            </div>
+                          ) : null}
+
                           <span className="text-xs text-neutral-500 dark:text-neutral-400 block font-mono">
                             {item.quantity} × {item.originalPrice.toLocaleString()} EGP
                           </span>
@@ -637,6 +659,17 @@ export default function OrderDetailsPage() {
 
           {/* Approved Financial Math Bar */}
           <div className="p-5 sm:p-6 rounded-3xl bg-neutral-100/80 dark:bg-[#181423] border border-neutral-200/80 dark:border-[#2f2742] space-y-4">
+            {totalOrderSavings > 0 && (
+              <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 flex items-center justify-between text-xs text-rose-900 dark:text-rose-200">
+                <span className="flex items-center gap-2 font-bold">
+                  <Percent className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                  <span>{isRtl ? 'إجمالي وفر الخصم من شي إن المطبق على منتجاتك:' : 'Total SHEIN Discount Savings Applied:'}</span>
+                </span>
+                <span className="font-mono font-black text-sm text-rose-700 dark:text-rose-300">
+                  -{totalOrderSavings.toLocaleString()} EGP
+                </span>
+              </div>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
               <div className="p-3.5 rounded-2xl bg-white dark:bg-[#1f1a2d] border border-neutral-200/60 dark:border-[#2a233b]">
                 <span className="text-[11px] font-bold text-neutral-400 dark:text-neutral-500 block mb-0.5">

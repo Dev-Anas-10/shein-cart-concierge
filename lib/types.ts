@@ -78,6 +78,7 @@ export interface SheinCartProduct {
   image: string;
   original_price: string;
   sale_price: string;
+  discount_percent?: number;
   currency: string;
   selected_variant: string;
   sku_code: string;
@@ -94,7 +95,9 @@ export interface GoodItem {
   sku?: string;
   color?: string;
   size?: string;
-  originalPrice: number;    // Base price in EGP (or converted)
+  originalPrice: number;    // Base price in EGP (current price after discount)
+  originalPriceBeforeDiscount?: number; // Retail price before discount in EGP (if discounted)
+  discountPercent?: number; // Calculated discount percentage (e.g. 25 for 25% off)
   currency: string;         // 'EGP'
   quantity: number;
   subtotal: number;
@@ -253,4 +256,5 @@ export interface ExtractedCartResult {
   totalCash: number;
   currency: string;
   sourceCurrency?: string;
+  totalSavingsAmount?: number;
 }
