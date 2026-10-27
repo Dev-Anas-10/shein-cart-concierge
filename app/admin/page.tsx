@@ -905,7 +905,7 @@ export default function AdminDashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FBFBFC] dark:bg-[#0c0a0f] text-neutral-900 dark:text-white pb-24 transition-colors relative overflow-hidden">
+    <div className="min-h-screen bg-[#FBFBFC] dark:bg-[#0c0a0f] text-neutral-900 dark:text-white pb-32 md:pb-24 transition-colors relative overflow-hidden">
       {/* Background ambient lighting */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-6xl h-96 bg-gradient-to-b from-purple-400/8 via-pink-400/4 to-transparent dark:from-purple-600/10 dark:via-purple-900/5 dark:to-transparent pointer-events-none blur-3xl -z-10" />
 

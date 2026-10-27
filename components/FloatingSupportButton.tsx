@@ -14,7 +14,7 @@ export function FloatingSupportButton() {
 
   return (
     <>
-      <div className={`fixed bottom-6 ${isRtl ? 'left-6' : 'right-6'} z-40`}>
+      <div className={`fixed bottom-6 ${isRtl ? 'left-6' : 'right-6'} z-40 hidden md:block`}>
         <motion.button
           whileHover={{ scale: 1.08, y: -2 }}
           whileTap={{ scale: 0.94 }}

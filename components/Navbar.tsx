@@ -7,6 +7,8 @@ import { motion } from 'framer-motion';
 import { useAuth } from '@/lib/auth-context';
 import { useThemeLang } from '@/lib/theme-lang-context';
 import { SupportModal } from './SupportModal';
+import { MobileBottomNav } from './MobileBottomNav';
+import { MobileAccountSheet } from './MobileAccountSheet';
 import {
   ShoppingBag,
   ShieldCheck,
@@ -26,6 +28,7 @@ export function Navbar({ onOpenAuth }: { onOpenAuth?: () => void }) {
   const { user, logout } = useAuth();
   const { t, lang, toggleLang, theme, toggleTheme } = useThemeLang();
   const [supportOpen, setSupportOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
   const [isStaging, setIsStaging] = useState(false);
 
   React.useEffect(() => {
@@ -46,35 +49,37 @@ export function Navbar({ onOpenAuth }: { onOpenAuth?: () => void }) {
         transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
         className="sticky top-0 z-40 w-full bg-white/85 dark:bg-[#0e0c14]/85 backdrop-blur-xl border-b border-neutral-100/80 dark:border-[#231e30] transition-colors"
       >
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 h-16 sm:h-18 flex items-center justify-between">
           {/* Brand Logo: Links to /admin for Admins, / for Customers */}
-          <Link href={user?.role === 'admin' ? '/admin' : '/'} className="flex items-center gap-3 group">
+          <Link href={user?.role === 'admin' ? '/admin' : '/'} className="flex items-center gap-2.5 sm:gap-3 group shrink-0">
             <motion.div
               whileHover={{ scale: 1.08, rotate: [0, -3, 3, 0] }}
               whileTap={{ scale: 0.95 }}
               transition={{ duration: 0.2 }}
-              className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#8B5CF6] via-[#A855F7] to-[#C084FC] text-white flex items-center justify-center font-black text-lg shadow-md shadow-purple-500/25"
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-tr from-[#8B5CF6] via-[#A855F7] to-[#C084FC] text-white flex items-center justify-center font-black text-base sm:text-lg shadow-md shadow-purple-500/25 shrink-0"
             >
               S
             </motion.div>
             <div>
-              <div className="font-extrabold text-neutral-900 dark:text-white tracking-tight text-base flex items-center gap-1.5 leading-none">
+              <div className="font-extrabold text-neutral-900 dark:text-white tracking-tight text-sm sm:text-base flex items-center gap-1.5 leading-none">
                 SHEIN <span className="text-[#8B5CF6] font-bold">Concierge</span>
                 {isStaging && (
-                  <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800 text-[9px] font-black text-amber-800 dark:text-amber-300 tracking-wider">
+                  <span className="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800 text-[8px] sm:text-[9px] font-black text-amber-800 dark:text-amber-300 tracking-wider">
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
                     STAGING
                   </span>
                 )}
               </div>
-              <p className="text-[11px] text-neutral-400 dark:text-neutral-500 font-medium tracking-tight mt-0.5">
-                {user?.role === 'admin' ? (lang === 'ar' ? 'لوحة تحكم وإدارة المشرف' : 'Admin Operations Control') : t.brandSubtitle}
+              <p className="text-[10px] sm:text-[11px] text-neutral-400 dark:text-neutral-500 font-medium tracking-tight mt-0.5">
+                {user?.role === 'admin'
+                  ? (lang === 'ar' ? 'لوحة تحكم وإدارة المشرف' : 'Admin Operations Control')
+                  : t.brandSubtitle}
               </p>
             </div>
           </Link>
 
-          {/* Center Pill Nav with Animated Sliding Pill */}
-          <nav className="hidden sm:flex items-center gap-1 p-1 bg-neutral-100/80 dark:bg-[#1a1625] rounded-full border border-neutral-200/60 dark:border-[#2a243a] shadow-xs">
+          {/* Center Pill Nav for Desktop */}
+          <nav className="hidden md:flex items-center gap-1 p-1 bg-neutral-100/80 dark:bg-[#1a1625] rounded-full border border-neutral-200/60 dark:border-[#2a243a] shadow-xs">
             {user?.role === 'admin' ? (
               <>
                 <Link
@@ -160,18 +165,18 @@ export function Navbar({ onOpenAuth }: { onOpenAuth?: () => void }) {
             )}
           </nav>
 
-          {/* Right Controls with Spring Micro-Interactions */}
-          <div className="flex items-center gap-2 sm:gap-2.5">
+          {/* Right Controls */}
+          <div className="flex items-center gap-1.5 sm:gap-2.5">
             {/* Language Switcher (Ar / En) */}
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={toggleLang}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-extrabold bg-neutral-100 dark:bg-[#1f1a2a] hover:bg-neutral-200/80 dark:hover:bg-[#2a243a] text-neutral-700 dark:text-neutral-300 transition-colors cursor-pointer border border-neutral-200/60 dark:border-[#2a243a]"
+              className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-full text-xs font-extrabold bg-neutral-100 dark:bg-[#1f1a2a] hover:bg-neutral-200/80 dark:hover:bg-[#2a243a] text-neutral-700 dark:text-neutral-300 transition-colors cursor-pointer border border-neutral-200/60 dark:border-[#2a243a]"
               title={lang === 'ar' ? 'Switch to English' : 'التحويل للعربية'}
             >
               <Globe className="w-3.5 h-3.5 text-[#8B5CF6]" />
-              <span>{lang === 'ar' ? 'English' : 'عربي'}</span>
+              <span className="text-[11px] sm:text-xs">{lang === 'ar' ? 'English' : 'عربي'}</span>
             </motion.button>
 
             {/* Dark / Light Mode Switcher */}
@@ -179,22 +184,22 @@ export function Navbar({ onOpenAuth }: { onOpenAuth?: () => void }) {
               whileHover={{ scale: 1.08 }}
               whileTap={{ scale: 0.92 }}
               onClick={toggleTheme}
-              className="w-8 h-8 rounded-full bg-neutral-100 dark:bg-[#1f1a2a] hover:bg-neutral-200/80 dark:hover:bg-[#2a243a] text-neutral-600 dark:text-neutral-300 flex items-center justify-center transition-colors cursor-pointer border border-neutral-200/60 dark:border-[#2a243a]"
+              className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-neutral-100 dark:bg-[#1f1a2a] hover:bg-neutral-200/80 dark:hover:bg-[#2a243a] text-neutral-600 dark:text-neutral-300 flex items-center justify-center transition-colors cursor-pointer border border-neutral-200/60 dark:border-[#2a243a]"
               title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
             >
               {theme === 'dark' ? (
-                <Sun className="w-4 h-4 text-amber-400" />
+                <Sun className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" />
               ) : (
-                <Moon className="w-4 h-4 text-neutral-700" />
+                <Moon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-neutral-700" />
               )}
             </motion.button>
 
-            {/* New Order Button (Hidden for Admins) */}
+            {/* New Order Button (Hidden for Admins, visible on md+) */}
             {user?.role !== 'admin' && (
-              <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+              <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} className="hidden md:block">
                 <Link
                   href="/"
-                  className="hidden md:inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-[#F5EDFF] dark:bg-purple-950/40 hover:bg-[#E9D5FF] dark:hover:bg-purple-900/40 text-[#7C3AED] dark:text-purple-300 border border-purple-200 dark:border-purple-800 transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-[#F5EDFF] dark:bg-purple-950/40 hover:bg-[#E9D5FF] dark:hover:bg-purple-900/40 text-[#7C3AED] dark:text-purple-300 border border-purple-200 dark:border-purple-800 transition-colors"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>{t.newOrder}</span>
@@ -202,42 +207,49 @@ export function Navbar({ onOpenAuth }: { onOpenAuth?: () => void }) {
               </motion.div>
             )}
 
-            {/* Support Contact Button */}
+            {/* Support Contact Button (Desktop) */}
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => setSupportOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-neutral-50 dark:bg-[#181422] hover:bg-neutral-100 dark:hover:bg-[#221c2f] text-neutral-700 dark:text-neutral-300 border border-neutral-200/80 dark:border-[#2a243a] transition-colors cursor-pointer"
+              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-neutral-50 dark:bg-[#181422] hover:bg-neutral-100 dark:hover:bg-[#221c2f] text-neutral-700 dark:text-neutral-300 border border-neutral-200/80 dark:border-[#2a243a] transition-colors cursor-pointer"
               title={t.support}
             >
               <Headphones className="w-3.5 h-3.5 text-[#8B5CF6]" />
               <span className="hidden lg:inline">{t.support}</span>
             </motion.button>
 
-            {/* User Session */}
+            {/* User Session Profile Chip */}
             {user ? (
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-2 px-2.5 py-1 bg-neutral-50 dark:bg-[#181422] rounded-full border border-neutral-200/60 dark:border-[#2a243a]">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.96 }}
+                  onClick={() => setAccountOpen(true)}
+                  className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1 bg-neutral-50 dark:bg-[#181422] hover:bg-purple-50 dark:hover:bg-[#221c2f] rounded-full border border-neutral-200/60 dark:border-[#2a243a] transition-colors cursor-pointer group"
+                  title={user.name}
+                >
                   <img
                     src={user.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${user.name}`}
                     alt={user.name}
-                    className="w-6 h-6 rounded-full object-cover ring-1 ring-purple-300"
+                    className="w-5 h-5 sm:w-6 sm:h-6 rounded-full object-cover ring-1 ring-purple-300"
                   />
-                  <span className="text-xs font-bold text-neutral-800 dark:text-neutral-200 hidden sm:inline">
+                  <span className="text-xs font-bold text-neutral-800 dark:text-neutral-200 max-w-[70px] sm:max-w-[110px] truncate inline-block">
                     {user.name.split(' ')[0]}
                   </span>
                   {user.role === 'admin' && (
-                    <span className="text-[10px] font-black uppercase tracking-wider text-[#7C3AED] dark:text-purple-300 bg-purple-100 dark:bg-purple-950 px-2 py-0.5 rounded-full">
+                    <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-[#7C3AED] dark:text-purple-300 bg-purple-100 dark:bg-purple-950 px-1.5 py-0.2 rounded-full">
                       Admin
                     </span>
                   )}
-                </div>
+                </motion.button>
 
+                {/* Quick Logout for Desktop */}
                 <motion.button
                   whileHover={{ scale: 1.08 }}
                   whileTap={{ scale: 0.92 }}
                   onClick={logout}
-                  className="w-8 h-8 rounded-full border border-neutral-200/80 dark:border-[#2a243a] flex items-center justify-center text-neutral-400 hover:text-neutral-700 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-[#221c2f] transition-colors cursor-pointer"
+                  className="hidden md:flex w-8 h-8 rounded-full border border-neutral-200/80 dark:border-[#2a243a] items-center justify-center text-neutral-400 hover:text-neutral-700 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-[#221c2f] transition-colors cursor-pointer"
                   title={t.signOut}
                 >
                   <LogOut className="w-3.5 h-3.5" />
@@ -248,7 +260,7 @@ export function Navbar({ onOpenAuth }: { onOpenAuth?: () => void }) {
                 whileHover={{ scale: 1.04, boxShadow: '0 8px 20px -4px rgba(139, 92, 246, 0.4)' }}
                 whileTap={{ scale: 0.96 }}
                 onClick={onOpenAuth}
-                className="px-4 py-2 rounded-full text-xs font-extrabold bg-[#8B5CF6] hover:bg-[#7C3AED] text-white transition-all shadow-sm shadow-purple-500/20 cursor-pointer flex items-center gap-1.5"
+                className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs font-extrabold bg-[#8B5CF6] hover:bg-[#7C3AED] text-white transition-all shadow-sm shadow-purple-500/20 cursor-pointer flex items-center gap-1.5"
               >
                 <LogIn className="w-3.5 h-3.5" />
                 <span>{t.signIn}</span>
@@ -257,6 +269,24 @@ export function Navbar({ onOpenAuth }: { onOpenAuth?: () => void }) {
           </div>
         </div>
       </motion.header>
+
+      {/* Mobile Fixed Bottom Navigation Bar */}
+      <MobileBottomNav
+        onOpenSupport={() => setSupportOpen(true)}
+        onOpenAccount={() => setAccountOpen(true)}
+        onOpenAuth={onOpenAuth}
+      />
+
+      {/* Mobile User Profile & Settings Drawer / Sheet */}
+      <MobileAccountSheet
+        isOpen={accountOpen}
+        onClose={() => setAccountOpen(false)}
+        onOpenSupport={() => setSupportOpen(true)}
+        onOpenAuth={() => {
+          setAccountOpen(false);
+          onOpenAuth?.();
+        }}
+      />
 
       {/* Support Contact Modal */}
       <SupportModal isOpen={supportOpen} onClose={() => setSupportOpen(false)} />

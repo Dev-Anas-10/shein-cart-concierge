@@ -39,6 +39,21 @@ export function CartExtractorCard({ onExtracted, currentDynamicFeePercent }: Car
   const [detectedUrl, setDetectedUrl] = useState<string | null>(null);
   const [pasteSuccess, setPasteSuccess] = useState(false);
 
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('action') === 'new' || window.location.hash === '#cart-extractor-card') {
+        const el = document.getElementById('cart-extractor-card');
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        if (textareaRef.current) {
+          setTimeout(() => textareaRef.current?.focus(), 450);
+        }
+      }
+    }
+  }, []);
+
   const handleTextChange = (val: string) => {
     setInputText(val);
     setError(null);
@@ -138,6 +153,7 @@ export function CartExtractorCard({ onExtracted, currentDynamicFeePercent }: Car
       initial={{ opacity: 0, y: 24 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+      id="cart-extractor-card"
       className="relative rounded-[36px] p-6 sm:p-10 bg-white/95 dark:bg-[#13101c]/95 backdrop-blur-2xl border-2 border-purple-200/80 dark:border-[#2f2742] shadow-[0_16px_50px_rgb(124,58,237,0.08)] dark:shadow-[0_16px_50px_rgb(0,0,0,0.6)] space-y-7 transition-colors overflow-hidden"
     >
       {/* Decorative ambient gradient backdrop */}
