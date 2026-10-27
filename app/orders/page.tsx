@@ -11,6 +11,7 @@ import { Navbar } from '@/components/Navbar';
 import { AuthModal } from '@/components/AuthModal';
 import { SafeImage } from '@/components/SafeImage';
 import { getClientOrders, mergeAndDeduplicateOrders } from '@/lib/order-storage';
+import { useRealtimeSubscription } from '@/lib/use-realtime';
 import {
   ShoppingBag,
   Clock,
@@ -109,6 +110,50 @@ export default function UserOrdersPage() {
     fetchOrders();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
+  const fetchOrdersSilently = React.useCallback(async () => {
+    if (!user) return;
+    const clientSaved = getClientOrders(user.id, user.email);
+    try {
+      const url = `/api/orders?userId=${encodeURIComponent(user.id)}&userEmail=${encodeURIComponent(user.email || '')}&_t=${Date.now()}`;
+      const res = await fetch(url, { cache: 'no-store' });
+      const json = await res.json();
+      if (json.success) {
+        const merged = mergeAndDeduplicateOrders(json.data, clientSaved);
+        setOrders((prev) => {
+          const prevSig = prev.map((o) => `${o.id}:${o.status}:${o.totalCash}:${o.updatedAt}`).join('|');
+          const newSig = merged.map((o) => `${o.id}:${o.status}:${o.totalCash}:${o.updatedAt}`).join('|');
+          if (prevSig !== newSig) {
+            return merged;
+          }
+          return prev;
+        });
+      }
+    } catch {
+      // background silent poll
+    }
+  }, [user]);
+
+  // Real-time live updates subscription (Task 14)
+  useRealtimeSubscription({
+    channel: 'orders',
+    onOrderChange: (incoming) => {
+      if (!user) return;
+      if (incoming.userId === user.id || incoming.userEmail?.toLowerCase() === user.email?.toLowerCase()) {
+        setOrders((prev) => {
+          const idx = prev.findIndex((o) => o.id === incoming.id);
+          if (idx >= 0) {
+            const next = [...prev];
+            next[idx] = incoming;
+            return next;
+          }
+          return [incoming, ...prev];
+        });
+      }
+    },
+    onRefresh: fetchOrdersSilently,
+    pollIntervalMs: 5000,
+  });
 
   const getStatusBadge = (status: string) => {
     switch (status) {

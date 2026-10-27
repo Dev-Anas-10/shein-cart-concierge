@@ -8,6 +8,7 @@ import { Navbar } from '@/components/Navbar';
 import { AuthModal } from '@/components/AuthModal';
 import { SafeImage } from '@/components/SafeImage';
 import { ShipmentsManager } from '@/components/admin/ShipmentsManager';
+import { useRealtimeSubscription } from '@/lib/use-realtime';
 import { toUsableSheinUrl } from '@/lib/shein-links';
 import {
   ShieldCheck,
@@ -304,9 +305,59 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(silentRefreshOrders, 10000);
-    return () => clearInterval(interval);
-  }, [silentRefreshOrders]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const silentRefreshShipments = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/shipments?_t=${Date.now()}`, { cache: 'no-store' });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data)) {
+          setShipments(json.data);
+        }
+      }
+    } catch {
+      // background silent poll
+    }
+  }, []);
+
+  // Real-time live synchronization across admin dashboard (Task 14)
+  useRealtimeSubscription({
+    channel: 'admin',
+    onOrderChange: (incoming) => {
+      setOrders((prev) => {
+        const idx = prev.findIndex((o) => o.id === incoming.id);
+        if (idx >= 0) {
+          const next = [...prev];
+          next[idx] = incoming;
+          return next;
+        }
+        return [incoming, ...prev];
+      });
+
+      setSelectedOrder((curr) => {
+        if (curr && curr.id === incoming.id) {
+          return incoming;
+        }
+        return curr;
+      });
+
+      if (incoming.status === 'PAYMENT_UNDER_REVIEW') {
+        addToast('info', `💳 العميل ${incoming.userName} أرسل إيصال تحويل للطلب #${incoming.id}!`);
+      } else if (incoming.status === 'PENDING_APPROVAL') {
+        addToast('info', `🛒 وصل طلب جديد من ${incoming.userName} (#${incoming.id})`);
+      }
+    },
+    onShipmentChange: () => {
+      silentRefreshShipments();
+    },
+    onRefresh: () => {
+      silentRefreshOrders();
+      silentRefreshShipments();
+    },
+    pollIntervalMs: 5000,
+  });
 
   // Prompt login if not signed in and auth check is done
   useEffect(() => {

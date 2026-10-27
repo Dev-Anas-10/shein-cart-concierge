@@ -15,6 +15,7 @@ import { CancelOrderModal } from '@/components/CancelOrderModal';
 import { useThemeLang } from '@/lib/theme-lang-context';
 import { getClientOrders, saveClientOrder } from '@/lib/order-storage';
 import { toUsableSheinUrl } from '@/lib/shein-links';
+import { useRealtimeSubscription } from '@/lib/use-realtime';
 import {
   Clock,
   CheckCircle2,
@@ -92,6 +93,42 @@ export default function OrderDetailsPage() {
     fetchOrder();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  const fetchOrderSilently = React.useCallback(async () => {
+    if (!id) return;
+    try {
+      const res = await fetch(`/api/orders/${id}?_t=${Date.now()}`, { cache: 'no-store' });
+      const json = await res.json();
+      if (json.success && json.data) {
+        setOrder((prev) => {
+          if (!prev) return json.data;
+          const prevSig = `${prev.status}:${prev.totalCash}:${prev.updatedAt}:${prev.tracking?.currentStep}:${prev.payment?.submittedAt}`;
+          const newSig = `${json.data.status}:${json.data.totalCash}:${json.data.updatedAt}:${json.data.tracking?.currentStep}:${json.data.payment?.submittedAt}`;
+          if (prevSig !== newSig) {
+            saveClientOrder(json.data);
+            return json.data;
+          }
+          return prev;
+        });
+      }
+    } catch {
+      // background silent poll
+    }
+  }, [id]);
+
+  // Real-time live updates subscription (Task 14)
+  useRealtimeSubscription({
+    orderId: id,
+    channel: 'customer',
+    onOrderChange: (incoming) => {
+      if (incoming && incoming.id === id) {
+        setOrder(incoming);
+        saveClientOrder(incoming);
+      }
+    },
+    onRefresh: fetchOrderSilently,
+    pollIntervalMs: 3500, // Fast 3.5s adaptive poll fallback
+  });
 
   if (loading) {
     return (

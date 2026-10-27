@@ -12,6 +12,7 @@ import { Order, SystemSettings, User, GoodItem, Shipment, ShipmentStatus, OrderA
 import { RELIABLE_FASHION_IMAGES, resolveItemPricing } from './shein-extractor';
 import { normalizeOrderLinks } from './shein-links';
 import { getSupabase } from './supabase';
+import { broadcastRealtimeEvent } from './realtime-events';
 
 /* ─────────────────────────────── Types ─────────────────────────────── */
 
@@ -1050,6 +1051,7 @@ export const db = {
     }
 
     await persistDb(data);
+    broadcastRealtimeEvent('SETTINGS_UPDATED', { settings: data.settings });
     return data.settings;
   },
 
@@ -1224,6 +1226,7 @@ export const db = {
       }
       await persistDb(data);
       await syncOrderToSupabase(order);
+      broadcastRealtimeEvent('ORDER_CREATED', { orderId: order.id, order });
       return order;
     });
   },
@@ -1327,6 +1330,7 @@ export const db = {
       data.orders[index] = updated;
       await persistDb(data);
       await syncOrderToSupabase(updated);
+      broadcastRealtimeEvent('ORDER_UPDATED', { orderId: updated.id, order: updated });
       return updated;
     });
   },
@@ -1338,8 +1342,10 @@ export const db = {
     await deleteOrderFromSupabase(id);
     if (data.orders.length !== lenBefore) {
       await persistDb(data);
+      broadcastRealtimeEvent('ORDER_DELETED', { orderId: id });
       return true;
     }
+    broadcastRealtimeEvent('ORDER_DELETED', { orderId: id });
     return true;
   },
 
@@ -1365,6 +1371,7 @@ export const db = {
       data.shipments.unshift(shipment);
     }
     await persistDb(data);
+    broadcastRealtimeEvent('SHIPMENT_CREATED', { shipmentId: shipment.id, shipment });
     return shipment;
   },
 
@@ -1391,6 +1398,7 @@ export const db = {
 
     data.shipments[index] = updated;
     await persistDb(data);
+    broadcastRealtimeEvent('SHIPMENT_UPDATED', { shipmentId: updated.id, shipment: updated });
     return updated;
   },
 
@@ -1408,8 +1416,10 @@ export const db = {
     });
     if (data.shipments.length !== beforeLen) {
       await persistDb(data);
+      broadcastRealtimeEvent('SHIPMENT_DELETED', { shipmentId: id });
       return true;
     }
+    broadcastRealtimeEvent('SHIPMENT_DELETED', { shipmentId: id });
     return true;
   },
 
@@ -1441,6 +1451,7 @@ export const db = {
     shipment.orderIds = Array.from(orderSet);
     shipment.updatedAt = new Date().toISOString();
     await persistDb(data);
+    broadcastRealtimeEvent('SHIPMENT_UPDATED', { shipmentId: shipment.id, shipment });
     return { shipment, updatedOrdersCount: updatedCount };
   },
 
@@ -1470,6 +1481,7 @@ export const db = {
 
     shipment.updatedAt = new Date().toISOString();
     await persistDb(data);
+    broadcastRealtimeEvent('SHIPMENT_UPDATED', { shipmentId: shipment.id, shipment });
     return { shipment, removedCount };
   },
 
