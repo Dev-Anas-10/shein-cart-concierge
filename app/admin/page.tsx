@@ -53,6 +53,7 @@ import {
   CheckSquare,
   Square,
   Save,
+  History,
 } from 'lucide-react';
 
 const PRESET_ITEM_COMMENTS = [
@@ -279,10 +280,33 @@ export default function AdminDashboardPage() {
     }
   };
 
+  const silentRefreshOrders = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/orders?admin=true&_t=${Date.now()}`, { cache: 'no-store' });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data)) {
+          setOrders((prev) => {
+            const newOrders: Order[] = json.data;
+            const prevSig = prev.map((o) => `${o.id}:${o.status}:${o.updatedAt}:${o.payment?.submittedAt}`).join('|');
+            const newSig = newOrders.map((o) => `${o.id}:${o.status}:${o.updatedAt}:${o.payment?.submittedAt}`).join('|');
+            if (prevSig !== newSig) {
+              return newOrders;
+            }
+            return prev;
+          });
+        }
+      }
+    } catch {
+      // Background silent poll - non blocking
+    }
+  }, []);
+
   useEffect(() => {
     fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    const interval = setInterval(silentRefreshOrders, 10000);
+    return () => clearInterval(interval);
+  }, [silentRefreshOrders]);
 
   // Prompt login if not signed in and auth check is done
   useEffect(() => {
@@ -356,6 +380,21 @@ export default function AdminDashboardPage() {
     const feeChanged = reviewDynamicFee !== (selectedOrder.dynamicFeePercent ?? 0);
     return itemsChanged || commentChanged || feeChanged;
   }, [selectedOrder, reviewItems, reviewOrderComment, reviewDynamicFee]);
+
+  // Keep open modal in sync with silent background updates if there are no unsaved edits
+  useEffect(() => {
+    if (selectedOrder && !hasUnsavedChanges && !updating) {
+      const currentInOrders = orders.find((o) => o.id === selectedOrder.id);
+      if (
+        currentInOrders &&
+        (currentInOrders.status !== selectedOrder.status ||
+          currentInOrders.updatedAt !== selectedOrder.updatedAt ||
+          currentInOrders.payment?.submittedAt !== selectedOrder.payment?.submittedAt)
+      ) {
+        setSelectedOrder(currentInOrders);
+      }
+    }
+  }, [orders, selectedOrder, hasUnsavedChanges, updating]);
 
   const handleSaveAndApply = async () => {
     if (!selectedOrder) return;
@@ -623,6 +662,7 @@ export default function AdminDashboardPage() {
   const paymentReviewCount = orders.filter((o) => o.status === 'PAYMENT_UNDER_REVIEW').length;
   const pendingTotalCount = pendingApprovalCount + paymentReviewCount;
   const paidCount = orders.filter((o) => ['PAID', 'PROCESSING', 'SHIPPED'].includes(o.status)).length;
+  const paidTabCount = orders.filter((o) => ['PAID', 'PROCESSING', 'SHIPPED', 'PAYMENT_UNDER_REVIEW'].includes(o.status)).length;
   const deliveredCount = orders.filter((o) => o.status === 'DELIVERED' || o.status === 'COMPLETED').length;
   const rejectedCount = orders.filter((o) => o.status === 'REJECTED' || o.status === 'CANCELLED').length;
   const completedCount = orders.filter((o) => ['PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED'].includes(o.status)).length;
@@ -679,11 +719,14 @@ export default function AdminDashboardPage() {
   const filteredOrders = orders.filter((order) => {
     if (statusFilter !== 'ALL') {
       if (statusFilter === 'PENDING') {
-        if (!['PENDING_APPROVAL', 'PAYMENT_UNDER_REVIEW'].includes(order.status)) return false;
+        if (order.status !== 'PENDING_APPROVAL') return false;
       } else if (statusFilter === 'AWAITING_PAYMENT' || statusFilter === 'APPROVED_PENDING_PAYMENT') {
         if (order.status !== 'APPROVED_PENDING_PAYMENT') return false;
+      } else if (statusFilter === 'PAYMENT_UNDER_REVIEW') {
+        if (order.status !== 'PAYMENT_UNDER_REVIEW') return false;
       } else if (statusFilter === 'PAID') {
-        if (!['PAID', 'PROCESSING', 'SHIPPED'].includes(order.status)) return false;
+        // Guaranteed visibility: Include verified paid and payment under review
+        if (!['PAID', 'PROCESSING', 'SHIPPED', 'PAYMENT_UNDER_REVIEW'].includes(order.status)) return false;
       } else if (statusFilter === 'DELIVERED') {
         if (!['DELIVERED', 'COMPLETED'].includes(order.status)) return false;
       } else if (statusFilter === 'REJECTED' || statusFilter === 'CANCELLED') {
@@ -1268,9 +1311,10 @@ export default function AdminDashboardPage() {
               <div className="flex flex-wrap items-center gap-1.5 w-full lg:w-auto">
                 {[
                   { key: 'ALL', label: 'الكل (All)', count: totalOrdersCount, color: 'bg-neutral-800' },
-                  { key: 'PENDING', label: '🟡 قيد المراجعة', count: pendingTotalCount, color: 'bg-amber-500' },
+                  { key: 'PENDING', label: '🟡 قيد المراجعة', count: pendingApprovalCount, color: 'bg-amber-500' },
                   { key: 'AWAITING_PAYMENT', label: '🔵 في انتظار الدفع', count: approvedPaymentCount, color: 'bg-blue-600' },
-                  { key: 'PAID', label: '🟢 مدفوع', count: paidCount, color: 'bg-emerald-600' },
+                  { key: 'PAYMENT_UNDER_REVIEW', label: '💳 مراجعة الدفع', count: paymentReviewCount, color: 'bg-purple-600', pulse: paymentReviewCount > 0 },
+                  { key: 'PAID', label: '🟢 مدفوع', count: paidTabCount, color: 'bg-emerald-600' },
                   { key: 'DELIVERED', label: '📦 تم التوصيل', count: deliveredCount, color: 'bg-teal-600' },
                   { key: 'REJECTED', label: '🔴 ملغي', count: rejectedCount, color: 'bg-rose-600' },
                 ].map((tab) => (
@@ -1287,7 +1331,7 @@ export default function AdminDashboardPage() {
                     {tab.count > 0 && (
                       <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-black text-white ${
                         statusFilter === tab.key ? 'bg-white/20' : tab.color
-                      }`}>
+                      } ${tab.pulse ? 'animate-pulse ring-2 ring-purple-400' : ''}`}>
                         {tab.count}
                       </span>
                     )}
@@ -2279,6 +2323,49 @@ export default function AdminDashboardPage() {
                   className="w-full p-4 text-xs bg-neutral-50 border border-neutral-200 rounded-2xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-neutral-950 font-sans"
                 />
               </div>
+
+              {/* ORDER AUDIT TRAIL & HISTORY (Task 12) */}
+              {selectedOrder.auditLog && selectedOrder.auditLog.length > 0 && (
+                <div className="p-4 rounded-2xl bg-neutral-100/90 border border-neutral-200/90 space-y-2 text-start">
+                  <div className="flex items-center justify-between">
+                    <h5 className="font-black text-xs text-neutral-800 flex items-center gap-1.5">
+                      <History className="w-3.5 h-3.5 text-purple-600" />
+                      <span>سجل حالات وعمليات الطلب (Audit Trail & History)</span>
+                    </h5>
+                    <span className="text-[10px] text-neutral-500 font-mono">
+                      {selectedOrder.auditLog.length} أحداث مسجلة
+                    </span>
+                  </div>
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                    {selectedOrder.auditLog.map((entry, idx) => (
+                      <div
+                        key={idx}
+                        className="p-2.5 rounded-xl bg-white border border-neutral-200 text-xs flex items-start justify-between gap-2 shadow-xs"
+                      >
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-neutral-900 font-mono text-[11px]">{entry.action}</span>
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                              {entry.toStatus}
+                            </span>
+                          </div>
+                          {entry.note && (
+                            <p className="text-[11px] text-neutral-600 font-normal leading-relaxed">{entry.note}</p>
+                          )}
+                        </div>
+                        <div className="text-right shrink-0">
+                          <span className="text-[10px] text-neutral-400 block font-mono">
+                            {new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                          </span>
+                          <span className="text-[10px] font-semibold text-neutral-500">
+                            {entry.actor}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Actions Footer */}

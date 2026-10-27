@@ -8,7 +8,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { Order, SystemSettings, User, GoodItem, Shipment, ShipmentStatus } from './types';
+import { Order, SystemSettings, User, GoodItem, Shipment, ShipmentStatus, OrderAuditEntry } from './types';
 import { RELIABLE_FASHION_IMAGES, resolveItemPricing } from './shein-extractor';
 import { normalizeOrderLinks } from './shein-links';
 import { getSupabase } from './supabase';
@@ -308,6 +308,68 @@ async function saveToRedis(data: DatabaseSchema): Promise<void> {
 
 /* ────────────────────────── Supabase Layer ───────────────────────── */
 
+/* ────────────────────────── Concurrency & Merging ──────────────────────── */
+
+let dbMutationQueue: Promise<any> = Promise.resolve();
+function runWithDbMutex<T>(fn: () => Promise<T>): Promise<T> {
+  const next = dbMutationQueue.then(fn, fn);
+  dbMutationQueue = next.then(() => {}, () => {});
+  return next;
+}
+
+function mergeOrderLists(primary: Order[], secondary: Order[]): Order[] {
+  const map = new Map<string, Order>();
+
+  for (const o of secondary) {
+    if (o && o.id) {
+      map.set(o.id, o);
+    }
+  }
+
+  for (const o of primary) {
+    if (!o || !o.id) continue;
+    const existing = map.get(o.id);
+    if (!existing) {
+      map.set(o.id, o);
+    } else {
+      const existingTime = new Date(existing.updatedAt || existing.createdAt || 0).getTime();
+      const newTime = new Date(o.updatedAt || o.createdAt || 0).getTime();
+      if (newTime >= existingTime) {
+        map.set(o.id, {
+          ...existing,
+          ...o,
+          payment: o.payment || existing.payment,
+          isPriceLocked: o.isPriceLocked ?? existing.isPriceLocked,
+          exchangeRateUsed: o.exchangeRateUsed ?? existing.exchangeRateUsed,
+          profitMarginPercentUsed: o.profitMarginPercentUsed ?? existing.profitMarginPercentUsed,
+          lockedPricingSnapshot: o.lockedPricingSnapshot ?? existing.lockedPricingSnapshot,
+          auditLog: [...(existing.auditLog || []), ...(o.auditLog || [])].filter(
+            (v, i, a) => a.findIndex((t) => t.timestamp === v.timestamp && t.action === v.action) === i
+          ),
+        });
+      } else {
+        map.set(o.id, {
+          ...o,
+          ...existing,
+          payment: existing.payment || o.payment,
+          isPriceLocked: existing.isPriceLocked ?? o.isPriceLocked,
+          exchangeRateUsed: existing.exchangeRateUsed ?? o.exchangeRateUsed,
+          profitMarginPercentUsed: existing.profitMarginPercentUsed ?? o.profitMarginPercentUsed,
+          lockedPricingSnapshot: existing.lockedPricingSnapshot ?? o.lockedPricingSnapshot,
+          auditLog: [...(existing.auditLog || []), ...(o.auditLog || [])].filter(
+            (v, i, a) => a.findIndex((t) => t.timestamp === v.timestamp && t.action === v.action) === i
+          ),
+        });
+      }
+    }
+  }
+
+  return Array.from(map.values())
+    .map(sanitizeOrderPricingLock)
+    .map(normalizeOrderLinks)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+}
+
 function sanitizeOrderPricingLock(order: Order): Order {
   const isApprovedStatus = [
     'APPROVED_PENDING_PAYMENT',
@@ -396,6 +458,7 @@ function mapRowToOrder(row: any): Order {
     cancelledAt: row.cancelled_at ?? row.cancelledAt ?? undefined,
     cancelledBy: row.cancelled_by ?? row.cancelledBy ?? undefined,
     cancellationReason: row.cancellation_reason ?? row.cancellationReason ?? undefined,
+    auditLog: Array.isArray(row.audit_log ?? row.auditLog) ? (row.audit_log ?? row.auditLog) : undefined,
     isPriceLocked:
       typeof row.is_price_locked === 'boolean'
         ? row.is_price_locked
@@ -443,9 +506,11 @@ async function loadFromSupabase(): Promise<DatabaseSchema | null> {
     }
 
     const users = usersRes.data && usersRes.data.length > 0 ? usersRes.data.map(mapRowToUser) : DEFAULT_USERS;
-    const orders = ordersRes.data && ordersRes.data.length > 0 ? ordersRes.data.map(mapRowToOrder) : DEFAULT_ORDERS;
-
     const fileFallback = loadFromFile();
+    const localOrders = fileFallback?.orders || memoryDb?.orders || DEFAULT_ORDERS;
+    const supabaseOrders = ordersRes.data && ordersRes.data.length > 0 ? ordersRes.data.map(mapRowToOrder) : [];
+    // Bi-directional merge: Never lose local orders if Supabase has not yet synced or lagged!
+    const orders = mergeOrderLists(supabaseOrders, localOrders);
     const shipments = fileFallback && fileFallback.shipments && fileFallback.shipments.length > 0 ? fileFallback.shipments : DEFAULT_SHIPMENTS;
     const settings = fileFallback?.settings ?? DEFAULT_SETTINGS;
 
@@ -604,11 +669,18 @@ function saveToFile(data: DatabaseSchema): void {
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
-    const tmp = `${targetPath}.tmp`;
+    // Unique temp file per write avoids Windows file locking conflicts across concurrent requests!
+    const randSuffix = Math.random().toString(36).slice(2, 8);
+    const tmp = `${targetPath}.${Date.now()}.${randSuffix}.tmp`;
     fs.writeFileSync(tmp, JSON.stringify(data, null, 2), 'utf-8');
-    fs.renameSync(tmp, targetPath);
+    try {
+      fs.renameSync(tmp, targetPath);
+    } catch {
+      fs.copyFileSync(tmp, targetPath);
+      try { fs.unlinkSync(tmp); } catch {}
+    }
   } catch (err) {
-    console.warn('[DB] File write error (in-memory only):', err);
+    console.warn('[DB] File write note (kept in-memory):', err);
   }
 }
 
@@ -933,6 +1005,9 @@ export const db = {
     } catch (err) {
       console.warn('[DB] Auto-expire error in getOrders:', err);
     }
+    const dbData = await ensureDb();
+    let localOrders = dbData.orders || [];
+
     const sb = getSupabase();
     if (sb) {
       try {
@@ -942,39 +1017,16 @@ export const db = {
         }
         const { data, error } = await query;
         if (data && !error) {
-          let list = data.map(mapRowToOrder);
-          if (filter?.userId || filter?.userEmail || filter?.userPhone) {
-            list = list.filter((o) => {
-              if (filter.userId && o.userId === filter.userId) return true;
-              if (
-                filter.userEmail &&
-                o.userEmail &&
-                o.userEmail.toLowerCase() === filter.userEmail.toLowerCase()
-              )
-                return true;
-              if (filter.userPhone && o.userPhone && o.userPhone === filter.userPhone) return true;
-              return false;
-            });
-          }
-          if (filter?.search) {
-            const q = filter.search.toLowerCase();
-            list = list.filter(
-              (o) =>
-                o.id.toLowerCase().includes(q) ||
-                o.userName.toLowerCase().includes(q) ||
-                o.userEmail.toLowerCase().includes(q) ||
-                o.userPhone.toLowerCase().includes(q) ||
-                o.extractedLink.toLowerCase().includes(q)
-            );
-          }
-          return list;
+          const fromSb = data.map(mapRowToOrder);
+          // Bi-directional merge: Never omit any order that exists locally or in Supabase!
+          localOrders = mergeOrderLists(fromSb, localOrders);
         }
       } catch (err) {
-        console.warn('[DB] Supabase getOrders fallback:', err);
+        console.warn('[DB] Supabase getOrders note:', err);
       }
     }
 
-    let list = (await ensureDb()).orders;
+    let list = localOrders;
 
     if (filter?.userId || filter?.userEmail || filter?.userPhone) {
       list = list.filter((o) => {
@@ -1015,16 +1067,18 @@ export const db = {
     } catch (err) {
       console.warn('[DB] Auto-expire error in getOrderById:', err);
     }
-    const foundInMemory = (await ensureDb()).orders.find((o) => o.id === id);
+    const dbData = await ensureDb();
+    const foundInMemory = (dbData.orders || []).find((o) => o.id === id);
     const sb = getSupabase();
     if (sb) {
       try {
         const { data, error } = await sb.from('orders').select('*').eq('id', id).maybeSingle();
         if (data && !error) {
           const fromSb = mapRowToOrder(data);
-          return normalizeOrderLinks({
+          const merged = normalizeOrderLinks({
             ...foundInMemory,
             ...fromSb,
+            payment: fromSb.payment || foundInMemory?.payment,
             pricingExpiresAt: fromSb.pricingExpiresAt || foundInMemory?.pricingExpiresAt,
             cancelledAt: fromSb.cancelledAt || foundInMemory?.cancelledAt,
             cancelledBy: fromSb.cancelledBy || foundInMemory?.cancelledBy,
@@ -1033,7 +1087,16 @@ export const db = {
             exchangeRateUsed: fromSb.exchangeRateUsed ?? foundInMemory?.exchangeRateUsed,
             profitMarginPercentUsed: fromSb.profitMarginPercentUsed ?? foundInMemory?.profitMarginPercentUsed,
             lockedPricingSnapshot: fromSb.lockedPricingSnapshot ?? foundInMemory?.lockedPricingSnapshot,
+            auditLog: [...(foundInMemory?.auditLog || []), ...(fromSb.auditLog || [])],
           });
+          // Cache merged order in memory to guarantee immediate retrieval
+          if (foundInMemory) {
+            const idx = dbData.orders.findIndex((o) => o.id === id);
+            if (idx >= 0) dbData.orders[idx] = merged;
+          } else {
+            dbData.orders.unshift(merged);
+          }
+          return merged;
         }
       } catch (err) {
         console.warn('[DB] Supabase getOrderById fallback:', err);
@@ -1044,96 +1107,123 @@ export const db = {
   },
 
   createOrder: async (order: Order): Promise<Order> => {
-    const data = await ensureDb();
-    const existingIndex = data.orders.findIndex((o) => o.id === order.id);
-    if (existingIndex >= 0) {
-      const existing = data.orders[existingIndex];
-      // Task 10 Safeguard: Never overwrite an approved, reviewed, or price-locked order
-      if (
-        existing.isPriceLocked ||
-        existing.status !== 'PENDING_APPROVAL' ||
-        existing.reviewedAt
-      ) {
-        console.warn(`[DB] Refusing to overwrite approved/locked order ${order.id} with status ${existing.status}`);
-        return existing;
+    return runWithDbMutex(async () => {
+      const data = await ensureDb();
+      const existingIndex = data.orders.findIndex((o) => o.id === order.id);
+      if (existingIndex >= 0) {
+        const existing = data.orders[existingIndex];
+        if (
+          existing.isPriceLocked ||
+          existing.status !== 'PENDING_APPROVAL' ||
+          existing.reviewedAt
+        ) {
+          console.warn(`[DB] Refusing to overwrite approved/locked order ${order.id} with status ${existing.status}`);
+          return existing;
+        }
+        data.orders[existingIndex] = order;
+      } else {
+        const initialAudit: OrderAuditEntry = {
+          timestamp: new Date().toISOString(),
+          action: 'ORDER_CREATED',
+          toStatus: order.status || 'PENDING_APPROVAL',
+          actor: order.userId || 'customer',
+          note: 'Order submitted by customer',
+        };
+        order.auditLog = [initialAudit];
+        data.orders.unshift(order);
       }
-      data.orders[existingIndex] = order;
-    } else {
-      data.orders.unshift(order);
-    }
-    await persistDb(data);
-    await syncOrderToSupabase(order);
-    return order;
+      await persistDb(data);
+      await syncOrderToSupabase(order);
+      return order;
+    });
   },
 
   updateOrder: async (id: string, updates: Partial<Order>): Promise<Order | null> => {
-    const data = await ensureDb();
-    const index = data.orders.findIndex((o) => o.id === id);
-    if (index === -1) return null;
+    return runWithDbMutex(async () => {
+      const data = await ensureDb();
+      const index = data.orders.findIndex((o) => o.id === id);
+      if (index === -1) return null;
 
-    const current = data.orders[index];
-    const updated: Order = {
-      ...current,
-      ...updates,
-      updatedAt: new Date().toISOString(),
-    };
+      const current = data.orders[index];
+      const previousStatus = current.status;
+      const targetStatus = updates.status || current.status;
 
-    if (updates.items) {
-      const activeItems = updates.items.filter((it) => it.status !== 'rejected' && it.status !== 'out_of_stock');
-      const subtotal = activeItems.reduce((s, it) => s + it.subtotal, 0);
-      const feePercent = updates.dynamicFeePercent ?? current.dynamicFeePercent;
-      const feeAmount = Math.round(subtotal * (feePercent / 100));
-      const shipping = updates.shippingFee ?? current.shippingFee;
-      updated.itemsSubtotal = subtotal;
-      updated.dynamicFeePercent = feePercent;
-      updated.dynamicFeeAmount = feeAmount;
-      updated.shippingFee = shipping;
-      updated.totalCash = subtotal + feeAmount + shipping;
-      updated.itemsCount = activeItems.length;
-    }
-
-    // Task 10: If order is approved or moving to payment, lock pricing immutably!
-    const targetStatus = updated.status || current.status;
-    const isApprovedOrBeyond = [
-      'APPROVED_PENDING_PAYMENT',
-      'PAYMENT_UNDER_REVIEW',
-      'PAID',
-      'PROCESSING',
-      'SHIPPED',
-      'DELIVERED',
-      'COMPLETED',
-    ].includes(targetStatus);
-
-    if (isApprovedOrBeyond) {
-      updated.isPriceLocked = true;
-      if (!updated.reviewedAt) {
-        updated.reviewedAt = new Date().toISOString();
-      }
-      if (!updated.exchangeRateUsed) {
-        updated.exchangeRateUsed = data.settings.sarToEgpRate ?? 15.0;
-      }
-      if (!updated.profitMarginPercentUsed) {
-        updated.profitMarginPercentUsed = data.settings.profitMarginPercent ?? 10.0;
-      }
-      // Save or update locked pricing snapshot
-      updated.lockedPricingSnapshot = {
-        lockedAt: updated.reviewedAt,
-        lockedBy: updated.reviewedBy || 'Admin',
-        exchangeRateUsed: updated.exchangeRateUsed,
-        profitMarginPercentUsed: updated.profitMarginPercentUsed,
-        dynamicFeePercent: updated.dynamicFeePercent,
-        dynamicFeeAmount: updated.dynamicFeeAmount,
-        shippingFee: updated.shippingFee,
-        itemsSubtotal: updated.itemsSubtotal,
-        totalCash: updated.totalCash,
-        items: JSON.parse(JSON.stringify(updated.items)),
+      const updated: Order = {
+        ...current,
+        ...updates,
+        payment: updates.payment ? { ...(current.payment || {}), ...updates.payment } : current.payment,
+        updatedAt: new Date().toISOString(),
       };
-    }
 
-    data.orders[index] = updated;
-    await persistDb(data);
-    await syncOrderToSupabase(updated);
-    return updated;
+      // State transition audit log (Task 12)
+      if (updates.status && updates.status !== previousStatus) {
+        const actor = updates.reviewedBy || updates.cancelledBy || (updates.payment ? 'customer' : 'admin');
+        const auditEntry: OrderAuditEntry = {
+          timestamp: new Date().toISOString(),
+          action: `STATUS_CHANGE_${previousStatus}_TO_${targetStatus}`,
+          fromStatus: previousStatus,
+          toStatus: targetStatus,
+          actor,
+          note: updates.adminComment || updates.cancellationReason || updates.payment?.adminNote || undefined,
+        };
+        updated.auditLog = [...(current.auditLog || []), auditEntry];
+        console.log(`[ORDER AUDIT] ${id}: ${previousStatus} -> ${targetStatus} (actor: ${actor})`);
+      }
+
+      if (updates.items) {
+        const activeItems = updates.items.filter((it) => it.status !== 'rejected' && it.status !== 'out_of_stock');
+        const subtotal = activeItems.reduce((s, it) => s + it.subtotal, 0);
+        const feePercent = updates.dynamicFeePercent ?? current.dynamicFeePercent;
+        const feeAmount = Math.round(subtotal * (feePercent / 100));
+        const shipping = updates.shippingFee ?? current.shippingFee;
+        updated.itemsSubtotal = subtotal;
+        updated.dynamicFeePercent = feePercent;
+        updated.dynamicFeeAmount = feeAmount;
+        updated.shippingFee = shipping;
+        updated.totalCash = subtotal + feeAmount + shipping;
+        updated.itemsCount = activeItems.length;
+      }
+
+      const isApprovedOrBeyond = [
+        'APPROVED_PENDING_PAYMENT',
+        'PAYMENT_UNDER_REVIEW',
+        'PAID',
+        'PROCESSING',
+        'SHIPPED',
+        'DELIVERED',
+        'COMPLETED',
+      ].includes(targetStatus);
+
+      if (isApprovedOrBeyond) {
+        updated.isPriceLocked = true;
+        if (!updated.reviewedAt) {
+          updated.reviewedAt = new Date().toISOString();
+        }
+        if (!updated.exchangeRateUsed) {
+          updated.exchangeRateUsed = data.settings.sarToEgpRate ?? 15.0;
+        }
+        if (!updated.profitMarginPercentUsed) {
+          updated.profitMarginPercentUsed = data.settings.profitMarginPercent ?? 10.0;
+        }
+        updated.lockedPricingSnapshot = {
+          lockedAt: updated.reviewedAt,
+          lockedBy: updated.reviewedBy || 'Admin',
+          exchangeRateUsed: updated.exchangeRateUsed,
+          profitMarginPercentUsed: updated.profitMarginPercentUsed,
+          dynamicFeePercent: updated.dynamicFeePercent,
+          dynamicFeeAmount: updated.dynamicFeeAmount,
+          shippingFee: updated.shippingFee,
+          itemsSubtotal: updated.itemsSubtotal,
+          totalCash: updated.totalCash,
+          items: JSON.parse(JSON.stringify(updated.items)),
+        };
+      }
+
+      data.orders[index] = updated;
+      await persistDb(data);
+      await syncOrderToSupabase(updated);
+      return updated;
+    });
   },
 
   deleteOrder: async (id: string): Promise<boolean> => {

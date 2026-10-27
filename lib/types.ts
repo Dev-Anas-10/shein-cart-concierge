@@ -108,6 +108,15 @@ export interface GoodItem {
   sourceOriginalPrice?: string; // e.g. "44.00"
 }
 
+export interface OrderAuditEntry {
+  timestamp: string;
+  action: string;
+  fromStatus?: OrderStatus;
+  toStatus: OrderStatus;
+  actor: string;
+  note?: string;
+}
+
 export interface LockedPricingSnapshot {
   lockedAt: string;
   lockedBy?: string;
@@ -180,6 +189,7 @@ export interface Order {
   tracking?: TrackingInfo;
   shipmentId?: string;       // ID of assigned shipment batch
   shipmentCode?: string;     // Cached code / label of assigned shipment
+  auditLog?: OrderAuditEntry[];
   
   createdAt: string;
   updatedAt: string;
