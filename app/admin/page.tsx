@@ -51,6 +51,7 @@ import {
   ShoppingBag,
   CheckSquare,
   Square,
+  Save,
 } from 'lucide-react';
 
 const PRESET_ITEM_COMMENTS = [
@@ -145,6 +146,7 @@ export default function AdminDashboardPage() {
   const [reviewDynamicFee, setReviewDynamicFee] = useState<number>(20);
   const [updating, setUpdating] = useState(false);
   const [zoomReceipt, setZoomReceipt] = useState(false);
+  const [unlockPaidEdit, setUnlockPaidEdit] = useState(false);
 
   // Tracking Management States for Admin
   const [trackingStatus, setTrackingStatus] = useState<OrderStatus>('PAID');
@@ -294,6 +296,7 @@ export default function AdminDashboardPage() {
     setReviewItems(JSON.parse(JSON.stringify(order.items)));
     setReviewDynamicFee(order.dynamicFeePercent ?? 0);
     setZoomReceipt(false);
+    setUnlockPaidEdit(false);
     setTrackingStatus(order.status);
     setTrackingCarrier(order.tracking?.carrier || 'بوسطة للشحن السريع (Bosta)');
     setTrackingNumber(order.tracking?.trackingNumber || '');
@@ -332,6 +335,80 @@ export default function AdminDashboardPage() {
     const shipping = selectedOrder?.shippingFee || 0;
     const totalCash = subtotal + feeAmount + shipping;
     return { subtotal, feeAmount, totalCash };
+  };
+
+  const hasUnsavedChanges = React.useMemo(() => {
+    if (!selectedOrder) return false;
+    const itemsChanged = JSON.stringify(reviewItems) !== JSON.stringify(selectedOrder.items);
+    const commentChanged = reviewOrderComment !== (selectedOrder.adminComment || '');
+    const feeChanged = reviewDynamicFee !== (selectedOrder.dynamicFeePercent ?? 0);
+    return itemsChanged || commentChanged || feeChanged;
+  }, [selectedOrder, reviewItems, reviewOrderComment, reviewDynamicFee]);
+
+  const handleSaveAndApply = async () => {
+    if (!selectedOrder) return;
+    if (updating) return;
+
+    const { totalCash } = calculateReviewTotals();
+    const diff = totalCash - selectedOrder.totalCash;
+
+    // Rules for orders that already transitioned to payment:
+    if (selectedOrder.status === 'APPROVED_PENDING_PAYMENT' && diff !== 0) {
+      const confirmMsg =
+        'تنبيه: هذا الطلب معتمد ومتاح للعميل للدفع حالياً.\n\n' +
+        'هل أنت متأكد من حفظ وتطبيق الأسعار الجديدة؟\n' +
+        'المبلغ المعتمد السابق: ' + selectedOrder.totalCash.toLocaleString() + ' EGP\n' +
+        'المبلغ الجديد المعتمد: ' + totalCash.toLocaleString() + ' EGP\n\n' +
+        'سيتم تحديث المبلغ في صفحة الدفع الخاصة بالعميل فوراً دون الحاجة لرفض الطلب.';
+      if (!window.confirm(confirmMsg)) return;
+    } else if (selectedOrder.status === 'PAYMENT_UNDER_REVIEW' && diff !== 0) {
+      const confirmMsg =
+        'تحذير: العميل قام بالفعل بتحويل مبلغ (' + selectedOrder.totalCash.toLocaleString() + ' EGP) وهو قيد المراجعة.\n\n' +
+        'تعديل المبلغ الآن إلى (' + totalCash.toLocaleString() + ' EGP) قد يتعارض مع الإيصال المسجل.\n\n' +
+        'هل تريد المتابعة وحفظ الأسعار الجديدة؟';
+      if (!window.confirm(confirmMsg)) return;
+    }
+
+    setUpdating(true);
+
+    try {
+      const payload: any = {
+        items: reviewItems,
+        adminComment: reviewOrderComment,
+        dynamicFeePercent: reviewDynamicFee,
+      };
+
+      const res = await fetch('/api/orders/' + selectedOrder.id, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const resJson = await res.json();
+      if (!res.ok) throw new Error(resJson.error || 'فشل حفظ التعديلات');
+
+      const updatedOrder: Order = resJson.data;
+
+      // Update orders list AND selected order in state
+      setOrders((prev) =>
+        prev.map((o) => (o.id === selectedOrder.id ? updatedOrder : o))
+      );
+      setSelectedOrder(updatedOrder);
+      setReviewItems(JSON.parse(JSON.stringify(updatedOrder.items)));
+
+      if (selectedOrder.status === 'APPROVED_PENDING_PAYMENT') {
+        addToast(
+          'success',
+          '✓ تم حفظ واعتماد التعديلات بنجاح! تم تحديث المبلغ في شاشة دفع العميل إلى ' + updatedOrder.totalCash.toLocaleString() + ' EGP'
+        );
+      } else {
+        addToast('success', '✓ تم حفظ واعتماد التعديلات بنجاح وتحديث الأسعار في قاعدة البيانات');
+      }
+    } catch (err: any) {
+      addToast('error', err.message || 'فشلت عملية حفظ التعديلات. يرجى المحاولة مرة أخرى.');
+    } finally {
+      setUpdating(false);
+    }
   };
 
   const handleUpdateOrder = async (
@@ -1488,16 +1565,147 @@ export default function AdminDashboardPage() {
                 )}
               </div>
 
-              <button
-                onClick={() => setSelectedOrder(null)}
-                className="p-2 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-200 rounded-full transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-2.5">
+                <button
+                  type="button"
+                  disabled={updating}
+                  onClick={handleSaveAndApply}
+                  className={`px-4 py-2 font-black text-xs rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 ${
+                    hasUnsavedChanges
+                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white ring-2 ring-emerald-400 animate-pulse'
+                      : 'bg-neutral-800 hover:bg-neutral-900 text-white'
+                  }`}
+                  title="حفظ واعتماد التعديلات على الأسعار والمنتجات فوراً"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  <span>
+                    {updating
+                      ? 'جاري الحفظ...'
+                      : selectedOrder.status === 'APPROVED_PENDING_PAYMENT'
+                      ? 'حفظ وتحديث الأسعار للعميل (Save & Apply)'
+                      : hasUnsavedChanges
+                      ? 'حفظ واعتماد (Save & Apply)'
+                      : 'حفظ (Save)'}
+                  </span>
+                  {hasUnsavedChanges && (
+                    <span className="w-2 h-2 rounded-full bg-amber-300 animate-ping inline-block" />
+                  )}
+                </button>
+
+                <button
+                  onClick={() => {
+                    if (
+                      hasUnsavedChanges &&
+                      !window.confirm('لديك تعديلات غير محفوظة على هذا الطلب. هل تريد الخروج وتجاهل التعديلات؟')
+                    ) {
+                      return;
+                    }
+                    setSelectedOrder(null);
+                  }}
+                  className="p-2 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-200 rounded-full transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             {/* Scrollable Body */}
             <div className="p-6 overflow-y-auto space-y-6">
+              {/* Payment Phase Alert / Unsaved Edits Alerts */}
+              {selectedOrder.status === 'APPROVED_PENDING_PAYMENT' && (
+                <div className="p-4 rounded-2xl bg-blue-50/90 border border-blue-200 text-blue-950 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <CreditCard className="w-4 h-4 text-blue-600 shrink-0" />
+                    <div className="space-y-0.5 text-start">
+                      <p className="font-black text-blue-900">
+                        الطلب معتمد حالياً وفي انتظار سداد العميل ({selectedOrder.totalCash.toLocaleString()} EGP)
+                      </p>
+                      <p className="text-[11px] text-blue-700">
+                        يمكنك تعديل أي سعر للمنتجات المقبولة أدناه، وعند الضغط على <strong>حفظ وتحديث الأسعار للعميل (Save & Apply)</strong> سيتم تحديث الأسعار والمبلغ الإجمالي في صفحة الدفع للعميل فوراً دون الحاجة لرفض الطلب.
+                      </p>
+                    </div>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-lg bg-blue-100 text-blue-800 font-mono font-bold text-[11px] shrink-0">
+                    Awaiting Payment
+                  </span>
+                </div>
+              )}
+
+              {selectedOrder.status === 'PAYMENT_UNDER_REVIEW' && (
+                <div className="p-4 rounded-2xl bg-purple-50/90 border border-purple-200 text-purple-950 text-xs flex items-center gap-3">
+                  <ShieldCheck className="w-4 h-4 text-[#8B5CF6] shrink-0" />
+                  <div className="space-y-0.5 text-start">
+                    <p className="font-black text-[#6D28D9]">
+                      العميل أرسل إيصال تحويل بمبلغ {selectedOrder.totalCash.toLocaleString()} EGP وهو قيد المطابقة
+                    </p>
+                    <p className="text-[11px] text-neutral-600">
+                      يرجى التأكد عند تعديل الأسعار حتى لا يحدث تعارض مع المبلغ المحول المسجل في إيصال الدفع.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {['PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED'].includes(selectedOrder.status) && (
+                <div className="p-3.5 rounded-2xl bg-neutral-100 border border-neutral-200 text-neutral-800 text-xs flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>
+                      <strong>طلب مدفوع:</strong> الأسعار مقفلة لحماية اتساق الحسابات.
+                    </span>
+                  </div>
+                  {!unlockPaidEdit ? (
+                    <button
+                      type="button"
+                      onClick={() => setUnlockPaidEdit(true)}
+                      className="px-3 py-1 bg-amber-100 hover:bg-amber-200 text-amber-900 text-[11px] font-bold rounded-lg border border-amber-300 transition-colors cursor-pointer"
+                    >
+                      تمكين التعديل الاستثنائي
+                    </button>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                      التعديل الاستثنائي مفعل ✓
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {hasUnsavedChanges && (
+                <div className="p-4 rounded-2xl bg-amber-500/10 border-2 border-amber-400 text-amber-950 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in">
+                  <div className="flex items-center gap-2.5 text-start">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                    <div>
+                      <p className="font-black text-amber-950">
+                        لديك تعديلات جديدة على الأسعار أو المنتجات لم تُعتمد بعد!
+                      </p>
+                      <p className="text-[11px] text-amber-900 mt-0.5">
+                        {(() => {
+                          const { totalCash } = calculateReviewTotals();
+                          const diff = totalCash - selectedOrder.totalCash;
+                          if (diff !== 0) {
+                            return (
+                              <>
+                                السعر السابق: <span className="font-mono font-bold line-through">{selectedOrder.totalCash.toLocaleString()} EGP</span> ➔{' '}
+                                السعر الجديد بعد التعديل: <span className="font-mono font-black text-emerald-800">{totalCash.toLocaleString()} EGP</span>{' '}
+                                ({diff > 0 ? `+${diff.toLocaleString()}` : diff.toLocaleString()} EGP)
+                              </>
+                            );
+                          }
+                          return 'اضغط على زر حفظ واعتماد (Save & Apply) لتطبيق التعديلات على الطلب.';
+                        })()}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={updating}
+                    onClick={handleSaveAndApply}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-md flex items-center justify-center gap-1.5 transition-all shrink-0 cursor-pointer active:scale-95"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    <span>{updating ? 'جاري الحفظ...' : 'حفظ واعتماد التعديلات (Save & Apply)'}</span>
+                  </button>
+                </div>
+              )}
               {/* SHEIN Link Bar */}
               <div className="p-4 bg-neutral-950 text-white rounded-2xl flex items-center justify-between text-xs border border-white/10">
                 <div className="flex items-center gap-2 overflow-hidden mr-3">
@@ -1859,17 +2067,28 @@ export default function AdminDashboardPage() {
                               <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
                                 Price (EGP)
                               </label>
-                              <input
-                                type="number"
-                                disabled={isRejected}
-                                value={item.originalPrice}
-                                onChange={(e) =>
-                                  handleItemFieldChange(idx, 'originalPrice', e.target.value)
-                                }
-                                className={`w-24 px-3 py-1.5 text-xs font-black bg-white border border-neutral-200 rounded-xl text-right focus:outline-none focus:ring-1 focus:ring-rose-500 ${
-                                  isRejected ? 'opacity-40 line-through' : ''
-                                }`}
-                              />
+                              {(() => {
+                                const isPaidOrder = ['PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED'].includes(selectedOrder.status);
+                                const isPriceInputDisabled = isRejected || (isPaidOrder && !unlockPaidEdit);
+                                const isPriceEdited = item.originalPrice !== (selectedOrder.items[idx]?.originalPrice ?? item.originalPrice);
+                                return (
+                                  <input
+                                    type="number"
+                                    disabled={isPriceInputDisabled}
+                                    value={item.originalPrice}
+                                    onChange={(e) =>
+                                      handleItemFieldChange(idx, 'originalPrice', e.target.value)
+                                    }
+                                    className={`w-24 px-3 py-1.5 text-xs font-black bg-white border rounded-xl text-right focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
+                                      isRejected
+                                        ? 'opacity-40 line-through border-neutral-200'
+                                        : isPriceEdited
+                                        ? 'border-amber-400 bg-amber-50/60 ring-1 ring-amber-400 font-black'
+                                        : 'border-neutral-200'
+                                    }`}
+                                  />
+                                );
+                              })()}
                             </div>
                             <div>
                               <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
@@ -1999,20 +2218,46 @@ export default function AdminDashboardPage() {
             <div className="p-5 bg-neutral-50 border-t border-neutral-200 flex flex-wrap items-center justify-between gap-3">
               <button
                 type="button"
-                onClick={() => setSelectedOrder(null)}
+                onClick={() => {
+                  if (
+                    hasUnsavedChanges &&
+                    !window.confirm('لديك تعديلات غير محفوظة على هذا الطلب. هل تريد الخروج وتجاهل التعديلات؟')
+                  ) {
+                    return;
+                  }
+                  setSelectedOrder(null);
+                }}
                 className="px-4 py-2 text-xs font-bold text-neutral-500 hover:bg-neutral-200 rounded-xl transition-colors cursor-pointer"
               >
                 Close
               </button>
 
               <div className="flex flex-wrap items-center gap-2.5">
+                {/* PRIMARY SAVE & APPLY BUTTON */}
                 <button
                   type="button"
                   disabled={updating}
-                  onClick={() => handleUpdateOrder()}
-                  className="px-4 py-2.5 bg-neutral-200 hover:bg-neutral-300 disabled:opacity-50 text-neutral-800 font-black text-xs rounded-xl transition-colors cursor-pointer"
+                  onClick={handleSaveAndApply}
+                  className={`px-5 py-2.5 font-black text-xs rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer active:scale-95 ${
+                    hasUnsavedChanges
+                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white ring-2 ring-emerald-500/50 shadow-emerald-600/20 animate-pulse'
+                      : 'bg-emerald-700 hover:bg-emerald-800 text-white'
+                  }`}
+                  title="حفظ واعتماد التعديلات على الأسعار والمنتجات فوراً في النظام"
                 >
-                  {updating ? 'Saving...' : 'Save Notes & Recalculate'}
+                  <Save className="w-4 h-4" />
+                  <span>
+                    {updating
+                      ? 'جاري الحفظ...'
+                      : selectedOrder.status === 'APPROVED_PENDING_PAYMENT'
+                      ? 'حفظ وتحديث الأسعار للعميل (Save & Apply)'
+                      : hasUnsavedChanges
+                      ? 'حفظ واعتماد التعديلات (Save & Apply)'
+                      : 'حفظ التعديلات (Save)'}
+                  </span>
+                  {hasUnsavedChanges && (
+                    <span className="w-2 h-2 rounded-full bg-amber-300 animate-ping inline-block" />
+                  )}
                 </button>
 
                 {selectedOrder.status !== 'REJECTED' && (
@@ -2023,7 +2268,7 @@ export default function AdminDashboardPage() {
                     className="px-4 py-2.5 bg-rose-100 hover:bg-rose-200 disabled:opacity-50 text-rose-800 font-bold text-xs rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer"
                   >
                     <XCircle className="w-4 h-4" />
-                    Reject Order
+                    <span>Reject Order</span>
                   </button>
                 )}
 
@@ -2032,17 +2277,17 @@ export default function AdminDashboardPage() {
                     type="button"
                     disabled={updating}
                     onClick={() => handleUpdateOrder('APPROVED_PENDING_PAYMENT')}
-                    className="px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 disabled:opacity-50 text-white font-black text-xs rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer active:scale-95"
+                    className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-purple-700 hover:to-indigo-800 disabled:opacity-50 text-white font-black text-xs rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer active:scale-95"
                   >
                     <CheckCircle2 className="w-4 h-4" />
-                    <span>{updating ? 'Processing...' : 'Approve & Unlock Payment'}</span>
+                    <span>{updating ? 'Processing...' : 'اعتماد الطلب وفتح الدفع (Approve & Unlock Payment)'}</span>
                   </button>
                 )}
 
                 {selectedOrder.status === 'APPROVED_PENDING_PAYMENT' && (
                   <div className="flex items-center gap-2 px-4 py-2.5 bg-blue-50 text-blue-700 rounded-xl border border-blue-200 text-xs font-bold">
                     <CreditCard className="w-4 h-4" />
-                    Awaiting customer payment
+                    <span>الطلب معتمد ومتاح للدفع ({selectedOrder.totalCash.toLocaleString()} EGP)</span>
                   </div>
                 )}
 
