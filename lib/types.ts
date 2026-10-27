@@ -21,7 +21,8 @@ export type OrderStatus =
   | 'PAID'                      // Payment verified by admin, items being purchased
   | 'PROCESSING'                // Items purchased from SHEIN
   | 'SHIPPED'                   // In transit to delivery address
-  | 'COMPLETED';                // Delivered
+  | 'DELIVERED'                 // Delivered to customer (تم التوصيل للعميل)
+  | 'COMPLETED';                // Delivered / Completed (backward compatibility)
 
 export type ShipmentStatus =
   | 'PREPARING'        // قيد التجهيز والتجميع

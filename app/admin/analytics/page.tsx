@@ -113,7 +113,7 @@ export default function AdminAnalyticsPage() {
     const totalOrders = filteredOrders.length;
     const nonRejectedOrders = filteredOrders.filter((o) => o.status !== 'REJECTED');
     const paidOrDoneOrders = filteredOrders.filter((o) =>
-      ['PAID', 'PROCESSING', 'SHIPPED', 'COMPLETED'].includes(o.status)
+      ['PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED'].includes(o.status)
     );
 
     // Financials
@@ -132,7 +132,7 @@ export default function AdminAnalyticsPage() {
     const awaitingPayment = filteredOrders.filter((o) => o.status === 'APPROVED_PENDING_PAYMENT').length;
     const paymentReview = filteredOrders.filter((o) => o.status === 'PAYMENT_UNDER_REVIEW').length;
     const paidAndFulfillment = filteredOrders.filter((o) => ['PAID', 'PROCESSING', 'SHIPPED'].includes(o.status)).length;
-    const completed = filteredOrders.filter((o) => o.status === 'COMPLETED').length;
+    const completed = filteredOrders.filter((o) => o.status === 'DELIVERED' || o.status === 'COMPLETED').length;
     const rejected = filteredOrders.filter((o) => o.status === 'REJECTED').length;
 
     // Payment methods

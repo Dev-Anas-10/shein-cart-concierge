@@ -99,6 +99,7 @@ export const isOrderPaid = (o: Order): boolean => {
     o.status === 'PAID' ||
     o.status === 'PROCESSING' ||
     o.status === 'SHIPPED' ||
+    o.status === 'DELIVERED' ||
     o.status === 'COMPLETED' ||
     Boolean(o.payment && (o.payment.method || o.payment.transactionReference))
   );

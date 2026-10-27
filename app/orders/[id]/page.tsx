@@ -195,6 +195,31 @@ export default function OrderDetailsPage() {
                     {t.statusPaid}
                   </span>
                 )}
+                {order.status === 'PROCESSING' && (
+                  <span className="px-3.5 py-1 rounded-full text-xs font-black bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                    {t.statusProcessing}
+                  </span>
+                )}
+                {order.status === 'SHIPPED' && (
+                  <span className="px-3.5 py-1 rounded-full text-xs font-black bg-sky-50 dark:bg-sky-950/40 text-sky-800 dark:text-sky-300 border border-sky-200 dark:border-sky-800">
+                    {t.statusShipped}
+                  </span>
+                )}
+                {order.status === 'DELIVERED' && (
+                  <span className="px-3.5 py-1 rounded-full text-xs font-black bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700">
+                    {t.statusDelivered}
+                  </span>
+                )}
+                {order.status === 'COMPLETED' && (
+                  <span className="px-3.5 py-1 rounded-full text-xs font-black bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700">
+                    {t.statusCompleted}
+                  </span>
+                )}
+                {order.status === 'REJECTED' && (
+                  <span className="px-3.5 py-1 rounded-full text-xs font-black bg-rose-50 dark:bg-rose-950/40 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
+                    {t.statusRejected}
+                  </span>
+                )}
               </div>
               <p className="text-xs text-neutral-400 dark:text-neutral-500">
                 {isRtl ? 'تم الإنشاء في' : 'Created on'} {new Date(order.createdAt).toLocaleDateString()} • {order.userName}
@@ -370,7 +395,7 @@ export default function OrderDetailsPage() {
         )}
 
         {/* 3. TRACKING DASHBOARD (Paid, Processing, Shipped, Completed) */}
-        {['PAID', 'PROCESSING', 'SHIPPED', 'COMPLETED'].includes(order.status) && (
+        {['PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED'].includes(order.status) && (
           <OrderTrackingDashboard order={order} dir={dir} />
         )}
 

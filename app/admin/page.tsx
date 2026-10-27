@@ -47,6 +47,7 @@ import {
   Download,
   Boxes,
   Package,
+  ShoppingBag,
   CheckSquare,
   Square,
 } from 'lucide-react';
@@ -520,7 +521,11 @@ export default function AdminDashboardPage() {
   const pendingApprovalCount = orders.filter((o) => o.status === 'PENDING_APPROVAL').length;
   const approvedPaymentCount = orders.filter((o) => o.status === 'APPROVED_PENDING_PAYMENT').length;
   const paymentReviewCount = orders.filter((o) => o.status === 'PAYMENT_UNDER_REVIEW').length;
-  const completedCount = orders.filter((o) => ['PAID', 'PROCESSING', 'SHIPPED', 'COMPLETED'].includes(o.status)).length;
+  const pendingTotalCount = pendingApprovalCount + paymentReviewCount;
+  const paidCount = orders.filter((o) => ['PAID', 'PROCESSING', 'SHIPPED'].includes(o.status)).length;
+  const deliveredCount = orders.filter((o) => o.status === 'DELIVERED' || o.status === 'COMPLETED').length;
+  const rejectedCount = orders.filter((o) => o.status === 'REJECTED').length;
+  const completedCount = orders.filter((o) => ['PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED'].includes(o.status)).length;
   const totalVolumeEgp = orders
     .filter((o) => o.status !== 'REJECTED')
     .reduce((sum, o) => sum + o.totalCash, 0);
@@ -572,7 +577,21 @@ export default function AdminDashboardPage() {
 
   // Filtered orders
   const filteredOrders = orders.filter((order) => {
-    if (statusFilter !== 'ALL' && order.status !== statusFilter) return false;
+    if (statusFilter !== 'ALL') {
+      if (statusFilter === 'PENDING') {
+        if (!['PENDING_APPROVAL', 'PAYMENT_UNDER_REVIEW'].includes(order.status)) return false;
+      } else if (statusFilter === 'AWAITING_PAYMENT' || statusFilter === 'APPROVED_PENDING_PAYMENT') {
+        if (order.status !== 'APPROVED_PENDING_PAYMENT') return false;
+      } else if (statusFilter === 'PAID') {
+        if (!['PAID', 'PROCESSING', 'SHIPPED'].includes(order.status)) return false;
+      } else if (statusFilter === 'DELIVERED') {
+        if (!['DELIVERED', 'COMPLETED'].includes(order.status)) return false;
+      } else if (statusFilter === 'REJECTED') {
+        if (order.status !== 'REJECTED') return false;
+      } else {
+        if (order.status !== statusFilter) return false;
+      }
+    }
 
     // Date range filter
     if (!matchesDateFilter(order.createdAt)) return false;
@@ -1127,31 +1146,28 @@ export default function AdminDashboardPage() {
             <div className="bg-white dark:bg-[#14111d] p-4 rounded-3xl border border-neutral-200/80 dark:border-[#2a243a] shadow-xs flex flex-col lg:flex-row items-center justify-between gap-4">
               <div className="flex flex-wrap items-center gap-1.5 w-full lg:w-auto">
                 {[
-                  { key: 'ALL', label: 'All Orders' },
-                  { key: 'PENDING_APPROVAL', label: '🟡 Pending Approval' },
-                  { key: 'APPROVED_PENDING_PAYMENT', label: '🔵 Awaiting Payment' },
-                  { key: 'PAYMENT_UNDER_REVIEW', label: '🟣 Verify Receipt' },
-                  { key: 'PAID', label: '🟢 Paid' },
-                  { key: 'REJECTED', label: '🔴 Rejected' },
+                  { key: 'ALL', label: 'الكل (All)', count: totalOrdersCount, color: 'bg-neutral-800' },
+                  { key: 'PENDING', label: '🟡 قيد المراجعة', count: pendingTotalCount, color: 'bg-amber-500' },
+                  { key: 'AWAITING_PAYMENT', label: '🔵 في انتظار الدفع', count: approvedPaymentCount, color: 'bg-blue-600' },
+                  { key: 'PAID', label: '🟢 مدفوع', count: paidCount, color: 'bg-emerald-600' },
+                  { key: 'DELIVERED', label: '📦 تم التوصيل', count: deliveredCount, color: 'bg-teal-600' },
+                  { key: 'REJECTED', label: '🔴 ملغي', count: rejectedCount, color: 'bg-rose-600' },
                 ].map((tab) => (
                   <button
                     key={tab.key}
                     onClick={() => setStatusFilter(tab.key)}
-                    className={`px-3 py-2 rounded-2xl text-xs font-extrabold transition-all cursor-pointer ${
+                    className={`px-3 py-2 rounded-2xl text-xs font-extrabold transition-all cursor-pointer inline-flex items-center gap-1.5 ${
                       statusFilter === tab.key
                         ? 'bg-neutral-950 dark:bg-purple-600 text-white shadow-xs'
                         : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-[#201a2e]'
                     }`}
                   >
-                    {tab.label}
-                    {tab.key === 'PENDING_APPROVAL' && pendingApprovalCount > 0 && (
-                      <span className="ml-1.5 px-1.5 py-0.5 bg-amber-500 text-white rounded-full text-[10px] font-black">
-                        {pendingApprovalCount}
-                      </span>
-                    )}
-                    {tab.key === 'PAYMENT_UNDER_REVIEW' && paymentReviewCount > 0 && (
-                      <span className="ml-1.5 px-1.5 py-0.5 bg-purple-500 text-white rounded-full text-[10px] font-black">
-                        {paymentReviewCount}
+                    <span>{tab.label}</span>
+                    {tab.count > 0 && (
+                      <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-black text-white ${
+                        statusFilter === tab.key ? 'bg-white/20' : tab.color
+                      }`}>
+                        {tab.count}
                       </span>
                     )}
                   </button>
@@ -1603,7 +1619,7 @@ export default function AdminDashboardPage() {
               )}
 
               {/* LIVE TRACKING CONTROL PANEL FOR ADMIN */}
-              {['PAID', 'PROCESSING', 'SHIPPED', 'COMPLETED'].includes(selectedOrder.status) && (
+              {['PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED'].includes(selectedOrder.status) && (
                 <div className="p-6 rounded-3xl bg-gradient-to-br from-indigo-50/90 via-purple-50/70 to-pink-50/60 border-2 border-indigo-200/80 space-y-4">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-indigo-200/60">
                     <div className="flex items-center gap-2.5">
@@ -1637,7 +1653,8 @@ export default function AdminDashboardPage() {
                         <option value="PAID">1. تم تأكيد الدفع (Payment Verified)</option>
                         <option value="PROCESSING">2. جاري الشراء من شي إن (Processing on SHEIN)</option>
                         <option value="SHIPPED">3. تم الشحن مع المندوب (In Transit / Shipped)</option>
-                        <option value="COMPLETED">4. تم التوصيل بنجاح (Delivered & Completed)</option>
+                        <option value="DELIVERED">4. تم التوصيل للعميل (Delivered)</option>
+                        <option value="COMPLETED">5. طلب مكتمل (Delivered & Completed)</option>
                       </select>
                     </div>
 
@@ -1978,10 +1995,43 @@ export default function AdminDashboardPage() {
                   </div>
                 )}
 
+                {['PAID', 'PROCESSING', 'SHIPPED'].includes(selectedOrder.status) && (
+                  <button
+                    type="button"
+                    disabled={updating}
+                    onClick={() => handleUpdateOrder('DELIVERED')}
+                    className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-black text-xs rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>تأكيد التوصيل (Mark Delivered)</span>
+                  </button>
+                )}
+
                 {selectedOrder.status === 'PAID' && (
                   <div className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-200 text-xs font-bold">
                     <CheckCircle2 className="w-4 h-4" />
-                    Order paid & fulfilled
+                    Order paid (مدفوع)
+                  </div>
+                )}
+
+                {selectedOrder.status === 'PROCESSING' && (
+                  <div className="flex items-center gap-2 px-4 py-2.5 bg-blue-50 text-blue-700 rounded-xl border border-blue-200 text-xs font-bold">
+                    <ShoppingBag className="w-4 h-4" />
+                    Purchasing on SHEIN
+                  </div>
+                )}
+
+                {selectedOrder.status === 'SHIPPED' && (
+                  <div className="flex items-center gap-2 px-4 py-2.5 bg-sky-50 text-sky-700 rounded-xl border border-sky-200 text-xs font-bold">
+                    <Truck className="w-4 h-4" />
+                    In transit with carrier
+                  </div>
+                )}
+
+                {(selectedOrder.status === 'DELIVERED' || selectedOrder.status === 'COMPLETED') && (
+                  <div className="flex items-center gap-2 px-4 py-2.5 bg-teal-50 text-teal-800 rounded-xl border border-teal-200 text-xs font-black">
+                    <CheckCircle2 className="w-4 h-4 text-teal-600" />
+                    ✓ تم التوصيل للعميل بنجاح (Delivered)
                   </div>
                 )}
               </div>
@@ -3026,10 +3076,15 @@ function StatusBadge({ status }: { status: OrderStatus }) {
       className: 'bg-sky-100 text-sky-900 border-sky-300',
       icon: <CheckCircle2 className="w-3.5 h-3.5 text-sky-600" />,
     },
+    DELIVERED: {
+      label: 'تم التوصيل للعميل (Delivered)',
+      className: 'bg-emerald-100 text-emerald-900 border-emerald-300 font-black',
+      icon: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />,
+    },
     COMPLETED: {
-      label: 'Completed',
-      className: 'bg-neutral-100 text-neutral-700 border-neutral-300',
-      icon: <CheckCircle2 className="w-3.5 h-3.5 text-neutral-500" />,
+      label: 'Delivered (مكتمل)',
+      className: 'bg-emerald-100 text-emerald-900 border-emerald-300 font-bold',
+      icon: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />,
     },
     REJECTED: {
       label: 'Rejected',

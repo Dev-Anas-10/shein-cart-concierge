@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -28,6 +28,7 @@ import {
   User,
   ShieldCheck,
   Sparkles,
+  Truck,
 } from 'lucide-react';
 
 export default function UserOrdersPage() {
@@ -37,6 +38,38 @@ export default function UserOrdersPage() {
   const [authOpen, setAuthOpen] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState<string>('ALL');
+
+  const counts = useMemo(() => {
+    return {
+      all: orders.length,
+      pending: orders.filter((o) => ['PENDING_APPROVAL', 'PAYMENT_UNDER_REVIEW'].includes(o.status)).length,
+      awaitingPayment: orders.filter((o) => o.status === 'APPROVED_PENDING_PAYMENT').length,
+      paid: orders.filter((o) => ['PAID', 'PROCESSING', 'SHIPPED'].includes(o.status)).length,
+      delivered: orders.filter((o) => o.status === 'DELIVERED' || o.status === 'COMPLETED').length,
+      rejected: orders.filter((o) => o.status === 'REJECTED').length,
+    };
+  }, [orders]);
+
+  const filteredOrders = useMemo(() => {
+    if (statusFilter === 'ALL') return orders;
+    if (statusFilter === 'PENDING') {
+      return orders.filter((o) => ['PENDING_APPROVAL', 'PAYMENT_UNDER_REVIEW'].includes(o.status));
+    }
+    if (statusFilter === 'AWAITING_PAYMENT') {
+      return orders.filter((o) => o.status === 'APPROVED_PENDING_PAYMENT');
+    }
+    if (statusFilter === 'PAID') {
+      return orders.filter((o) => ['PAID', 'PROCESSING', 'SHIPPED'].includes(o.status));
+    }
+    if (statusFilter === 'DELIVERED') {
+      return orders.filter((o) => o.status === 'DELIVERED' || o.status === 'COMPLETED');
+    }
+    if (statusFilter === 'REJECTED') {
+      return orders.filter((o) => o.status === 'REJECTED');
+    }
+    return orders;
+  }, [orders, statusFilter]);
 
   useEffect(() => {
     if (user?.role === 'admin') {
@@ -109,11 +142,18 @@ export default function UserOrdersPage() {
           </span>
         );
       case 'SHIPPED':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800">
+            <Truck className="w-3.5 h-3.5" />
+            {t.statusShipped}
+          </span>
+        );
+      case 'DELIVERED':
       case 'COMPLETED':
         return (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700">
             <CheckCircle2 className="w-3.5 h-3.5" />
-            {status === 'SHIPPED' ? t.statusShipped : t.statusCompleted}
+            {status === 'DELIVERED' ? t.statusDelivered : t.statusCompleted}
           </span>
         );
       case 'REJECTED':
@@ -259,16 +299,53 @@ export default function UserOrdersPage() {
               </motion.div>
             </motion.div>
           ) : (
-            <motion.div
-              initial="hidden"
-              animate="visible"
-              variants={{
-                hidden: { opacity: 0 },
-                visible: { opacity: 1, transition: { staggerChildren: 0.08 } },
-              }}
-              className="space-y-3"
-            >
-              {orders.map((order) => (
+            <div className="space-y-4">
+              {/* Order Status Filter Pills */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                {[
+                  { key: 'ALL', label: dir === 'rtl' ? 'الكل' : 'All', count: counts.all },
+                  { key: 'PENDING', label: dir === 'rtl' ? '🟡 قيد المراجعة' : '🟡 Under Review', count: counts.pending },
+                  { key: 'AWAITING_PAYMENT', label: dir === 'rtl' ? '🔵 في انتظار الدفع' : '🔵 Awaiting Payment', count: counts.awaitingPayment },
+                  { key: 'PAID', label: dir === 'rtl' ? '🟢 مدفوع' : '🟢 Paid', count: counts.paid },
+                  { key: 'DELIVERED', label: dir === 'rtl' ? '📦 تم التوصيل' : '📦 Delivered', count: counts.delivered },
+                  { key: 'REJECTED', label: dir === 'rtl' ? '🔴 ملغي' : '🔴 Rejected', count: counts.rejected },
+                ].map((tab) => (
+                  <button
+                    key={tab.key}
+                    onClick={() => setStatusFilter(tab.key)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 cursor-pointer inline-flex items-center gap-1.5 ${
+                      statusFilter === tab.key
+                        ? 'bg-[#8B5CF6] text-white shadow-xs'
+                        : 'bg-white/80 dark:bg-[#151120] text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-[#201a2e] border border-neutral-200/60 dark:border-[#2a243a]'
+                    }`}
+                  >
+                    <span>{tab.label}</span>
+                    <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                      statusFilter === tab.key ? 'bg-white/20 text-white' : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400'
+                    }`}>
+                      {tab.count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {filteredOrders.length === 0 ? (
+                <div className="bg-white/80 dark:bg-[#13101c]/80 rounded-3xl p-8 text-center border border-neutral-200/60 dark:border-[#2a243a]">
+                  <p className="text-xs font-bold text-neutral-500 dark:text-neutral-400">
+                    {dir === 'rtl' ? 'لا توجد طلبات تطابق هذه التصفية حالياً.' : 'No orders match this filter.'}
+                  </p>
+                </div>
+              ) : (
+                <motion.div
+                  initial="hidden"
+                  animate="visible"
+                  variants={{
+                    hidden: { opacity: 0 },
+                    visible: { opacity: 1, transition: { staggerChildren: 0.08 } },
+                  }}
+                  className="space-y-3"
+                >
+                  {filteredOrders.map((order) => (
                 <motion.div
                   key={order.id}
                   variants={{
@@ -352,7 +429,9 @@ export default function UserOrdersPage() {
                   </Link>
                 </motion.div>
               ))}
-            </motion.div>
+                </motion.div>
+              )}
+            </div>
           )}
         </div>
       </main>

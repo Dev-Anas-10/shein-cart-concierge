@@ -87,6 +87,7 @@ export interface Translations {
   statusPaid: string;
   statusProcessing: string;
   statusShipped: string;
+  statusDelivered: string;
   statusCompleted: string;
   statusRejected: string;
 
@@ -191,6 +192,7 @@ const TRANSLATIONS: Record<Language, Translations> = {
     statusPaid: 'تم تأكيد الدفع • جاري الشراء',
     statusProcessing: 'جاري الشحن والتجهيز',
     statusShipped: 'الشحنة في الطريق إليك',
+    statusDelivered: 'تم التوصيل للعميل',
     statusCompleted: 'تم التسليم بنجاح',
     statusRejected: 'تم رفض الطلب',
 
@@ -294,6 +296,7 @@ const TRANSLATIONS: Record<Language, Translations> = {
     statusPaid: 'Payment Confirmed • Purchasing',
     statusProcessing: 'Processing & Preparing',
     statusShipped: 'Shipped & Out for Delivery',
+    statusDelivered: 'Delivered to Customer',
     statusCompleted: 'Delivered Successfully',
     statusRejected: 'Order Rejected',
 

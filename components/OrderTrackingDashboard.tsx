@@ -38,12 +38,12 @@ export function OrderTrackingDashboard({ order, dir }: OrderTrackingDashboardPro
   // 1: PAID (Payment Confirmed)
   // 2: PROCESSING (Purchased from SHEIN)
   // 3: SHIPPED (In transit / With courier)
-  // 4: COMPLETED (Delivered)
+  // 4: DELIVERED / COMPLETED (Delivered to customer)
   let activeStep = 1;
   if (order.status === 'PAID') activeStep = 1;
   else if (order.status === 'PROCESSING') activeStep = 2;
   else if (order.status === 'SHIPPED') activeStep = 3;
-  else if (order.status === 'COMPLETED') activeStep = 4;
+  else if (order.status === 'DELIVERED' || order.status === 'COMPLETED') activeStep = 4;
   if (tracking.currentStep) activeStep = Math.max(activeStep, tracking.currentStep);
 
   const steps = [
@@ -73,8 +73,8 @@ export function OrderTrackingDashboard({ order, dir }: OrderTrackingDashboardPro
     },
     {
       num: 4,
-      title: isRtl ? 'تم الاستلام بنجاح' : 'Delivered & Complete',
-      desc: isRtl ? 'تم التوصيل لباب بيتك' : 'Delivered to your address',
+      title: isRtl ? 'تم التوصيل للعميل' : 'Delivered to Customer',
+      desc: isRtl ? 'تم تسليم الطلب لك بنجاح' : 'Delivered to your address',
       icon: CheckCircle2,
       isDone: activeStep >= 4,
       isCurrent: activeStep === 4,
