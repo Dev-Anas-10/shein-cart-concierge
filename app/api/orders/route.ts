@@ -78,6 +78,19 @@ export async function POST(req: NextRequest) {
 
     const orderId = body.id || `SH-${Math.floor(10000 + Math.random() * 90000)}`;
 
+    if (body.id) {
+      const existing = await db.getOrderById(body.id);
+      if (
+        existing &&
+        (existing.isPriceLocked ||
+          existing.status !== 'PENDING_APPROVAL' ||
+          existing.reviewedAt)
+      ) {
+        console.warn(`[POST /api/orders] Protected approved/locked order ${body.id} from recreation.`);
+        return NextResponse.json({ success: true, data: existing }, { status: 200 });
+      }
+    }
+
     const newOrder: Order = normalizeOrderLinks({
       id: orderId,
       userId: userId || 'guest-user',

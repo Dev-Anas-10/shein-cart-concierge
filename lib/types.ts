@@ -108,6 +108,19 @@ export interface GoodItem {
   sourceOriginalPrice?: string; // e.g. "44.00"
 }
 
+export interface LockedPricingSnapshot {
+  lockedAt: string;
+  lockedBy?: string;
+  exchangeRateUsed: number;
+  profitMarginPercentUsed: number;
+  dynamicFeePercent: number;
+  dynamicFeeAmount: number;
+  shippingFee: number;
+  itemsSubtotal: number;
+  totalCash: number;
+  items: GoodItem[];
+}
+
 export interface PaymentDetails {
   method: 'instapay' | 'vodafone_cash';
   senderIdentifier: string;  // Sender phone number or InstaPay address
@@ -156,6 +169,12 @@ export interface Order {
   
   // Payment Proof
   payment?: PaymentDetails;
+
+  // Price Locking & Historical Rates (Task 10)
+  isPriceLocked?: boolean;
+  exchangeRateUsed?: number;
+  profitMarginPercentUsed?: number;
+  lockedPricingSnapshot?: LockedPricingSnapshot;
 
   // Order Tracking & Shipment Batch
   tracking?: TrackingInfo;

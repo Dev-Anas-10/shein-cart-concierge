@@ -14,6 +14,7 @@ import {
   Search,
   CheckCircle2,
   Clock,
+  Lock,
   AlertCircle,
   XCircle,
   ExternalLink,
@@ -1639,11 +1640,15 @@ export default function AdminDashboardPage() {
                   <div className="flex items-center gap-2.5">
                     <CreditCard className="w-4 h-4 text-blue-600 shrink-0" />
                     <div className="space-y-0.5 text-start">
-                      <p className="font-black text-blue-900">
-                        الطلب معتمد حالياً وفي انتظار سداد العميل ({selectedOrder.totalCash.toLocaleString()} EGP)
+                      <p className="font-black text-blue-900 flex items-center gap-2">
+                        <span>الطلب معتمد حالياً وفي انتظار سداد العميل ({selectedOrder.totalCash.toLocaleString()} EGP)</span>
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-100 text-blue-800 border border-blue-300 text-[10px] font-black">
+                          <Lock className="w-3 h-3 text-blue-600" />
+                          الأسعار مثبتة ومحمية
+                        </span>
                       </p>
                       <p className="text-[11px] text-blue-700">
-                        يمكنك تعديل أي سعر للمنتجات المقبولة أدناه، وعند الضغط على <strong>حفظ وتحديث الأسعار للعميل (Save & Apply)</strong> سيتم تحديث الأسعار والمبلغ الإجمالي في صفحة الدفع للعميل فوراً دون الحاجة لرفض الطلب.
+                        سعر الصرف المعتمد لهذا الطلب: <strong>{selectedOrder.exchangeRateUsed ?? settings?.sarToEgpRate ?? 15} ج.م / ر.س</strong> — محمي تماماً من تغيرات الإعدادات العامة. يمكنك تعديل أسعار المنتجات المقبولة أدناه والضغط على <strong>Save & Apply</strong> لتحديث السعر المعتمد للعميل.
                       </p>
                     </div>
                   </div>
@@ -2537,6 +2542,16 @@ export default function AdminDashboardPage() {
                         <span className="text-[10px] font-bold text-purple-700 block">السعر النهائي الذي يظهر للعميل:</span>
                         <span className="font-black text-base text-purple-950 font-mono">
                           {Math.round((10 * editSarToEgpRate) * (1 + editProfitMarginPercent / 100))} EGP
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-emerald-950 text-[11px] flex items-start gap-2">
+                      <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                      <div>
+                        <strong className="block text-emerald-900 font-black">نظام حماية وتثبيت الأسعار المعتمدة (Price Locking System):</strong>
+                        <span className="text-emerald-800 leading-relaxed block mt-0.5">
+                          تغيير سعر الصرف أو نسبة الربح يطبق تلقائياً على <strong>الطلبات الجديدة والطلبات غير المراجعة (قيد المراجعة)</strong> فقط. جميع الطلبات التي تمت مراجعتها واعتمادها وانتقلت إلى مرحلة الدفع تظل أسعارها ثابتة ومحمية تماماً ولا تتغير.
                         </span>
                       </div>
                     </div>

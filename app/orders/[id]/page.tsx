@@ -71,15 +71,10 @@ export default function OrderDetailsPage() {
         setOrder(orderJson.data);
         saveClientOrder(orderJson.data);
       } else {
-        // Fallback to client localStorage so orders never get lost!
+        // Fallback to client localStorage so order data is preserved on temporary network glitch
         const local = getClientOrders().find((o) => o.id === id);
         if (local) {
           setOrder(local);
-          fetch('/api/orders', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(local),
-          }).catch(() => {});
         }
       }
 
@@ -318,6 +313,14 @@ export default function OrderDetailsPage() {
                     ? 'راجع المشرف منتجاتك واعتمد الأسعار والمبالغ النهائية. يرجى مراجعة تفاصيل المنتجات المقبولة والمستبعدة وإجمالي المبلغ أدناه، ثم المتابعة لاختيار وسيلة الدفع.'
                     : 'The admin reviewed your cart and approved final unit prices. Please review the itemized breakdown and approved total below, then proceed with payment.'}
                 </p>
+                <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-100/90 dark:bg-emerald-900/60 border border-emerald-300 dark:border-emerald-700 text-[11px] font-black text-emerald-900 dark:text-emerald-100">
+                  <Lock className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-300 shrink-0" />
+                  <span>
+                    {isRtl
+                      ? 'الأسعار المعتمدة مثبتة ومحمية من تقلبات سعر الصرف طوال فترة السداد'
+                      : 'Approved prices are locked and protected from exchange rate fluctuations'}
+                  </span>
+                </div>
               </div>
             </div>
           )}

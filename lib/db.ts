@@ -9,7 +9,7 @@
 import fs from 'fs';
 import path from 'path';
 import { Order, SystemSettings, User, GoodItem, Shipment, ShipmentStatus } from './types';
-import { RELIABLE_FASHION_IMAGES } from './shein-extractor';
+import { RELIABLE_FASHION_IMAGES, resolveItemPricing } from './shein-extractor';
 import { normalizeOrderLinks } from './shein-links';
 import { getSupabase } from './supabase';
 
@@ -286,7 +286,7 @@ async function loadFromRedis(): Promise<DatabaseSchema | null> {
     const parsed = typeof raw === 'string' ? JSON.parse(raw) : (raw as DatabaseSchema);
     return {
       users: parsed.users && parsed.users.length > 0 ? parsed.users : DEFAULT_USERS,
-      orders: parsed.orders && parsed.orders.length > 0 ? parsed.orders : DEFAULT_ORDERS,
+      orders: parsed.orders && parsed.orders.length > 0 ? parsed.orders.map(sanitizeOrderPricingLock) : DEFAULT_ORDERS.map(sanitizeOrderPricingLock),
       shipments: parsed.shipments && parsed.shipments.length > 0 ? parsed.shipments : DEFAULT_SHIPMENTS,
       settings: parsed.settings ?? DEFAULT_SETTINGS,
     };
@@ -308,8 +308,46 @@ async function saveToRedis(data: DatabaseSchema): Promise<void> {
 
 /* ────────────────────────── Supabase Layer ───────────────────────── */
 
+function sanitizeOrderPricingLock(order: Order): Order {
+  const isApprovedStatus = [
+    'APPROVED_PENDING_PAYMENT',
+    'PAYMENT_UNDER_REVIEW',
+    'PAID',
+    'PROCESSING',
+    'SHIPPED',
+    'DELIVERED',
+    'COMPLETED',
+    'CANCELLED',
+  ].includes(order.status);
+
+  if (isApprovedStatus || order.reviewedAt || order.isPriceLocked) {
+    order.isPriceLocked = true;
+    if (!order.exchangeRateUsed) {
+      order.exchangeRateUsed = 15.0;
+    }
+    if (!order.profitMarginPercentUsed) {
+      order.profitMarginPercentUsed = 10.0;
+    }
+    if (!order.lockedPricingSnapshot && Array.isArray(order.items)) {
+      order.lockedPricingSnapshot = {
+        lockedAt: order.reviewedAt || order.updatedAt || order.createdAt,
+        lockedBy: order.reviewedBy || 'Admin',
+        exchangeRateUsed: order.exchangeRateUsed,
+        profitMarginPercentUsed: order.profitMarginPercentUsed,
+        dynamicFeePercent: order.dynamicFeePercent,
+        dynamicFeeAmount: order.dynamicFeeAmount,
+        shippingFee: order.shippingFee,
+        itemsSubtotal: order.itemsSubtotal,
+        totalCash: order.totalCash,
+        items: JSON.parse(JSON.stringify(order.items || [])),
+      };
+    }
+  }
+  return order;
+}
+
 function mapRowToOrder(row: any): Order {
-  return normalizeOrderLinks({
+  return sanitizeOrderPricingLock(normalizeOrderLinks({
     id: String(row.id),
     userId: String(row.user_id ?? row.userId ?? ''),
     userName: String(row.user_name ?? row.userName ?? ''),
@@ -358,9 +396,18 @@ function mapRowToOrder(row: any): Order {
     cancelledAt: row.cancelled_at ?? row.cancelledAt ?? undefined,
     cancelledBy: row.cancelled_by ?? row.cancelledBy ?? undefined,
     cancellationReason: row.cancellation_reason ?? row.cancellationReason ?? undefined,
+    isPriceLocked:
+      typeof row.is_price_locked === 'boolean'
+        ? row.is_price_locked
+        : typeof row.isPriceLocked === 'boolean'
+        ? row.isPriceLocked
+        : ['APPROVED_PENDING_PAYMENT', 'PAYMENT_UNDER_REVIEW', 'PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED', 'CANCELLED'].includes(row.status),
+    exchangeRateUsed: row.exchange_rate_used ?? row.exchangeRateUsed ?? undefined,
+    profitMarginPercentUsed: row.profit_margin_percent_used ?? row.profitMarginPercentUsed ?? undefined,
+    lockedPricingSnapshot: row.locked_pricing_snapshot ?? row.lockedPricingSnapshot ?? undefined,
     createdAt: row.created_at ?? row.createdAt ?? new Date().toISOString(),
     updatedAt: row.updated_at ?? row.updatedAt ?? new Date().toISOString(),
-  });
+  }));
 }
 
 function mapRowToUser(row: any): User & { password?: string } {
@@ -519,7 +566,7 @@ function loadFromFile(): DatabaseSchema | null {
       if (parsed) {
         return {
           users: parsed.users && parsed.users.length > 0 ? parsed.users : DEFAULT_USERS,
-          orders: parsed.orders && parsed.orders.length > 0 ? parsed.orders : DEFAULT_ORDERS,
+          orders: parsed.orders && parsed.orders.length > 0 ? parsed.orders.map(sanitizeOrderPricingLock) : DEFAULT_ORDERS.map(sanitizeOrderPricingLock),
           shipments: parsed.shipments && parsed.shipments.length > 0 ? parsed.shipments : DEFAULT_SHIPMENTS,
           settings: parsed.settings ?? DEFAULT_SETTINGS,
         };
@@ -537,7 +584,7 @@ function loadFromFile(): DatabaseSchema | null {
       if (parsed) {
         return {
           users: parsed.users && parsed.users.length > 0 ? parsed.users : DEFAULT_USERS,
-          orders: parsed.orders && parsed.orders.length > 0 ? parsed.orders : DEFAULT_ORDERS,
+          orders: parsed.orders && parsed.orders.length > 0 ? parsed.orders.map(sanitizeOrderPricingLock) : DEFAULT_ORDERS.map(sanitizeOrderPricingLock),
           shipments: parsed.shipments && parsed.shipments.length > 0 ? parsed.shipments : DEFAULT_SHIPMENTS,
           settings: parsed.settings ?? DEFAULT_SETTINGS,
         };
@@ -744,7 +791,94 @@ export const db = {
 
   updateSettings: async (newSettings: Partial<SystemSettings>): Promise<SystemSettings> => {
     const data = await ensureDb();
-    data.settings = { ...data.settings, ...newSettings };
+    const oldSettings = { ...data.settings };
+    const mergedSettings = { ...data.settings, ...newSettings };
+    data.settings = mergedSettings;
+
+    const oldSarRate = Number(oldSettings.sarToEgpRate) || 15.0;
+    const oldProfitMargin = Number(oldSettings.profitMarginPercent) ?? 10.0;
+    const newSarRate = Number(mergedSettings.sarToEgpRate) || 15.0;
+    const newProfitMargin = Number(mergedSettings.profitMarginPercent) ?? 10.0;
+    const newFeePercent = Number(mergedSettings.dynamicFeePercent) || 0;
+    const newShippingFee = Number(mergedSettings.flatShippingFee) || 0;
+
+    const rateChanged = newSarRate !== oldSarRate;
+    const marginChanged = newProfitMargin !== oldProfitMargin;
+    const feeChanged = newFeePercent !== (Number(oldSettings.dynamicFeePercent) || 0);
+    const shippingChanged = newShippingFee !== (Number(oldSettings.flatShippingFee) || 0);
+
+    const oldMultiplier = oldSarRate * (1 + oldProfitMargin / 100);
+    const newMultiplier = newSarRate * (1 + newProfitMargin / 100);
+
+    // Task 10: Strict segregation between unreviewed and reviewed/approved orders.
+    // Changing global rates or fees updates ONLY unreviewed orders (PENDING_APPROVAL and not price-locked).
+    // All approved, payment-phase, and reviewed orders are STRICTLY PROTECTED and IMMUTABLE.
+    if (rateChanged || marginChanged || feeChanged || shippingChanged) {
+      for (const order of data.orders) {
+        const isUnreviewed =
+          order.status === 'PENDING_APPROVAL' &&
+          !order.isPriceLocked &&
+          !order.reviewedAt;
+
+        if (!isUnreviewed) {
+          // STRICT SAFEGUARD: Never touch approved/reviewed/locked orders
+          continue;
+        }
+
+        // Recalculate item prices if exchange rate or profit margin changed
+        if (rateChanged || marginChanged) {
+          if (Array.isArray(order.items)) {
+            for (const it of order.items) {
+              const qty = Math.max(1, it.quantity || 1);
+              if (it.sourcePrice) {
+                const pricing = resolveItemPricing(
+                  it.sourceOriginalPrice || it.originalPriceBeforeDiscount,
+                  it.sourcePrice,
+                  newSarRate,
+                  newProfitMargin
+                );
+                it.originalPrice = pricing.salePriceEgp;
+                it.originalPriceBeforeDiscount = pricing.retailPriceEgp;
+                it.discountPercent = pricing.discountPercent;
+                it.subtotal = qty * pricing.salePriceEgp;
+              } else if (oldMultiplier > 0) {
+                const estSar = it.originalPrice / oldMultiplier;
+                it.originalPrice = Math.max(1, Math.round(estSar * newMultiplier));
+                if (it.originalPriceBeforeDiscount) {
+                  const estRetailSar = it.originalPriceBeforeDiscount / oldMultiplier;
+                  it.originalPriceBeforeDiscount = Math.max(it.originalPrice, Math.round(estRetailSar * newMultiplier));
+                  if (it.originalPriceBeforeDiscount > it.originalPrice) {
+                    it.discountPercent = Math.round(
+                      ((it.originalPriceBeforeDiscount - it.originalPrice) / it.originalPriceBeforeDiscount) * 100
+                    );
+                  } else {
+                    it.discountPercent = undefined;
+                  }
+                }
+                it.subtotal = qty * it.originalPrice;
+              }
+            }
+          }
+        }
+
+        // Recalculate totals with dynamic fee and shipping
+        const activeItems = (order.items || []).filter(
+          (it) => it.status !== 'rejected' && it.status !== 'out_of_stock'
+        );
+        const itemsSubtotal = activeItems.reduce((s, it) => s + it.subtotal, 0);
+        const dynamicFeeAmount = Math.round(itemsSubtotal * (newFeePercent / 100));
+        order.itemsSubtotal = itemsSubtotal;
+        order.dynamicFeePercent = newFeePercent;
+        order.dynamicFeeAmount = dynamicFeeAmount;
+        order.shippingFee = newShippingFee;
+        order.totalCash = itemsSubtotal + dynamicFeeAmount + newShippingFee;
+        order.itemsCount = activeItems.length;
+        order.updatedAt = new Date().toISOString();
+
+        await syncOrderToSupabase(order);
+      }
+    }
+
     await persistDb(data);
     return data.settings;
   },
@@ -895,6 +1029,10 @@ export const db = {
             cancelledAt: fromSb.cancelledAt || foundInMemory?.cancelledAt,
             cancelledBy: fromSb.cancelledBy || foundInMemory?.cancelledBy,
             cancellationReason: fromSb.cancellationReason || foundInMemory?.cancellationReason,
+            isPriceLocked: fromSb.isPriceLocked ?? foundInMemory?.isPriceLocked,
+            exchangeRateUsed: fromSb.exchangeRateUsed ?? foundInMemory?.exchangeRateUsed,
+            profitMarginPercentUsed: fromSb.profitMarginPercentUsed ?? foundInMemory?.profitMarginPercentUsed,
+            lockedPricingSnapshot: fromSb.lockedPricingSnapshot ?? foundInMemory?.lockedPricingSnapshot,
           });
         }
       } catch (err) {
@@ -909,6 +1047,16 @@ export const db = {
     const data = await ensureDb();
     const existingIndex = data.orders.findIndex((o) => o.id === order.id);
     if (existingIndex >= 0) {
+      const existing = data.orders[existingIndex];
+      // Task 10 Safeguard: Never overwrite an approved, reviewed, or price-locked order
+      if (
+        existing.isPriceLocked ||
+        existing.status !== 'PENDING_APPROVAL' ||
+        existing.reviewedAt
+      ) {
+        console.warn(`[DB] Refusing to overwrite approved/locked order ${order.id} with status ${existing.status}`);
+        return existing;
+      }
       data.orders[existingIndex] = order;
     } else {
       data.orders.unshift(order);
@@ -942,6 +1090,44 @@ export const db = {
       updated.shippingFee = shipping;
       updated.totalCash = subtotal + feeAmount + shipping;
       updated.itemsCount = activeItems.length;
+    }
+
+    // Task 10: If order is approved or moving to payment, lock pricing immutably!
+    const targetStatus = updated.status || current.status;
+    const isApprovedOrBeyond = [
+      'APPROVED_PENDING_PAYMENT',
+      'PAYMENT_UNDER_REVIEW',
+      'PAID',
+      'PROCESSING',
+      'SHIPPED',
+      'DELIVERED',
+      'COMPLETED',
+    ].includes(targetStatus);
+
+    if (isApprovedOrBeyond) {
+      updated.isPriceLocked = true;
+      if (!updated.reviewedAt) {
+        updated.reviewedAt = new Date().toISOString();
+      }
+      if (!updated.exchangeRateUsed) {
+        updated.exchangeRateUsed = data.settings.sarToEgpRate ?? 15.0;
+      }
+      if (!updated.profitMarginPercentUsed) {
+        updated.profitMarginPercentUsed = data.settings.profitMarginPercent ?? 10.0;
+      }
+      // Save or update locked pricing snapshot
+      updated.lockedPricingSnapshot = {
+        lockedAt: updated.reviewedAt,
+        lockedBy: updated.reviewedBy || 'Admin',
+        exchangeRateUsed: updated.exchangeRateUsed,
+        profitMarginPercentUsed: updated.profitMarginPercentUsed,
+        dynamicFeePercent: updated.dynamicFeePercent,
+        dynamicFeeAmount: updated.dynamicFeeAmount,
+        shippingFee: updated.shippingFee,
+        itemsSubtotal: updated.itemsSubtotal,
+        totalCash: updated.totalCash,
+        items: JSON.parse(JSON.stringify(updated.items)),
+      };
     }
 
     data.orders[index] = updated;

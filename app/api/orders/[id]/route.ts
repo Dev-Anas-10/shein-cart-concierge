@@ -38,9 +38,13 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     if (body.status) {
       updates.status = body.status as OrderStatus;
       if (body.status === 'APPROVED_PENDING_PAYMENT') {
+        const settings = await db.getSettings();
         updates.reviewedBy = body.reviewedBy || 'Admin';
         updates.reviewedAt = new Date().toISOString();
         updates.pricingExpiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+        updates.isPriceLocked = true;
+        updates.exchangeRateUsed = settings.sarToEgpRate ?? 15.0;
+        updates.profitMarginPercentUsed = settings.profitMarginPercent ?? 10.0;
       }
       if (body.status === 'CANCELLED') {
         updates.cancelledAt = new Date().toISOString();
