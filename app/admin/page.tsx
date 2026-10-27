@@ -288,8 +288,8 @@ export default function AdminDashboardPage() {
         if (json.success && Array.isArray(json.data)) {
           setOrders((prev) => {
             const newOrders: Order[] = json.data;
-            const prevSig = prev.map((o) => `${o.id}:${o.status}:${o.updatedAt}:${o.payment?.submittedAt}`).join('|');
-            const newSig = newOrders.map((o) => `${o.id}:${o.status}:${o.updatedAt}:${o.payment?.submittedAt}`).join('|');
+            const prevSig = prev.map((o) => `${o.id}:${o.status}:${o.totalCash}:${o.shipmentId || ''}:${o.updatedAt}:${o.payment?.submittedAt}`).join('|');
+            const newSig = newOrders.map((o) => `${o.id}:${o.status}:${o.totalCash}:${o.shipmentId || ''}:${o.updatedAt}:${o.payment?.submittedAt}`).join('|');
             if (prevSig !== newSig) {
               return newOrders;
             }
@@ -388,10 +388,13 @@ export default function AdminDashboardPage() {
       if (
         currentInOrders &&
         (currentInOrders.status !== selectedOrder.status ||
+          currentInOrders.totalCash !== selectedOrder.totalCash ||
           currentInOrders.updatedAt !== selectedOrder.updatedAt ||
           currentInOrders.payment?.submittedAt !== selectedOrder.payment?.submittedAt)
       ) {
         setSelectedOrder(currentInOrders);
+        setReviewItems(JSON.parse(JSON.stringify(currentInOrders.items || [])));
+        setReviewOrderComment(currentInOrders.adminComment || '');
       }
     }
   }, [orders, selectedOrder, hasUnsavedChanges, updating]);

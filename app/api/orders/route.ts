@@ -3,6 +3,9 @@ import { db } from '@/lib/db';
 import { normalizeOrderLinks } from '@/lib/shein-links';
 import { Order, GoodItem } from '@/lib/types';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
@@ -16,11 +19,29 @@ export async function GET(req: NextRequest) {
 
     // Privacy & Multi-user isolation: If neither user identity nor admin flag is provided, return empty array!
     if (!userId && !userEmail && !userPhone && !isAdmin) {
-      return NextResponse.json({ success: true, data: [] });
+      return NextResponse.json(
+        { success: true, data: [] },
+        {
+          headers: {
+            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+            Pragma: 'no-cache',
+            Expires: '0',
+          },
+        }
+      );
     }
 
     const orders = await db.getOrders({ userId, userEmail, userPhone, status, search });
-    return NextResponse.json({ success: true, data: orders });
+    return NextResponse.json(
+      { success: true, data: orders },
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+          Pragma: 'no-cache',
+          Expires: '0',
+        },
+      }
+    );
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Failed to fetch orders' }, { status: 500 });
   }
@@ -118,11 +139,10 @@ export async function POST(req: NextRequest) {
       updatedAt: new Date().toISOString(),
     });
 
-    const saved = await db.createOrder(newOrder);
+    const created = await db.createOrder(newOrder);
 
-    return NextResponse.json({ success: true, data: saved }, { status: 201 });
+    return NextResponse.json({ success: true, data: created }, { status: 201 });
   } catch (err: any) {
-    console.error('Create order error:', err);
     return NextResponse.json({ error: err.message || 'Failed to create order' }, { status: 500 });
   }
 }

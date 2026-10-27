@@ -320,47 +320,116 @@ function runWithDbMutex<T>(fn: () => Promise<T>): Promise<T> {
 function mergeOrderLists(primary: Order[], secondary: Order[]): Order[] {
   const map = new Map<string, Order>();
 
+  const hasLockedPricing = (o: Order) => Boolean(
+    o.isPriceLocked ||
+    o.lockedPricingSnapshot ||
+    (o.status && o.status !== 'PENDING_APPROVAL')
+  );
+
+  // 1. Seed with secondary (local state)
   for (const o of secondary) {
     if (o && o.id) {
-      map.set(o.id, o);
+      map.set(o.id, { ...o });
     }
   }
 
+  // 2. Non-destructively merge primary (e.g. Supabase response)
   for (const o of primary) {
     if (!o || !o.id) continue;
     const existing = map.get(o.id);
     if (!existing) {
-      map.set(o.id, o);
+      map.set(o.id, sanitizeOrderPricingLock({ ...o }));
     } else {
       const existingTime = new Date(existing.updatedAt || existing.createdAt || 0).getTime();
       const newTime = new Date(o.updatedAt || o.createdAt || 0).getTime();
-      if (newTime >= existingTime) {
-        map.set(o.id, {
-          ...existing,
-          ...o,
-          payment: o.payment || existing.payment,
-          isPriceLocked: o.isPriceLocked ?? existing.isPriceLocked,
-          exchangeRateUsed: o.exchangeRateUsed ?? existing.exchangeRateUsed,
-          profitMarginPercentUsed: o.profitMarginPercentUsed ?? existing.profitMarginPercentUsed,
-          lockedPricingSnapshot: o.lockedPricingSnapshot ?? existing.lockedPricingSnapshot,
-          auditLog: [...(existing.auditLog || []), ...(o.auditLog || [])].filter(
-            (v, i, a) => a.findIndex((t) => t.timestamp === v.timestamp && t.action === v.action) === i
-          ),
-        });
-      } else {
-        map.set(o.id, {
-          ...o,
-          ...existing,
-          payment: existing.payment || o.payment,
-          isPriceLocked: existing.isPriceLocked ?? o.isPriceLocked,
-          exchangeRateUsed: existing.exchangeRateUsed ?? o.exchangeRateUsed,
-          profitMarginPercentUsed: existing.profitMarginPercentUsed ?? o.profitMarginPercentUsed,
-          lockedPricingSnapshot: existing.lockedPricingSnapshot ?? o.lockedPricingSnapshot,
-          auditLog: [...(existing.auditLog || []), ...(o.auditLog || [])].filter(
-            (v, i, a) => a.findIndex((t) => t.timestamp === v.timestamp && t.action === v.action) === i
-          ),
-        });
+      const primaryIsNewer = newTime >= existingTime;
+
+      const base = primaryIsNewer ? o : existing;
+      const fallback = primaryIsNewer ? existing : o;
+
+      // SAFEGUARD 1: Shipment assignment (NEVER drop shipmentId/Code if either has it)
+      const shipmentId = base.shipmentId || fallback.shipmentId || undefined;
+      const shipmentCode = base.shipmentCode || fallback.shipmentCode || undefined;
+
+      // SAFEGUARD 2: Price locking immutability
+      const isPriceLocked = Boolean(
+        existing.isPriceLocked || o.isPriceLocked || hasLockedPricing(existing) || hasLockedPricing(o)
+      );
+      const lockedPricingSnapshot = existing.lockedPricingSnapshot || o.lockedPricingSnapshot || undefined;
+      const exchangeRateUsed = existing.exchangeRateUsed ?? o.exchangeRateUsed ?? undefined;
+      const profitMarginPercentUsed = existing.profitMarginPercentUsed ?? o.profitMarginPercentUsed ?? undefined;
+
+      // SAFEGUARD 3: Price preservation (Never overwrite reviewed/locked prices with unreviewed/stale numbers)
+      let items = base.items;
+      let itemsCount = base.itemsCount;
+      let itemsSubtotal = base.itemsSubtotal;
+      let dynamicFeePercent = base.dynamicFeePercent;
+      let dynamicFeeAmount = base.dynamicFeeAmount;
+      let shippingFee = base.shippingFee;
+      let totalCash = base.totalCash;
+
+      if (hasLockedPricing(existing) && !hasLockedPricing(o)) {
+        items = existing.items;
+        itemsCount = existing.itemsCount;
+        itemsSubtotal = existing.itemsSubtotal;
+        dynamicFeePercent = existing.dynamicFeePercent;
+        dynamicFeeAmount = existing.dynamicFeeAmount;
+        shippingFee = existing.shippingFee;
+        totalCash = existing.totalCash;
+      } else if (existing.lockedPricingSnapshot && !o.lockedPricingSnapshot) {
+        items = existing.lockedPricingSnapshot.items || existing.items;
+        itemsCount = items.length;
+        itemsSubtotal = existing.lockedPricingSnapshot.itemsSubtotal ?? existing.itemsSubtotal;
+        dynamicFeePercent = existing.lockedPricingSnapshot.dynamicFeePercent ?? existing.dynamicFeePercent;
+        dynamicFeeAmount = existing.lockedPricingSnapshot.dynamicFeeAmount ?? existing.dynamicFeeAmount;
+        shippingFee = existing.lockedPricingSnapshot.shippingFee ?? existing.shippingFee;
+        totalCash = existing.lockedPricingSnapshot.totalCash ?? existing.totalCash;
       }
+
+      // SAFEGUARD 4: Payment details
+      const payment = (base.payment && (base.payment.submittedAt || base.payment.senderIdentifier || base.payment.method))
+        ? base.payment
+        : fallback.payment || base.payment;
+
+      // SAFEGUARD 5: Audit Log accumulation
+      const combinedAudit = [
+        ...(existing.auditLog || []),
+        ...(o.auditLog || []),
+      ].filter((v, i, a) => a.findIndex((t) => t.timestamp === v.timestamp && t.action === v.action) === i);
+
+      // SAFEGUARD 6: Cancellation info
+      const cancelledAt = base.cancelledAt || fallback.cancelledAt || undefined;
+      const cancelledBy = base.cancelledBy || fallback.cancelledBy || undefined;
+      const cancellationReason = base.cancellationReason || fallback.cancellationReason || undefined;
+      const pricingExpiresAt = base.pricingExpiresAt || fallback.pricingExpiresAt || undefined;
+      const customerNotes = base.customerNotes || fallback.customerNotes || undefined;
+
+      const mergedOrder: Order = {
+        ...fallback,
+        ...base,
+        items,
+        itemsCount,
+        itemsSubtotal,
+        dynamicFeePercent,
+        dynamicFeeAmount,
+        shippingFee,
+        totalCash,
+        shipmentId,
+        shipmentCode,
+        isPriceLocked,
+        lockedPricingSnapshot,
+        exchangeRateUsed,
+        profitMarginPercentUsed,
+        payment,
+        auditLog: combinedAudit.length > 0 ? combinedAudit : undefined,
+        cancelledAt,
+        cancelledBy,
+        cancellationReason,
+        pricingExpiresAt,
+        customerNotes,
+      };
+
+      map.set(o.id, sanitizeOrderPricingLock(normalizeOrderLinks(mergedOrder)));
     }
   }
 
@@ -409,6 +478,17 @@ function sanitizeOrderPricingLock(order: Order): Order {
 }
 
 function mapRowToOrder(row: any): Order {
+  const paymentRaw = row.payment;
+  const meta = paymentRaw?._orderMeta || {};
+
+  let cleanPayment = undefined;
+  if (paymentRaw) {
+    const { _orderMeta, ...rest } = paymentRaw;
+    if (Object.keys(rest).length > 0) {
+      cleanPayment = rest;
+    }
+  }
+
   return sanitizeOrderPricingLock(normalizeOrderLinks({
     id: String(row.id),
     userId: String(row.user_id ?? row.userId ?? ''),
@@ -447,27 +527,29 @@ function mapRowToOrder(row: any): Order {
     totalCash: Number(row.total_cash ?? row.totalCash ?? 0),
     currency: String(row.currency ?? 'EGP'),
     status: row.status ?? 'PENDING_APPROVAL',
-    customerNotes: row.customer_notes ?? row.customerNotes ?? undefined,
-    shipmentId: row.shipment_id ?? row.shipmentId ?? undefined,
-    shipmentCode: row.shipment_code ?? row.shipmentCode ?? undefined,
+    customerNotes: row.customer_notes ?? row.customerNotes ?? meta.customerNotes ?? undefined,
+    shipmentId: row.shipment_id ?? row.shipmentId ?? meta.shipmentId ?? undefined,
+    shipmentCode: row.shipment_code ?? row.shipmentCode ?? meta.shipmentCode ?? undefined,
     adminComment: row.admin_comment ?? row.adminComment ?? undefined,
-    payment: row.payment ?? undefined,
+    payment: cleanPayment,
     reviewedBy: row.reviewed_by ?? row.reviewedBy ?? undefined,
     reviewedAt: row.reviewed_at ?? row.reviewedAt ?? undefined,
-    pricingExpiresAt: row.pricing_expires_at ?? row.pricingExpiresAt ?? undefined,
-    cancelledAt: row.cancelled_at ?? row.cancelledAt ?? undefined,
-    cancelledBy: row.cancelled_by ?? row.cancelledBy ?? undefined,
-    cancellationReason: row.cancellation_reason ?? row.cancellationReason ?? undefined,
-    auditLog: Array.isArray(row.audit_log ?? row.auditLog) ? (row.audit_log ?? row.auditLog) : undefined,
+    pricingExpiresAt: row.pricing_expires_at ?? row.pricingExpiresAt ?? meta.pricingExpiresAt ?? undefined,
+    cancelledAt: row.cancelled_at ?? row.cancelledAt ?? meta.cancelledAt ?? undefined,
+    cancelledBy: row.cancelled_by ?? row.cancelledBy ?? meta.cancelledBy ?? undefined,
+    cancellationReason: row.cancellation_reason ?? row.cancellationReason ?? meta.cancellationReason ?? undefined,
+    auditLog: Array.isArray(row.audit_log ?? row.auditLog ?? meta.auditLog) ? (row.audit_log ?? row.auditLog ?? meta.auditLog) : undefined,
     isPriceLocked:
       typeof row.is_price_locked === 'boolean'
         ? row.is_price_locked
         : typeof row.isPriceLocked === 'boolean'
         ? row.isPriceLocked
+        : typeof meta.isPriceLocked === 'boolean'
+        ? meta.isPriceLocked
         : ['APPROVED_PENDING_PAYMENT', 'PAYMENT_UNDER_REVIEW', 'PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED', 'CANCELLED'].includes(row.status),
-    exchangeRateUsed: row.exchange_rate_used ?? row.exchangeRateUsed ?? undefined,
-    profitMarginPercentUsed: row.profit_margin_percent_used ?? row.profitMarginPercentUsed ?? undefined,
-    lockedPricingSnapshot: row.locked_pricing_snapshot ?? row.lockedPricingSnapshot ?? undefined,
+    exchangeRateUsed: row.exchange_rate_used ?? row.exchangeRateUsed ?? meta.exchangeRateUsed ?? undefined,
+    profitMarginPercentUsed: row.profit_margin_percent_used ?? row.profitMarginPercentUsed ?? meta.profitMarginPercentUsed ?? undefined,
+    lockedPricingSnapshot: row.locked_pricing_snapshot ?? row.lockedPricingSnapshot ?? meta.lockedPricingSnapshot ?? undefined,
     createdAt: row.created_at ?? row.createdAt ?? new Date().toISOString(),
     updatedAt: row.updated_at ?? row.updatedAt ?? new Date().toISOString(),
   }));
@@ -582,7 +664,23 @@ async function syncOrderToSupabase(order: Order): Promise<void> {
       currency: order.currency || 'EGP',
       status: order.status,
       admin_comment: order.adminComment || null,
-      payment: order.payment || null,
+      payment: {
+        ...(order.payment || {}),
+        _orderMeta: {
+          shipmentId: order.shipmentId || null,
+          shipmentCode: order.shipmentCode || null,
+          isPriceLocked: order.isPriceLocked ?? null,
+          exchangeRateUsed: order.exchangeRateUsed ?? null,
+          profitMarginPercentUsed: order.profitMarginPercentUsed ?? null,
+          lockedPricingSnapshot: order.lockedPricingSnapshot || null,
+          pricingExpiresAt: order.pricingExpiresAt || null,
+          cancelledAt: order.cancelledAt || null,
+          cancelledBy: order.cancelledBy || null,
+          cancellationReason: order.cancellationReason || null,
+          auditLog: order.auditLog || null,
+          customerNotes: order.customerNotes || null,
+        },
+      },
       reviewed_by: order.reviewedBy || null,
       reviewed_at: order.reviewedAt || null,
       created_at: order.createdAt,
@@ -706,7 +804,7 @@ async function ensureDb(forceRefresh = false): Promise<DatabaseSchema> {
   const fromSupabase = await loadFromSupabase();
   if (fromSupabase) {
     memoryDb = fromSupabase;
-    saveToFile(memoryDb);
+    // Task 13: READ PURITY. Never write to file on read requests!
     return memoryDb;
   }
 
@@ -1000,11 +1098,7 @@ export const db = {
     status?: string;
     search?: string;
   }): Promise<Order[]> => {
-    try {
-      await db.checkAndExpireOrders();
-    } catch (err) {
-      console.warn('[DB] Auto-expire error in getOrders:', err);
-    }
+    // Task 13: Read purity - read requests never mutate order statuses or DB state
     const dbData = await ensureDb();
     let localOrders = dbData.orders || [];
 
@@ -1062,11 +1156,7 @@ export const db = {
   },
 
   getOrderById: async (id: string): Promise<Order | undefined> => {
-    try {
-      await db.checkAndExpireOrders();
-    } catch (err) {
-      console.warn('[DB] Auto-expire error in getOrderById:', err);
-    }
+    // Task 13: Read purity - read requests never mutate order statuses or DB state
     const dbData = await ensureDb();
     const foundInMemory = (dbData.orders || []).find((o) => o.id === id);
     const sb = getSupabase();
@@ -1182,6 +1272,21 @@ export const db = {
         updated.shippingFee = shipping;
         updated.totalCash = subtotal + feeAmount + shipping;
         updated.itemsCount = activeItems.length;
+      }
+
+      // Task 13: Audit log any price modifications
+      if (typeof updated.totalCash === 'number' && updated.totalCash !== current.totalCash) {
+        const actor = updates.reviewedBy || 'Admin';
+        const priceAudit: OrderAuditEntry = {
+          timestamp: new Date().toISOString(),
+          action: 'PRICE_UPDATED',
+          fromStatus: previousStatus,
+          toStatus: targetStatus,
+          actor,
+          note: `Total modified: Previous ${current.totalCash.toLocaleString()} EGP -> New ${updated.totalCash.toLocaleString()} EGP`,
+        };
+        updated.auditLog = [...(updated.auditLog || current.auditLog || []), priceAudit];
+        console.log(`[ORDER AUDIT] ${id}: Price updated from ${current.totalCash} to ${updated.totalCash} by ${actor}`);
       }
 
       const isApprovedOrBeyond = [
