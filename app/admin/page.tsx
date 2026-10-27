@@ -295,7 +295,14 @@ export default function AdminDashboardPage() {
     setSelectedOrder(order);
     setReviewOrderComment(order.adminComment || '');
     setReviewItems(JSON.parse(JSON.stringify(order.items)));
-    setReviewDynamicFee(order.dynamicFeePercent ?? 0);
+    // Unified service & delivery fee (Task 11):
+    // If order is locked/approved, preserve the approved locked fee.
+    // If order is unreviewed (PENDING_APPROVAL), adopt the unified global rate from settings!
+    const isLocked = order.isPriceLocked || order.status !== 'PENDING_APPROVAL';
+    const unifiedFee = isLocked
+      ? (order.dynamicFeePercent ?? settings?.dynamicFeePercent ?? 0)
+      : (settings?.dynamicFeePercent ?? order.dynamicFeePercent ?? 0);
+    setReviewDynamicFee(unifiedFee);
     setZoomReceipt(false);
     setUnlockPaidEdit(false);
     setTrackingStatus(order.status);
@@ -332,10 +339,14 @@ export default function AdminDashboardPage() {
       (it) => it.status !== 'rejected' && it.status !== 'out_of_stock'
     );
     const subtotal = activeItems.reduce((s, it) => s + it.subtotal, 0);
-    const feeAmount = Math.round(subtotal * (reviewDynamicFee / 100));
+    const isLocked = selectedOrder?.isPriceLocked || (selectedOrder && selectedOrder.status !== 'PENDING_APPROVAL');
+    const effectiveFee = isLocked
+      ? (selectedOrder?.dynamicFeePercent ?? settings?.dynamicFeePercent ?? 0)
+      : (settings?.dynamicFeePercent ?? reviewDynamicFee);
+    const feeAmount = Math.round(subtotal * (effectiveFee / 100));
     const shipping = selectedOrder?.shippingFee || 0;
     const totalCash = subtotal + feeAmount + shipping;
-    return { subtotal, feeAmount, totalCash };
+    return { subtotal, feeAmount, totalCash, effectiveFee };
   };
 
   const hasUnsavedChanges = React.useMemo(() => {
@@ -373,10 +384,15 @@ export default function AdminDashboardPage() {
     setUpdating(true);
 
     try {
+      const isLocked = selectedOrder.isPriceLocked || selectedOrder.status !== 'PENDING_APPROVAL';
+      const effectiveFee = isLocked
+        ? (selectedOrder.dynamicFeePercent ?? settings?.dynamicFeePercent ?? 0)
+        : (settings?.dynamicFeePercent ?? selectedOrder.dynamicFeePercent ?? 0);
+
       const payload: any = {
         items: reviewItems,
         adminComment: reviewOrderComment,
-        dynamicFeePercent: reviewDynamicFee,
+        dynamicFeePercent: effectiveFee,
       };
 
       const res = await fetch('/api/orders/' + selectedOrder.id, {
@@ -422,10 +438,15 @@ export default function AdminDashboardPage() {
     setUpdating(true);
 
     try {
+      const isLocked = selectedOrder.isPriceLocked || selectedOrder.status !== 'PENDING_APPROVAL';
+      const effectiveFee = isLocked
+        ? (selectedOrder.dynamicFeePercent ?? settings?.dynamicFeePercent ?? 0)
+        : (settings?.dynamicFeePercent ?? selectedOrder.dynamicFeePercent ?? 0);
+
       const payload: any = {
         items: reviewItems,
         adminComment: reviewOrderComment,
-        dynamicFeePercent: reviewDynamicFee,
+        dynamicFeePercent: effectiveFee,
       };
 
       if (newStatus) {
@@ -715,7 +736,7 @@ export default function AdminDashboardPage() {
       'عدد القطع',
       'تفاصيل المنتجات والمقاسات',
       'إجمالي الأصناف (ج.م)',
-      'المصاريف (ج.م)',
+      'رسوم الخدمة والتوصيل (ج.م)',
       'الشحن (ج.م)',
       'المبلغ الإجمالي (ج.م)',
       'طريقة الدفع',
@@ -1484,8 +1505,8 @@ export default function AdminDashboardPage() {
                               </div>
                               <div className="text-[11px] text-neutral-400 dark:text-neutral-500">
                                 {order.dynamicFeeAmount > 0
-                                  ? `Subtotal ${order.itemsSubtotal} + Fee ${order.dynamicFeePercent}% (${order.dynamicFeeAmount})`
-                                  : `Subtotal ${order.itemsSubtotal} EGP`}
+                                  ? `المنتجات: ${order.itemsSubtotal.toLocaleString()} + رسوم الخدمة والتوصيل: ${order.dynamicFeePercent}% (${order.dynamicFeeAmount.toLocaleString()} ج.م)`
+                                  : `المنتجات: ${order.itemsSubtotal.toLocaleString()} EGP`}
                               </div>
                             </td>
 
@@ -2202,35 +2223,42 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
 
-              {/* Dynamic Markup Recalculation Bar */}
-              <div className="p-5 rounded-3xl bg-neutral-900 text-white flex flex-col sm:flex-row items-center justify-between gap-4">
+              {/* Unified Service & Delivery Fee Display (Task 11) */}
+              <div className="p-4 sm:p-5 rounded-3xl bg-neutral-900 text-white flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  <span className="text-xs font-bold text-neutral-300">Dynamic Fee Markup (%):</span>
-                  <input
-                    type="number"
-                    min={0}
-                    max={100}
-                    value={reviewDynamicFee}
-                    onChange={(e) => setReviewDynamicFee(Number(e.target.value) || 0)}
-                    className="w-20 px-3 py-1.5 text-xs font-black bg-white/10 text-white border border-white/20 rounded-xl text-center focus:outline-none"
-                  />
-                  <span className="text-xs text-neutral-400 font-bold">%</span>
+                  <div className="w-9 h-9 rounded-2xl bg-purple-500/20 text-purple-400 flex items-center justify-center shrink-0">
+                    <Percent className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-black text-white">رسوم الخدمة والتوصيل:</span>
+                      <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-purple-600 text-white font-mono">
+                        {calculateReviewTotals().effectiveFee}%
+                      </span>
+                      <span className="text-[10px] text-purple-300 font-bold bg-purple-950/70 border border-purple-800/80 px-2 py-0.5 rounded-md">
+                        نسبة عامة موحدة
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-neutral-400 mt-1">
+                      تحسب تلقائياً بنسبة ({calculateReviewTotals().effectiveFee}%) من إجمالي المنتجات المقبولة ({calculateReviewTotals().subtotal.toLocaleString()} ج.م).
+                    </p>
+                  </div>
                 </div>
 
                 {(() => {
-                  const { subtotal, feeAmount, totalCash } = calculateReviewTotals();
+                  const { subtotal, feeAmount, totalCash, effectiveFee } = calculateReviewTotals();
                   return (
-                    <div className="flex items-center gap-4 text-xs text-right">
+                    <div className="flex items-center gap-3 text-xs text-right w-full md:w-auto justify-between md:justify-end shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-white/10">
                       <div>
-                        <span className="text-neutral-400">Subtotal:</span>{' '}
-                        <strong className="text-white">{subtotal.toLocaleString()} EGP</strong>
+                        <span className="text-neutral-400 block text-[10px]">مجموع المنتجات:</span>
+                        <strong className="text-white font-mono text-sm">{subtotal.toLocaleString()} EGP</strong>
                       </div>
                       <div>
-                        <span className="text-rose-400 font-medium">Fee:</span>{' '}
-                        <strong className="text-rose-400">+{feeAmount.toLocaleString()} EGP</strong>
+                        <span className="text-purple-300 block text-[10px]">رسوم الخدمة ({effectiveFee}%):</span>
+                        <strong className="text-purple-400 font-mono text-sm">+{feeAmount.toLocaleString()} EGP</strong>
                       </div>
-                      <div className="bg-rose-600 text-white px-4 py-2 rounded-2xl font-black text-base shadow-sm">
-                        Total: {totalCash.toLocaleString()} EGP
+                      <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-4 py-2.5 rounded-2xl font-black text-base shadow-sm font-mono shrink-0">
+                        الإجمالي: {totalCash.toLocaleString()} EGP
                       </div>
                     </div>
                   );
@@ -2561,7 +2589,7 @@ export default function AdminDashboardPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-5 bg-neutral-50 rounded-2xl border border-neutral-200/80">
                     <div>
                       <label className="block font-black text-neutral-800 mb-1">
-                        نسبة الرسوم والعمولة الافتراضية (%)
+                        نسبة رسوم الخدمة والتوصيل الموحدة (%)
                       </label>
                       <div className="relative">
                         <Percent className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
@@ -2575,7 +2603,7 @@ export default function AdminDashboardPage() {
                           className="w-full pl-10 pr-3.5 py-2.5 bg-white border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-600 font-black text-sm"
                         />
                       </div>
-                      <p className="text-[11px] text-neutral-500 mt-1">تطبق على إجمالي سلة شي إن المستخرجة.</p>
+                      <p className="text-[11px] text-neutral-500 mt-1">النسبة الموحدة المعتمدة على مستوى النظام لكافة الطلبات الجديدة والطلبات قيد المراجعة (تحسب كنسبة من مجموع المنتجات).</p>
                     </div>
 
                     <div>

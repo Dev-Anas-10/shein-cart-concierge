@@ -170,7 +170,7 @@ const TRANSLATIONS: Record<Language, Translations> = {
     goodsCount: 'منتجات',
     totalCashLabel: 'إجمالي المبلغ بالجنيه',
     placedOn: 'تاريخ الطلب:',
-    feeLabel: 'الرسوم:',
+    feeLabel: 'رسوم الخدمة والتوصيل:',
 
     // Order Details
     orderStatus: 'حالة الطلب',
@@ -179,7 +179,7 @@ const TRANSLATIONS: Record<Language, Translations> = {
     cartDetails: 'محتويات السلة والمنتجات',
     orderSummary: 'ملخص الحساب المالي',
     itemsSubtotal: 'سعر المنتجات في شي إن',
-    serviceFee: 'رسوم الخدمة والمشتريات',
+    serviceFee: 'رسوم الخدمة والتوصيل',
     shipping: 'الشحن المحلي',
     freeShipping: 'مجاناً',
     totalAmountDue: 'المبلغ المطلوب سداده',
@@ -275,7 +275,7 @@ const TRANSLATIONS: Record<Language, Translations> = {
     goodsCount: 'goods',
     totalCashLabel: 'Total Cash (EGP)',
     placedOn: 'Placed on:',
-    feeLabel: 'Fee:',
+    feeLabel: 'Service & Delivery Fee:',
 
     // Order Details
     orderStatus: 'Order Status',
@@ -284,7 +284,7 @@ const TRANSLATIONS: Record<Language, Translations> = {
     cartDetails: 'Cart Items & Goods',
     orderSummary: 'Order Financial Summary',
     itemsSubtotal: 'SHEIN Items Subtotal',
-    serviceFee: 'Concierge Dynamic Fee',
+    serviceFee: 'Service & Delivery Fee',
     shipping: 'Domestic Delivery',
     freeShipping: 'FREE',
     totalAmountDue: 'Total Cash Required',

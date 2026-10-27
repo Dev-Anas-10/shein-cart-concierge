@@ -683,12 +683,19 @@ export default function OrderDetailsPage() {
                 </span>
               </div>
 
-              <div className="p-3.5 rounded-2xl bg-white dark:bg-[#1f1a2d] border border-neutral-200/60 dark:border-[#2a233b]">
-                <span className="text-[11px] font-bold text-neutral-400 dark:text-neutral-500 block mb-0.5">
-                  {isRtl
-                    ? `رسوم الخدمة والشراء (${order.dynamicFeePercent || 0}%)`
-                    : `Concierge Fee (${order.dynamicFeePercent || 0}%)`}
-                </span>
+              <div className="p-3.5 rounded-2xl bg-white dark:bg-[#1f1a2d] border border-neutral-200/60 dark:border-[#2a233b] flex flex-col justify-between">
+                <div>
+                  <span className="text-[11px] font-black text-neutral-800 dark:text-neutral-200 block mb-0.5">
+                    {isRtl
+                      ? `رسوم الخدمة والتوصيل (${order.dynamicFeePercent || 0}%)`
+                      : `Service & Delivery Fee (${order.dynamicFeePercent || 0}%)`}
+                  </span>
+                  <span className="text-[10px] text-neutral-500 dark:text-neutral-400 block leading-tight mb-1">
+                    {isRtl
+                      ? `محسوبة بنسبة ${order.dynamicFeePercent || 0}% من إجمالي المنتجات المقبولة`
+                      : `Calculated as ${order.dynamicFeePercent || 0}% of accepted items`}
+                  </span>
+                </div>
                 <span className="text-base font-black text-[#8B5CF6] font-mono">
                   +{(order.dynamicFeeAmount || 0).toLocaleString()} EGP
                 </span>

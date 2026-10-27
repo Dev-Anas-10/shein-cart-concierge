@@ -419,8 +419,13 @@ export function ExtractedGoodsView({
               {(data.dynamicFeePercent || 0) > 0 && dynamicFeeAmount > 0 && (
                 <div className="flex items-center justify-between text-neutral-600 dark:text-neutral-300">
                   <span className="flex items-center gap-1.5">
-                    <Percent className="w-3.5 h-3.5 text-[#8B5CF6]" />
-                    <span>{isRtl ? `رسوم خدمة Concierge (${data.dynamicFeePercent}%)` : `Dynamic Concierge Fee (${data.dynamicFeePercent}%)`}</span>
+                    <Percent className="w-3.5 h-3.5 text-[#8B5CF6] shrink-0" />
+                    <span className="flex flex-col text-start">
+                      <span className="font-bold">{isRtl ? `رسوم الخدمة والتوصيل (${data.dynamicFeePercent}%)` : `Service & Delivery Fee (${data.dynamicFeePercent}%)`}</span>
+                      <span className="text-[10px] text-neutral-400 dark:text-neutral-500 font-normal">
+                        {isRtl ? `محسوبة بنسبة ${data.dynamicFeePercent}% من مجموع المنتجات` : `Calculated as ${data.dynamicFeePercent}% of items subtotal`}
+                      </span>
+                    </span>
                   </span>
                   <span className="font-black text-[#7C3AED] dark:text-purple-300 font-mono">
                     +{dynamicFeeAmount.toLocaleString()} EGP

@@ -27,9 +27,10 @@ export async function POST(req: NextRequest) {
 
     // Dynamic Pricing: Admin controlled SAR rate & Profit Margin %
     const settings = await db.getSettings();
-    const dynamicFeePercent = typeof body.dynamicFeePercent === 'number'
-      ? body.dynamicFeePercent
-      : (settings.dynamicFeePercent || 0);
+    // Unified system-wide Service & Delivery Fee % from settings
+    const dynamicFeePercent = typeof settings.dynamicFeePercent === 'number'
+      ? settings.dynamicFeePercent
+      : 0;
 
     const sarToEgpRate = typeof body.sarToEgpRate === 'number'
       ? body.sarToEgpRate

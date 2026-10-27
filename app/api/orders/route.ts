@@ -62,7 +62,8 @@ export async function POST(req: NextRequest) {
     }
 
     const settings = await db.getSettings();
-    const feePercent = typeof dynamicFeePercent === 'number' ? dynamicFeePercent : (settings.dynamicFeePercent ?? 0);
+    // Unified system-wide Service & Delivery Fee % from settings
+    const feePercent = typeof settings.dynamicFeePercent === 'number' ? settings.dynamicFeePercent : 0;
 
     // Calculate totals accurately
     const itemsSubtotal = items.reduce((sum: number, it: GoodItem) => {
