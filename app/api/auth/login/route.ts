@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { verifyPassword, hashPassword } from '@/lib/auth-security';
+import { verifyPassword, hashPassword, createSessionToken, setSessionCookie } from '@/lib/auth-security';
 
 export async function POST(req: NextRequest) {
   try {
@@ -42,10 +42,17 @@ export async function POST(req: NextRequest) {
     const { password: _, ...safeUser } = user;
     safeUser.lastLoginAt = lastLoginAt;
 
-    return NextResponse.json({
+    // Issue cryptographically signed session token
+    const token = createSessionToken(safeUser);
+
+    const res = NextResponse.json({
       success: true,
       data: safeUser,
+      token,
     });
+
+    setSessionCookie(res, token);
+    return res;
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Login failed' }, { status: 500 });
   }

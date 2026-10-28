@@ -37,6 +37,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (parsed?.id && parsed?.email && parsed?.role) {
           setUser(parsed);
 
+          // Synchronize secure HTTP-only session cookie with server
+          fetch('/api/auth/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: parsed.id, email: parsed.email }),
+          }).catch(() => {});
+
           // Asynchronously hydrate fresh profile data from DB (address, phone, city)
           fetch(
             `/api/users/profile?userId=${encodeURIComponent(parsed.id)}&email=${encodeURIComponent(
@@ -68,30 +75,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const meta = sessionUser.user_metadata || {};
         const email = sessionUser.email || '';
         const detectedName = meta.full_name || meta.name || email.split('@')[0] || 'Customer';
-        const detectedAvatar =
-          meta.avatar_url ||
-          meta.picture ||
-          `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(detectedName)}`;
+        const detectedAvatar = meta.avatar_url || meta.picture || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(detectedName)}`;
 
-        const mapped: User = {
-          id: sessionUser.id,
-          name: detectedName,
-          email,
-          role: 'user',
-          avatar: detectedAvatar,
-          phone: sessionUser.phone || meta.phone || '',
-          address: meta.address || '',
-          city: meta.city || '',
-          createdAt: sessionUser.created_at || new Date().toISOString(),
-        };
-
-        setUser((prev) => {
-          const merged = { ...mapped, ...(prev || {}) };
-          localStorage.setItem(SESSION_KEY, JSON.stringify(merged));
-          return merged;
-        });
-
-        // Sync to public.users table in Supabase
+        // Verify or create via our Google login endpoint to ensure DB sync & session token
         fetch('/api/auth/google', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -99,19 +85,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             email,
             name: detectedName,
             avatar: detectedAvatar,
-            phone: mapped.phone,
           }),
-        }).catch(() => {});
+        })
+          .then((r) => r.json())
+          .then((data) => {
+            if (data.success && data.data) {
+              login(data.data);
+            }
+          })
+          .catch((err) => console.error('Supabase auto-sync failed:', err));
       };
 
-      // Check current session
+      // Check existing session
       sb.auth.getSession().then(({ data: { session } }) => {
         if (session?.user) {
           handleSupabaseSession(session.user);
         }
       });
 
-      // Listen for OAuth redirect return
+      // Listen for OAuth redirects & state changes
       const { data: authListener } = sb.auth.onAuthStateChange((_event, session) => {
         if (session?.user) {
           handleSupabaseSession(session.user);
@@ -124,11 +116,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const refreshProfile = async () => {
+    if (!user) return;
+    try {
+      const res = await fetch(
+        `/api/users/profile?userId=${encodeURIComponent(user.id)}&email=${encodeURIComponent(
+          user.email
+        )}&_t=${Date.now()}`
+      );
+      const json = await res.json();
+      if (json.success && json.data) {
+        const merged = { ...user, ...json.data };
+        setUser(merged);
+        localStorage.setItem(SESSION_KEY, JSON.stringify(merged));
+      }
+    } catch (err) {
+      console.warn('Failed to refresh profile:', err);
+    }
+  };
+
   const login = (newUser: User) => {
     setUser(newUser);
-    localStorage.setItem(SESSION_KEY, JSON.stringify(newUser));
+    try {
+      localStorage.setItem(SESSION_KEY, JSON.stringify(newUser));
+    } catch (err) {
+      console.warn('Could not save user session to localStorage:', err);
+    }
 
-    // Also fetch extra profile info if available
+    // Ensure session cookie is refreshed
+    fetch('/api/auth/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: newUser.id, email: newUser.email }),
+    }).catch(() => {});
+
+    // Trigger immediate background sync of extended address details
     fetch(
       `/api/users/profile?userId=${encodeURIComponent(newUser.id)}&email=${encodeURIComponent(
         newUser.email
@@ -151,6 +173,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem(SESSION_KEY);
       sessionStorage.clear();
     } catch {}
+    fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
     const sb = getSupabase();
     if (sb) {
       sb.auth.signOut().catch(() => {});
@@ -188,30 +211,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return res.ok;
     } catch (err) {
       console.warn('Failed to sync profile update to server:', err);
-      return true; // Still preserved locally
+      return false;
     }
-  };
-
-  const refreshProfile = async () => {
-    if (!user) return;
-    try {
-      const res = await fetch(
-        `/api/users/profile?userId=${encodeURIComponent(user.id)}&email=${encodeURIComponent(
-          user.email
-        )}`
-      );
-      const data = await res.json();
-      if (data.success && data.data) {
-        const merged = { ...user, ...data.data };
-        setUser(merged);
-        localStorage.setItem(SESSION_KEY, JSON.stringify(merged));
-      }
-    } catch {}
   };
 
   return (
     <AuthContext.Provider
-      value={{ user, isLoading, login, logout, updateUser, refreshProfile }}
+      value={{
+        user,
+        isLoading,
+        login,
+        logout,
+        updateUser,
+        refreshProfile,
+      }}
     >
       {children}
     </AuthContext.Provider>

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { getRequestSession } from '@/lib/auth-security';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -15,6 +16,19 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     if (!order) {
       return NextResponse.json({ error: 'الطلب غير موجود (Order not found)' }, { status: 404 });
+    }
+
+    const session = await getRequestSession(req);
+    if (session && session.role !== 'admin') {
+      const isOwner =
+        session.userId === order.userId ||
+        session.email.toLowerCase() === (order.userEmail || '').toLowerCase();
+      if (!isOwner) {
+        return NextResponse.json(
+          { error: 'Forbidden: You cannot cancel orders that do not belong to you.' },
+          { status: 403 }
+        );
+      }
     }
 
     // Orders already paid or completed cannot be cancelled unilaterally

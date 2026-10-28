@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { normalizeOrderLinks } from '@/lib/shein-links';
 import { Order, GoodItem } from '@/lib/types';
+import { getRequestSession } from '@/lib/auth-security';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -15,10 +16,38 @@ export async function GET(req: NextRequest) {
     const status = searchParams.get('status') || undefined;
     const search = searchParams.get('search') || undefined;
 
-    const isAdmin = searchParams.get('admin') === 'true';
+    const requestedAdmin = searchParams.get('admin') === 'true';
+    const session = await getRequestSession(req);
 
-    // Privacy & Multi-user isolation: If neither user identity nor admin flag is provided, return empty array!
-    if (!userId && !userEmail && !userPhone && !isAdmin) {
+    // If admin view is requested, strictly enforce administrator privileges
+    if (requestedAdmin) {
+      if (!session || session.role !== 'admin') {
+        return NextResponse.json(
+          { error: 'Unauthorized: Administrator privileges required.' },
+          {
+            status: 401,
+            headers: {
+              'Cache-Control': 'no-store, no-cache, must-revalidate',
+            },
+          }
+        );
+      }
+
+      const orders = await db.getOrders({ userId, userEmail, userPhone, status, search });
+      return NextResponse.json(
+        { success: true, data: orders },
+        {
+          headers: {
+            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+            Pragma: 'no-cache',
+            Expires: '0',
+          },
+        }
+      );
+    }
+
+    // Unauthenticated callers cannot enumerate customer orders
+    if (!session) {
       return NextResponse.json(
         { success: true, data: [] },
         {
@@ -31,7 +60,29 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const orders = await db.getOrders({ userId, userEmail, userPhone, status, search });
+    // Authenticated admin can query with any custom filter
+    if (session.role === 'admin') {
+      const orders = await db.getOrders({ userId, userEmail, userPhone, status, search });
+      return NextResponse.json(
+        { success: true, data: orders },
+        {
+          headers: {
+            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+            Pragma: 'no-cache',
+            Expires: '0',
+          },
+        }
+      );
+    }
+
+    // Authenticated customer: strictly bind query to their own authenticated identity
+    const orders = await db.getOrders({
+      userId: session.userId,
+      userEmail: session.email,
+      status,
+      search,
+    });
+
     return NextResponse.json(
       { success: true, data: orders },
       {
@@ -113,11 +164,16 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const session = await getRequestSession(req);
+    const resolvedUserId = session?.userId || userId || 'guest-user';
+    const resolvedEmail = session?.email || userEmail || 'customer@example.com';
+    const resolvedName = userName.trim() || session?.name || 'عميل شي إن';
+
     const newOrder: Order = normalizeOrderLinks({
       id: orderId,
-      userId: userId || 'guest-user',
-      userName: userName.trim(),
-      userEmail: userEmail || 'customer@example.com',
+      userId: resolvedUserId,
+      userName: resolvedName,
+      userEmail: resolvedEmail,
       userPhone: userPhone.trim(),
       shippingAddress: shippingAddress.trim(),
       customerNotes: (customerNotes || notes || '').trim() || undefined,

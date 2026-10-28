@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { User } from '@/lib/types';
+import { createSessionToken, setSessionCookie } from '@/lib/auth-security';
 
 export async function POST(req: NextRequest) {
   try {
@@ -42,11 +43,16 @@ export async function POST(req: NextRequest) {
     const { password, ...safeUser } = user;
     safeUser.lastLoginAt = user.lastLoginAt;
 
-    return NextResponse.json({
+    const token = createSessionToken(safeUser);
+    const res = NextResponse.json({
       success: true,
       message: 'Logged in with Google successfully',
       data: safeUser,
+      token,
     });
+
+    setSessionCookie(res, token);
+    return res;
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Google Auth failed' }, { status: 500 });
   }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { User } from '@/lib/types';
-import { hashPassword } from '@/lib/auth-security';
+import { hashPassword, createSessionToken, setSessionCookie } from '@/lib/auth-security';
 
 export async function POST(req: NextRequest) {
   try {
@@ -46,8 +46,11 @@ export async function POST(req: NextRequest) {
     };
 
     const saved = await db.createUser(newUser);
+    const token = createSessionToken(saved);
 
-    return NextResponse.json({ success: true, data: saved }, { status: 201 });
+    const res = NextResponse.json({ success: true, data: saved, token }, { status: 201 });
+    setSessionCookie(res, token);
+    return res;
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Signup failed' }, { status: 500 });
   }

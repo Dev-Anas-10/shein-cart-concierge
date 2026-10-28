@@ -1,8 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAdminSession } from '@/lib/auth-security';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = await requireAdminSession(req);
+    if (!auth.authorized) {
+      return auth.response;
+    }
+
     const body = await req.json();
     const { shipmentId, orderIds } = body;
 
@@ -23,6 +32,11 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
+    const auth = await requireAdminSession(req);
+    if (!auth.authorized) {
+      return auth.response;
+    }
+
     const body = await req.json();
     const { shipmentId, orderIds } = body;
 

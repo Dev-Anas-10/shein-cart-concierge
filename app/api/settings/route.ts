@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAdminSession } from '@/lib/auth-security';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -24,6 +25,12 @@ export async function GET() {
 
 export async function PUT(req: NextRequest) {
   try {
+    // SECURITY GUARD: Only authenticated administrators can modify settings
+    const auth = await requireAdminSession(req);
+    if (!auth.authorized) {
+      return auth.response;
+    }
+
     const body = await req.json();
     const updated = await db.updateSettings(body);
     return NextResponse.json({ success: true, data: updated });

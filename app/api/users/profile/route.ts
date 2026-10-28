@@ -1,8 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { getRequestSession } from '@/lib/auth-security';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function GET(req: NextRequest) {
   try {
+    const session = await getRequestSession(req);
+    if (!session) {
+      return NextResponse.json(
+        { error: 'Unauthorized: Authentication required.' },
+        { status: 401 }
+      );
+    }
+
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get('userId');
     const email = searchParams.get('email');
@@ -12,6 +24,20 @@ export async function GET(req: NextRequest) {
         { error: 'userId or email is required' },
         { status: 400 }
       );
+    }
+
+    // Non-admin users are strictly restricted to reading their own profile
+    if (session.role !== 'admin') {
+      const matchesSelf =
+        (userId && userId === session.userId) ||
+        (email && email.toLowerCase() === session.email.toLowerCase());
+
+      if (!matchesSelf) {
+        return NextResponse.json(
+          { error: 'Forbidden: Access denied to other user profiles.' },
+          { status: 403 }
+        );
+      }
     }
 
     let user;
@@ -40,6 +66,14 @@ export async function GET(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   try {
+    const session = await getRequestSession(req);
+    if (!session) {
+      return NextResponse.json(
+        { error: 'Unauthorized: Authentication required.' },
+        { status: 401 }
+      );
+    }
+
     const body = await req.json();
     const { userId, name, phone, address, city } = body;
 
@@ -48,6 +82,20 @@ export async function PUT(req: NextRequest) {
         { error: 'userId is required' },
         { status: 400 }
       );
+    }
+
+    // Non-admin users cannot modify profiles of other users
+    if (session.role !== 'admin') {
+      const matchesSelf =
+        userId === session.userId ||
+        (body.email && body.email.toLowerCase() === session.email.toLowerCase());
+
+      if (!matchesSelf) {
+        return NextResponse.json(
+          { error: 'Forbidden: You cannot modify other user profiles.' },
+          { status: 403 }
+        );
+      }
     }
 
     const updates: any = {};

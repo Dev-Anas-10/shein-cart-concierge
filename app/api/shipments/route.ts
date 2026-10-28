@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { Shipment, ShipmentStatus } from '@/lib/types';
+import { getRequestSession, requireAdminSession } from '@/lib/auth-security';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export async function GET(req: NextRequest) {
   try {
+    const session = await getRequestSession(req);
+    const isAdmin = session?.role === 'admin';
+
     const { searchParams } = new URL(req.url);
     const paymentStatusFilter = searchParams.get('paymentStatus'); // 'PAID' or null
 
@@ -25,8 +29,34 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // If caller is an admin, return full internal shipment details
+    if (isAdmin) {
+      return NextResponse.json(
+        { success: true, data: shipments },
+        {
+          headers: {
+            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+            Pragma: 'no-cache',
+            Expires: '0',
+          },
+        }
+      );
+    }
+
+    // Public / non-admin callers (such as homepage batch indicator) get a sanitized representation
+    // that omits sensitive order IDs and internal operator notes
+    const sanitizedShipments = shipments.map((s) => ({
+      id: s.id,
+      code: s.code,
+      status: s.status,
+      maxItems: s.maxItems,
+      maxOrders: s.maxOrders,
+      // Provide array length equivalent for progress bar calculations without leaking actual order identifiers
+      orderIds: new Array((s.orderIds || []).length).fill(''),
+    }));
+
     return NextResponse.json(
-      { success: true, data: shipments },
+      { success: true, data: sanitizedShipments },
       {
         headers: {
           'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
@@ -45,6 +75,11 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = await requireAdminSession(req);
+    if (!auth.authorized) {
+      return auth.response;
+    }
+
     const body = await req.json();
 
     if (!body.code || !body.code.trim()) {
@@ -86,6 +121,11 @@ export async function POST(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   try {
+    const auth = await requireAdminSession(req);
+    if (!auth.authorized) {
+      return auth.response;
+    }
+
     const body = await req.json();
     const { id, ...updates } = body;
 
@@ -113,6 +153,11 @@ export async function PUT(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
+    const auth = await requireAdminSession(req);
+    if (!auth.authorized) {
+      return auth.response;
+    }
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
 

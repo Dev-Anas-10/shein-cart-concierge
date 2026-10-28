@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { PaymentDetails } from '@/lib/types';
+import { getRequestSession } from '@/lib/auth-security';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -16,6 +17,19 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     if (!order) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+    }
+
+    const session = await getRequestSession(req);
+    if (session && session.role !== 'admin') {
+      const isOwner =
+        session.userId === order.userId ||
+        session.email.toLowerCase() === (order.userEmail || '').toLowerCase();
+      if (!isOwner) {
+        return NextResponse.json(
+          { error: 'Forbidden: You cannot submit payment for orders that do not belong to you.' },
+          { status: 403 }
+        );
+      }
     }
 
     // Check pricing validity window (1 hour)
