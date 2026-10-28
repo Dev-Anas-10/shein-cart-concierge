@@ -11,7 +11,7 @@ import path from 'path';
 import { Order, SystemSettings, User, GoodItem, Shipment, ShipmentStatus, OrderAuditEntry } from './types';
 import { RELIABLE_FASHION_IMAGES, resolveItemPricing } from './shein-extractor';
 import { normalizeOrderLinks } from './shein-links';
-import { getSupabase } from './supabase';
+import { getSupabaseAdmin } from './supabase';
 import { broadcastRealtimeEvent } from './realtime-events';
 
 /* ─────────────────────────────── Types ─────────────────────────────── */
@@ -577,7 +577,7 @@ function mapRowToUser(row: any): User & { password?: string } {
 }
 
 async function loadFromSupabase(): Promise<DatabaseSchema | null> {
-  const sb = getSupabase();
+  const sb = getSupabaseAdmin();
   if (!sb) return null;
   try {
     const [ordersRes, usersRes] = await Promise.all([
@@ -613,9 +613,16 @@ async function loadFromSupabase(): Promise<DatabaseSchema | null> {
   }
 }
 
+const IS_PRODUCTION = process.env.VERCEL === '1' || process.env.NODE_ENV === 'production';
+
 async function syncUserToSupabase(user: User & { password?: string }): Promise<void> {
-  const sb = getSupabase();
-  if (!sb) return;
+  const sb = getSupabaseAdmin();
+  if (!sb) {
+    if (IS_PRODUCTION) {
+      throw new Error('[Database Error] Supabase is not configured in production. User cannot be persisted.');
+    }
+    return;
+  }
   try {
     const payload: any = {
       id: user.id,
@@ -634,21 +641,32 @@ async function syncUserToSupabase(user: User & { password?: string }): Promise<v
     }
     const { error } = await sb.from('users').upsert(payload);
     if (error) {
-      console.warn('[Supabase] User upsert note:', error.message);
+      console.error('[Supabase] Critical User upsert error:', error.message);
+      if (IS_PRODUCTION) {
+        throw new Error(`[Database Error] Failed to persist user in Supabase: ${error.message}`);
+      }
     } else {
       console.log('[Supabase] User synced successfully:', user.email);
     }
-  } catch (err) {
-    console.warn('[Supabase] User upsert exception:', err);
+  } catch (err: any) {
+    console.error('[Supabase] User upsert exception:', err);
+    if (IS_PRODUCTION) {
+      throw err instanceof Error ? err : new Error(String(err));
+    }
   }
 }
 
 async function syncOrderToSupabase(order: Order): Promise<void> {
-  const sb = getSupabase();
-  if (!sb) return;
+  const sb = getSupabaseAdmin();
+  if (!sb) {
+    if (IS_PRODUCTION) {
+      throw new Error('[Database Error] Supabase is not configured in production. Order cannot be persisted.');
+    }
+    return;
+  }
   try {
     const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Supabase sync timeout (6s)')), 6000)
+      setTimeout(() => reject(new Error('Supabase sync timeout (8s)')), 8000)
     );
     const syncPromise = sb.from('orders').upsert({
       id: order.id,
@@ -693,22 +711,42 @@ async function syncOrderToSupabase(order: Order): Promise<void> {
     });
     const result: any = await Promise.race([syncPromise, timeoutPromise]);
     if (result && result.error) {
-      console.warn('[Supabase] Order upsert error:', result.error.message);
+      console.error('[Supabase] Critical Order upsert error:', result.error.message);
+      if (IS_PRODUCTION) {
+        throw new Error(`[Database Error] Failed to persist order in Supabase: ${result.error.message}`);
+      }
     } else {
       console.log('[Supabase] Order synced successfully:', order.id);
     }
-  } catch (err) {
-    console.warn('[Supabase] Upsert note:', err);
+  } catch (err: any) {
+    console.error('[Supabase] Upsert exception:', err);
+    if (IS_PRODUCTION) {
+      throw err instanceof Error ? err : new Error(String(err));
+    }
   }
 }
 
 async function deleteOrderFromSupabase(id: string): Promise<void> {
-  const sb = getSupabase();
-  if (!sb) return;
+  const sb = getSupabaseAdmin();
+  if (!sb) {
+    if (IS_PRODUCTION) {
+      throw new Error('[Database Error] Supabase is not configured in production. Order cannot be deleted.');
+    }
+    return;
+  }
   try {
-    await sb.from('orders').delete().eq('id', id);
-  } catch (err) {
-    console.warn('[Supabase] Delete note:', err);
+    const { error } = await sb.from('orders').delete().eq('id', id);
+    if (error) {
+      console.error('[Supabase] Critical Delete error:', error.message);
+      if (IS_PRODUCTION) {
+        throw new Error(`[Database Error] Failed to delete order in Supabase: ${error.message}`);
+      }
+    }
+  } catch (err: any) {
+    console.error('[Supabase] Delete exception:', err);
+    if (IS_PRODUCTION) {
+      throw err instanceof Error ? err : new Error(String(err));
+    }
   }
 }
 
@@ -845,7 +883,7 @@ async function persistDb(data: DatabaseSchema): Promise<void> {
 
 export const db = {
   getUsers: async (): Promise<(User & { password?: string })[]> => {
-    const sb = getSupabase();
+    const sb = getSupabaseAdmin();
     if (sb) {
       try {
         const { data, error } = await sb.from('users').select('*');
@@ -861,7 +899,7 @@ export const db = {
 
   getUserByEmail: async (email: string): Promise<(User & { password?: string }) | undefined> => {
     const lower = email.toLowerCase().trim();
-    const sb = getSupabase();
+    const sb = getSupabaseAdmin();
     if (sb) {
       try {
         const { data, error } = await sb.from('users').select('*').eq('email', lower).maybeSingle();
@@ -884,7 +922,7 @@ export const db = {
   },
 
   getUserById: async (id: string): Promise<(User & { password?: string }) | undefined> => {
-    const sb = getSupabase();
+    const sb = getSupabaseAdmin();
     if (sb) {
       try {
         const { data, error } = await sb.from('users').select('*').eq('id', id).maybeSingle();
@@ -914,7 +952,7 @@ export const db = {
     const data = await ensureDb();
     const idx = data.users.findIndex((u) => u.id === id);
     if (idx === -1) {
-      const sb = getSupabase();
+      const sb = getSupabaseAdmin();
       if (sb) {
         try {
           const payload: any = {};
@@ -948,7 +986,7 @@ export const db = {
       await persistDb(data);
       await syncUserToSupabase(data.users[idx]);
     } else {
-      const sb = getSupabase();
+      const sb = getSupabaseAdmin();
       if (sb) {
         try {
           await sb.from('users').update({ last_login_at: now }).eq('id', id);
@@ -1110,7 +1148,7 @@ export const db = {
     const dbData = await ensureDb();
     let localOrders = dbData.orders || [];
 
-    const sb = getSupabase();
+    const sb = getSupabaseAdmin();
     if (sb) {
       try {
         let query = sb.from('orders').select('*').order('created_at', { ascending: false });
@@ -1167,7 +1205,7 @@ export const db = {
     // Task 13: Read purity - read requests never mutate order statuses or DB state
     const dbData = await ensureDb();
     const foundInMemory = (dbData.orders || []).find((o) => o.id === id);
-    const sb = getSupabase();
+    const sb = getSupabaseAdmin();
     if (sb) {
       try {
         const { data, error } = await sb.from('orders').select('*').eq('id', id).maybeSingle();

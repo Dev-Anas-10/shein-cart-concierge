@@ -1,7 +1,10 @@
 -- ==============================================================================
--- Supabase Schema for SHEIN Concierge Egypt
+-- Hardened Supabase Schema & Security Model for SHEIN Concierge Egypt
 -- Project Ref: sxcsgnzkgwctafqxkfdd
--- Run this script in: Supabase Dashboard -> SQL Editor -> New Query -> Run
+-- 
+-- Security Model: Zero-Trust Server-Only Access (Bypass RLS via service_role)
+-- Direct client/anon PostgREST access to public tables is completely revoked.
+-- All table reads and writes occur strictly via the server-side Next.js backend.
 -- ==============================================================================
 
 -- 1. Create USERS table
@@ -13,7 +16,8 @@ CREATE TABLE IF NOT EXISTS public.users (
   role TEXT NOT NULL DEFAULT 'user',
   phone TEXT,
   avatar TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW()
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  last_login_at TIMESTAMPTZ
 );
 
 -- 2. Create ORDERS table
@@ -56,28 +60,40 @@ CREATE TABLE IF NOT EXISTS public.settings (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 4. Enable Row Level Security (RLS) with open read/write for service & anon client
+-- ==============================================================================
+-- 4. HARDENED ROW LEVEL SECURITY (RLS) & PRIVILEGE MODEL
+-- ==============================================================================
+
+-- A. Remove legacy permissive public policies
+DROP POLICY IF EXISTS "Public access users" ON public.users;
+DROP POLICY IF EXISTS "Public access orders" ON public.orders;
+DROP POLICY IF EXISTS "Public access settings" ON public.settings;
+
+-- B. Strictly enforce Row Level Security (RLS) on all public tables
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.settings ENABLE ROW LEVEL SECURITY;
 
--- Allow public read & write via anon key
-DROP POLICY IF EXISTS "Public access users" ON public.users;
-CREATE POLICY "Public access users" ON public.users FOR ALL USING (true) WITH CHECK (true);
+-- C. Revoke ALL table permissions from untrusted roles (anon, authenticated, public)
+-- This blocks any direct REST/GraphQL queries using the public ANON key.
+REVOKE ALL ON TABLE public.users FROM anon, authenticated, public;
+REVOKE ALL ON TABLE public.orders FROM anon, authenticated, public;
+REVOKE ALL ON TABLE public.settings FROM anon, authenticated, public;
 
-DROP POLICY IF EXISTS "Public access orders" ON public.orders;
-CREATE POLICY "Public access orders" ON public.orders FOR ALL USING (true) WITH CHECK (true);
+-- D. Grant minimum necessary DML privileges exclusively to the backend service_role
+-- Least-privilege model: only SELECT, INSERT, UPDATE, DELETE needed by the server.
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.users TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.orders TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.settings TO service_role;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO service_role;
 
-DROP POLICY IF EXISTS "Public access settings" ON public.settings;
-CREATE POLICY "Public access settings" ON public.settings FOR ALL USING (true) WITH CHECK (true);
-
--- Insert default admin user if not exists
+-- 5. Insert default admin user if not exists (using bcrypt hash)
 INSERT INTO public.users (id, name, email, password, role, phone, created_at)
 VALUES (
   'user-admin',
   'Admin Supervisor',
   'admin@sheinextract.com',
-  'admin123456',
+  '$2b$10$XdSsrm.koBl9/5KrNmz5MudI1TlJ9ev8fgC9mx6XAjgVFRtmV61Be',
   'admin',
   '+20 100 000 0000',
   NOW()
