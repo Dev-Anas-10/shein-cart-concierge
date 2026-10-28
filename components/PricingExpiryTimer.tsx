@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useThemeLang } from '@/lib/theme-lang-context';
 import { Clock, AlertTriangle } from 'lucide-react';
 
@@ -23,7 +23,7 @@ export function PricingExpiryTimer({
   const isRtl = dir === 'rtl';
 
   // Calculate target expiration timestamp (1 hour from review/approval or expiresAt)
-  const calculateTarget = (): number => {
+  const targetTime = useMemo(() => {
     if (expiresAt) {
       const exp = new Date(expiresAt).getTime();
       if (!isNaN(exp)) return exp;
@@ -34,27 +34,47 @@ export function PricingExpiryTimer({
       if (!isNaN(base)) return base + 60 * 60 * 1000;
     }
     return Date.now() + 60 * 60 * 1000;
-  };
+  }, [expiresAt, createdAt, reviewedAt]);
 
-  const [targetTime] = useState<number>(calculateTarget);
   const [timeLeft, setTimeLeft] = useState<number>(() => Math.max(0, targetTime - Date.now()));
-  const [hasTriggeredExpire, setHasTriggeredExpire] = useState(false);
+
+  // Ref for onExpire callback to prevent timer re-instantiation
+  const onExpireRef = useRef(onExpire);
+  useEffect(() => {
+    onExpireRef.current = onExpire;
+  }, [onExpire]);
+
+  // CRITICAL FIX: If already expired when mounted, flag as triggered so we never enter an infinite reload loop!
+  const hasTriggeredRef = useRef(targetTime <= Date.now());
 
   useEffect(() => {
+    // If targetTime resets to a future point, allow triggering again
+    if (targetTime > Date.now()) {
+      hasTriggeredRef.current = false;
+      setTimeLeft(targetTime - Date.now());
+    } else {
+      setTimeLeft(0);
+    }
+
     const interval = setInterval(() => {
       const remaining = Math.max(0, targetTime - Date.now());
       setTimeLeft(remaining);
 
-      if (remaining <= 0 && !hasTriggeredExpire) {
-        setHasTriggeredExpire(true);
-        if (onExpire) {
-          onExpire();
+      // Only fire when the timer genuinely expires in real-time while the user is actively viewing the page
+      if (remaining <= 0 && !hasTriggeredRef.current) {
+        hasTriggeredRef.current = true;
+        if (onExpireRef.current) {
+          try {
+            onExpireRef.current();
+          } catch (e) {
+            console.warn('[Timer] onExpire error:', e);
+          }
         }
       }
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [targetTime, hasTriggeredExpire, onExpire]);
+  }, [targetTime]);
 
   const totalSeconds = Math.floor(timeLeft / 1000);
   const minutes = Math.floor(totalSeconds / 60);

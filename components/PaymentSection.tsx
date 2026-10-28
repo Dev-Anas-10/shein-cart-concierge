@@ -126,7 +126,6 @@ export function PaymentSection({ order, settings, onPaymentSubmitted, onCancelCl
             expiresAt={order.pricingExpiresAt}
             createdAt={order.createdAt}
             reviewedAt={order.reviewedAt}
-            onExpire={onPaymentSubmitted}
           />
         </div>
 

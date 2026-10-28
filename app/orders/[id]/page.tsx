@@ -56,9 +56,11 @@ export default function OrderDetailsPage() {
   const [authOpen, setAuthOpen] = useState(false);
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
 
-  const fetchOrder = async () => {
+  const fetchOrder = async (forceLoading = false) => {
     if (!id) return;
-    setLoading(true);
+    if (forceLoading) {
+      setLoading(true);
+    }
     try {
       const [orderRes, settingsRes] = await Promise.all([
         fetch(`/api/orders/${id}?_t=${Date.now()}`, { cache: 'no-store' }),
@@ -90,7 +92,7 @@ export default function OrderDetailsPage() {
   };
 
   useEffect(() => {
-    fetchOrder();
+    fetchOrder(!order);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
@@ -213,7 +215,7 @@ export default function OrderDetailsPage() {
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={fetchOrder}
+              onClick={() => fetchOrder(false)}
               className="w-10 h-10 rounded-full border border-neutral-200/80 dark:border-[#2a243a] bg-white/90 dark:bg-[#151120] flex items-center justify-center text-neutral-600 dark:text-neutral-300 hover:text-neutral-950 dark:hover:text-white transition-colors shadow-xs cursor-pointer"
               title={isRtl ? 'تحديث حالة الطلب' : 'Refresh order status'}
             >
@@ -509,7 +511,7 @@ export default function OrderDetailsPage() {
                     expiresAt={order.pricingExpiresAt}
                     createdAt={order.createdAt}
                     reviewedAt={order.reviewedAt}
-                    onExpire={fetchOrder}
+                    onExpire={fetchOrderSilently}
                     compact={true}
                   />
                   <button
@@ -788,7 +790,7 @@ export default function OrderDetailsPage() {
           <PaymentSection
             order={order}
             settings={settings}
-            onPaymentSubmitted={() => fetchOrder()}
+            onPaymentSubmitted={() => fetchOrder(false)}
             onCancelClick={() => setCancelModalOpen(true)}
           />
         )}

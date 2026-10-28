@@ -84,7 +84,7 @@ export default function UserOrdersPage() {
     }
   }, [user, router]);
 
-  const fetchOrders = async () => {
+  const fetchOrders = async (showLoadingSpinner = false) => {
     // Strict multi-user privacy: Never fetch or show orders if not logged in!
     if (!user) {
       setOrders([]);
@@ -92,7 +92,9 @@ export default function UserOrdersPage() {
       return;
     }
 
-    setLoading(true);
+    if (showLoadingSpinner || orders.length === 0) {
+      setLoading(true);
+    }
     const clientSaved = getClientOrders(user.id, user.email);
     try {
       const url = `/api/orders?userId=${encodeURIComponent(user.id)}&userEmail=${encodeURIComponent(user.email || '')}&_t=${Date.now()}`;
@@ -268,7 +270,7 @@ export default function UserOrdersPage() {
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={fetchOrders}
+              onClick={() => fetchOrders(false)}
               className="p-3 bg-white/90 dark:bg-[#151120] border border-neutral-200/80 dark:border-[#2a243a] text-neutral-600 dark:text-neutral-300 rounded-2xl hover:bg-neutral-50 dark:hover:bg-[#201a2e] transition-colors shadow-xs cursor-pointer"
               title={t.refresh}
             >
