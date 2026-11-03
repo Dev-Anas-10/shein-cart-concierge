@@ -3,6 +3,12 @@ import { db } from '@/lib/db';
 import { normalizeOrderLinks } from '@/lib/shein-links';
 import { Order, GoodItem } from '@/lib/types';
 import { getRequestSession } from '@/lib/auth-security';
+import {
+  getClientIp,
+  checkRateLimit,
+  rateLimitResponse,
+  validateEgyptianPhone,
+} from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -100,6 +106,16 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const ip = getClientIp(req);
+    // 1. IP Cooldown / Rate Limiting: max 2 orders per minute per IP
+    const rateCheck = checkRateLimit(`create-order:${ip}`, { windowMs: 60_000, max: 2 });
+    if (!rateCheck.allowed) {
+      return rateLimitResponse(
+        rateCheck.retryAfterSec,
+        `عفواً، قمت بإنشاء طلب منذ قليل. يرجى الانتظار لمدة ${rateCheck.retryAfterSec} ثانية قبل تقديم طلب جديد.`
+      );
+    }
+
     const body = await req.json();
 
     const {
@@ -129,6 +145,64 @@ export async function POST(req: NextRequest) {
     if (!userName || !userName.trim() || !userPhone || !userPhone.trim() || !shippingAddress || !shippingAddress.trim()) {
       return NextResponse.json(
         { error: 'Customer Name, Phone number, and Shipping Address are mandatory.' },
+        { status: 400 }
+      );
+    }
+
+    // 2. Strict Egyptian Mobile Phone Validation
+    const phoneCheck = validateEgyptianPhone(userPhone);
+    if (!phoneCheck.isValid) {
+      return NextResponse.json(
+        { error: phoneCheck.error || 'يرجى إدخال رقم هاتف محمول مصري صحيح.' },
+        { status: 400 }
+      );
+    }
+
+    const session = await getRequestSession(req);
+    const resolvedUserId = session?.userId || userId || 'guest-user';
+    const resolvedEmail = session?.email || userEmail || 'customer@example.com';
+    const resolvedName = userName.trim() || session?.name || 'عميل شي إن';
+
+    // 3. Customer Unpaid / Pending Orders Cap & Duplicate Cart Protection
+    // Retrieve existing orders to protect against spam / bulk throwing
+    const allOrders = await db.getOrders({});
+    const activeUnpaidOrders = allOrders.filter((o) => {
+      const isSameUser = resolvedUserId !== 'guest-user' && o.userId === resolvedUserId;
+      const isSameEmail = resolvedEmail && o.userEmail?.toLowerCase() === resolvedEmail.toLowerCase();
+      const isSamePhone = o.userPhone && validateEgyptianPhone(o.userPhone).phone === phoneCheck.phone;
+      const belongsToCustomer = isSameUser || isSameEmail || isSamePhone;
+
+      const isUnpaidActive = ['PENDING_APPROVAL', 'APPROVED_PENDING_PAYMENT', 'PAYMENT_UNDER_REVIEW'].includes(o.status);
+      return belongsToCustomer && isUnpaidActive;
+    });
+
+    // Check for duplicate pending cart
+    if (cartGroupId || cartShareCode || extractedLink) {
+      const duplicateOrder = activeUnpaidOrders.find((o) => {
+        if (cartGroupId && o.cartGroupId === cartGroupId) return true;
+        if (cartShareCode && o.cartShareCode === cartShareCode) return true;
+        if (extractedLink && o.extractedLink === extractedLink) return true;
+        return false;
+      });
+
+      if (duplicateOrder) {
+        return NextResponse.json(
+          {
+            error: `هذه السلة مسجلة لديك بالفعل في الطلب رقم (#${duplicateOrder.id}) وحالتها الحالية هي (${duplicateOrder.status}). يمكنك متابعتها من صفحة طلباتي دون الحاجة لطلبها مرة أخرى.`,
+            duplicateOrderId: duplicateOrder.id,
+          },
+          { status: 409 }
+        );
+      }
+    }
+
+    // Enforce maximum of 2 active unpaid orders per customer
+    if (activeUnpaidOrders.length >= 2) {
+      return NextResponse.json(
+        {
+          error: `عفواً، لديك بالفعل ${activeUnpaidOrders.length} طلبات معلقة قيد المراجعة أو في انتظار السداد (مثل طلب #${activeUnpaidOrders[0].id}). يرجى إتمام سداد طلبك السابق أو إلغاؤه من صفحة طلباتي قبل إنشاء طلب جديد.`,
+          activeOrdersCount: activeUnpaidOrders.length,
+        },
         { status: 400 }
       );
     }
@@ -164,17 +238,12 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const session = await getRequestSession(req);
-    const resolvedUserId = session?.userId || userId || 'guest-user';
-    const resolvedEmail = session?.email || userEmail || 'customer@example.com';
-    const resolvedName = userName.trim() || session?.name || 'عميل شي إن';
-
     const newOrder: Order = normalizeOrderLinks({
       id: orderId,
       userId: resolvedUserId,
       userName: resolvedName,
       userEmail: resolvedEmail,
-      userPhone: userPhone.trim(),
+      userPhone: phoneCheck.phone,
       shippingAddress: shippingAddress.trim(),
       customerNotes: (customerNotes || notes || '').trim() || undefined,
       rawInput,

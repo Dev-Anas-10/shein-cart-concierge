@@ -4,6 +4,12 @@ import { toUsableSheinUrl } from './shein-links';
 // Regex to extract SHEIN URL from any conversational context or share message
 export const SHEIN_URL_REGEX = /(?:https?:\/\/|sheinlink:\/\/)(?:[a-zA-Z0-9-]+\.)*(?:shein\.com|onelink\.shein\.com)[^\s<>"')]+/i;
 
+export function isValidSheinHostname(hostname?: string): boolean {
+  if (!hostname) return false;
+  const lower = hostname.toLowerCase().trim();
+  return lower === 'shein.com' || lower.endsWith('.shein.com');
+}
+
 const MOBILE_UA =
   'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36';
 
@@ -13,7 +19,17 @@ export function extractSheinUrl(text: string): string | null {
   if (match && match[0]) {
     let clean = match[0].trim();
     clean = clean.replace(/[.,;!?]+$/, '');
-    return clean;
+    try {
+      const urlToTest = clean.startsWith('sheinlink://')
+        ? clean.replace(/^sheinlink:\/\//i, 'https://')
+        : clean;
+      const parsed = new URL(urlToTest);
+      if (isValidSheinHostname(parsed.hostname)) {
+        return clean;
+      }
+    } catch {
+      return null;
+    }
   }
   return null;
 }
@@ -222,19 +238,22 @@ export async function resolveSheinLink(inputUrl: string): Promise<ResolvedTarget
     }
   }
 
-  // If gid not in deeplink, fetch appjump URL
+  // If gid not in deeplink, safely fetch appjump URL (enforcing strict domain validation)
   if (!gid && appjump) {
     try {
-      const jumpRes = await fetch(appjump, {
-        headers: { 'User-Agent': MOBILE_UA, Accept: 'text/html,*/*' },
-      });
-      if (jumpRes.ok) {
-        const jumpHtml = await jumpRes.text();
-        const shareInfoMatch = jumpHtml.match(/var\s+shareInfo\s*=\s*(\{[\s\S]*?\})\s*;/);
-        if (shareInfoMatch && shareInfoMatch[1]) {
-          const info = JSON.parse(shareInfoMatch[1]);
-          gid = String(info.id || info.shareId || '');
-          if (info.localcountry) country = String(info.localcountry);
+      const jumpUrl = new URL(appjump);
+      if (isValidSheinHostname(jumpUrl.hostname) && (jumpUrl.protocol === 'https:' || jumpUrl.protocol === 'http:')) {
+        const jumpRes = await fetch(appjump, {
+          headers: { 'User-Agent': MOBILE_UA, Accept: 'text/html,*/*' },
+        });
+        if (jumpRes.ok) {
+          const jumpHtml = await jumpRes.text();
+          const shareInfoMatch = jumpHtml.match(/var\s+shareInfo\s*=\s*(\{[\s\S]*?\})\s*;/);
+          if (shareInfoMatch && shareInfoMatch[1]) {
+            const info = JSON.parse(shareInfoMatch[1]);
+            gid = String(info.id || info.shareId || '');
+            if (info.localcountry) country = String(info.localcountry);
+          }
         }
       }
     } catch (err) {

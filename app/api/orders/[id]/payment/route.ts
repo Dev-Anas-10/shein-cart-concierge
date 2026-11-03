@@ -20,15 +20,25 @@ export async function POST(req: NextRequest, context: RouteContext) {
     }
 
     const session = await getRequestSession(req);
-    if (session && session.role !== 'admin') {
-      const isOwner =
-        session.userId === order.userId ||
-        session.email.toLowerCase() === (order.userEmail || '').toLowerCase();
-      if (!isOwner) {
+    const isRegisteredOrder = Boolean(order.userId && order.userId !== 'guest-user');
+
+    if (isRegisteredOrder) {
+      if (!session) {
         return NextResponse.json(
-          { error: 'Forbidden: You cannot submit payment for orders that do not belong to you.' },
-          { status: 403 }
+          { error: 'Unauthorized: Authentication required to submit payment for this order.' },
+          { status: 401 }
         );
+      }
+      if (session.role !== 'admin') {
+        const isOwner =
+          session.userId === order.userId ||
+          session.email.toLowerCase() === (order.userEmail || '').toLowerCase();
+        if (!isOwner) {
+          return NextResponse.json(
+            { error: 'Forbidden: You cannot submit payment for orders that do not belong to you.' },
+            { status: 403 }
+          );
+        }
       }
     }
 

@@ -1,9 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { extractSheinGoods, extractSheinUrl } from '@/lib/shein-extractor';
 import { db } from '@/lib/db';
+import { getClientIp, checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 
 export async function POST(req: NextRequest) {
   try {
+    const ip = getClientIp(req);
+    // Rate limit: max 10 cart extractions per minute per IP to protect SHEIN upstream
+    const rateCheck = checkRateLimit(`extract:${ip}`, { windowMs: 60_000, max: 10 });
+    if (!rateCheck.allowed) {
+      return rateLimitResponse(
+        rateCheck.retryAfterSec,
+        `عفواً، قمت باستخراج عدة سلات في وقت قصير. يرجى الانتظار لمدة ${rateCheck.retryAfterSec} ثانية قبل استخراج رابط جديد.`
+      );
+    }
+
     const body = await req.json();
     const rawInput = body.text || body.url;
 

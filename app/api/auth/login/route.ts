@@ -1,9 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifyPassword, hashPassword, createSessionToken, setSessionCookie } from '@/lib/auth-security';
+import { getClientIp, checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 
 export async function POST(req: NextRequest) {
   try {
+    const ip = getClientIp(req);
+    // Rate limit: max 5 login attempts per minute per IP
+    const rateCheck = checkRateLimit(`login:${ip}`, { windowMs: 60_000, max: 5 });
+    if (!rateCheck.allowed) {
+      return rateLimitResponse(
+        rateCheck.retryAfterSec,
+        `عفواً، تم تجاوز الحد الأقصى لمحاولات تسجيل الدخول. يرجى الانتظار لمدة ${rateCheck.retryAfterSec} ثانية ثم المحاولة مجدداً.`
+      );
+    }
+
     const { email, password, role } = await req.json();
 
     if (!email || !password) {

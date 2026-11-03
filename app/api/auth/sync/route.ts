@@ -4,34 +4,27 @@ import { createSessionToken, setSessionCookie, getRequestSession } from '@/lib/a
 
 export async function POST(req: NextRequest) {
   try {
-    // 1. If already valid session, return it
+    // Strictly require a valid HMAC-signed session cookie.
+    // Never mint new session tokens based solely on unverified client JSON bodies.
     const existingSession = await getRequestSession(req);
-    if (existingSession) {
-      return NextResponse.json({ success: true, session: existingSession });
+    if (!existingSession) {
+      return NextResponse.json(
+        { error: 'Unauthorized: No active or valid session found' },
+        { status: 401 }
+      );
     }
 
-    // 2. Otherwise verify user identity from DB
-    const body = await req.json();
-    const { userId, email } = body || {};
-
-    if (!userId || !email) {
-      return NextResponse.json({ error: 'User ID and email are required' }, { status: 400 });
+    // Refresh and return the verified session
+    const user = await db.getUserById(existingSession.userId);
+    if (!user) {
+      return NextResponse.json({ error: 'User account not found' }, { status: 404 });
     }
 
-    const user = await db.getUserById(userId);
-    if (!user || user.email.toLowerCase().trim() !== email.toLowerCase().trim()) {
-      return NextResponse.json({ error: 'Invalid user session' }, { status: 401 });
-    }
-
-    const token = createSessionToken(user);
+    const { password: _, ...safeUser } = user;
+    const token = createSessionToken(safeUser);
     const res = NextResponse.json({
       success: true,
-      data: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-      },
+      data: safeUser,
       token,
     });
 

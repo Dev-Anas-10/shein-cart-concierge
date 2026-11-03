@@ -37,12 +37,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (parsed?.id && parsed?.email && parsed?.role) {
           setUser(parsed);
 
-          // Synchronize secure HTTP-only session cookie with server
+          // Validate and synchronize secure HTTP-only session cookie with server
           fetch('/api/auth/sync', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: parsed.id, email: parsed.email }),
-          }).catch(() => {});
+          })
+            .then((res) => {
+              if (!res.ok) {
+                // If cookie is missing or invalid, purge unverified local storage
+                setUser(null);
+                localStorage.removeItem(SESSION_KEY);
+              }
+            })
+            .catch(() => {});
 
           // Asynchronously hydrate fresh profile data from DB (address, phone, city)
           fetch(
@@ -146,8 +152,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Ensure session cookie is refreshed
     fetch('/api/auth/sync', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: newUser.id, email: newUser.email }),
     }).catch(() => {});
 
     // Trigger immediate background sync of extended address details

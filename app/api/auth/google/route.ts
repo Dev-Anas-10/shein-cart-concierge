@@ -22,6 +22,14 @@ export async function POST(req: NextRequest) {
     let user = await db.getUserByEmail(email);
     const now = new Date().toISOString();
 
+    // Prevent privilege escalation / account takeover of administrator accounts
+    if (user && user.role === 'admin') {
+      return NextResponse.json(
+        { error: 'Administrator accounts must authenticate using explicit password credentials.' },
+        { status: 403 }
+      );
+    }
+
     if (!user) {
       // Create user if signing in with Google for the first time
       const newUser: User = {
@@ -42,6 +50,7 @@ export async function POST(req: NextRequest) {
 
     const { password, ...safeUser } = user;
     safeUser.lastLoginAt = user.lastLoginAt;
+    safeUser.role = 'user'; // Social login can never grant elevated roles
 
     const token = createSessionToken(safeUser);
     const res = NextResponse.json({
