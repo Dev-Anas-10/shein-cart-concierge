@@ -39,7 +39,6 @@ export function AuthModal({ isOpen, onClose, defaultRole = 'user' }: AuthModalPr
   const { login } = useAuth();
   const { dir, lang, theme } = useThemeLang();
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
-  const [role, setRole] = useState<'user' | 'admin'>(defaultRole);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -322,12 +321,21 @@ export function AuthModal({ isOpen, onClose, defaultRole = 'user' }: AuthModalPr
         const res = await fetch('/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password, role }),
+          body: JSON.stringify({
+            email,
+            password,
+            role: defaultRole === 'admin' ? 'admin' : undefined,
+          }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || (dir === 'rtl' ? 'فشل تسجيل الدخول' : 'Login failed'));
         login(data.data);
         onClose();
+        if (data.data?.role === 'admin') {
+          if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/admin')) {
+            window.location.href = '/admin';
+          }
+        }
       } else {
         // Sign up
         const res = await fetch('/api/auth/signup', {
@@ -366,10 +374,10 @@ export function AuthModal({ isOpen, onClose, defaultRole = 'user' }: AuthModalPr
             </div>
             <h3 className="text-xl font-black text-neutral-950 dark:text-white tracking-tight">
               {mode === 'signin'
-                ? role === 'admin'
-                  ? (isRtl ? 'تسجيل دخول المشرف' : 'Admin Supervisor Sign In')
-                  : (isRtl ? 'تسجيل دخول العميل' : 'Customer Sign In')
-                : (isRtl ? 'إنشاء حساب عميل جديد' : 'Create Customer Account')}
+                ? defaultRole === 'admin'
+                  ? (isRtl ? 'تسجيل دخول المشرف' : 'Admin Sign In')
+                  : (isRtl ? 'تسجيل الدخول إلى حسابك' : 'Customer Sign In')
+                : (isRtl ? 'إنشاء حساب جديد' : 'Create Account')}
             </h3>
           </div>
           <button
@@ -381,44 +389,8 @@ export function AuthModal({ isOpen, onClose, defaultRole = 'user' }: AuthModalPr
         </div>
 
         <div className="p-6">
-          {/* Role selector */}
-          {mode === 'signin' && (
-            <div className="grid grid-cols-2 gap-2 p-1 bg-neutral-100 dark:bg-[#1e1a29] rounded-2xl mb-5">
-              <button
-                type="button"
-                onClick={() => {
-                  setRole('user');
-                  setError(null);
-                }}
-                className={`py-2 text-xs font-black rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                  role === 'user'
-                    ? 'bg-white dark:bg-[#2e263d] text-neutral-950 dark:text-white shadow-xs'
-                    : 'text-neutral-500 hover:text-neutral-950 dark:hover:text-white'
-                }`}
-              >
-                <User className="w-3.5 h-3.5" />
-                <span>{isRtl ? 'عميل' : 'Customer'}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setRole('admin');
-                  setError(null);
-                }}
-                className={`py-2 text-xs font-black rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                  role === 'admin'
-                    ? 'bg-rose-600 text-white shadow-xs'
-                    : 'text-neutral-500 hover:text-rose-600'
-                }`}
-              >
-                <ShieldCheck className="w-3.5 h-3.5" />
-                <span>{isRtl ? 'مشرف (Admin)' : 'Admin'}</span>
-              </button>
-            </div>
-          )}
-
           {/* Google Sign In for Customer */}
-          {role === 'user' && (
+          {defaultRole !== 'admin' && mode === 'signin' && (
             <div className="mb-5">
               {showGmailInput ? (
                 <div className="p-4 bg-gradient-to-br from-blue-50/80 via-white to-purple-50/60 dark:from-blue-950/30 dark:via-[#1a1722] dark:to-purple-950/20 rounded-2xl border border-blue-200 dark:border-blue-900/60 space-y-3 shadow-xs animate-in fade-in duration-200">
@@ -646,37 +618,39 @@ export function AuthModal({ isOpen, onClose, defaultRole = 'user' }: AuthModalPr
           </form>
 
           {/* Toggle between Sign In / Sign Up */}
-          <div className="mt-5 text-center text-xs text-neutral-500 dark:text-neutral-400">
-            {mode === 'signin' ? (
-              <p>
-                {isRtl ? 'ليس لديك حساب؟ ' : "Don't have an account? "}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode('signup');
-                    setError(null);
-                  }}
-                  className="font-bold text-[#8B5CF6] hover:text-[#7C3AED] cursor-pointer"
-                >
-                  {isRtl ? 'إنشاء حساب جديد' : 'Sign up now'}
-                </button>
-              </p>
-            ) : (
-              <p>
-                {isRtl ? 'لديك حساب بالفعل؟ ' : 'Already have an account? '}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode('signin');
-                    setError(null);
-                  }}
-                  className="font-bold text-[#8B5CF6] hover:text-[#7C3AED] cursor-pointer"
-                >
-                  {isRtl ? 'تسجيل الدخول' : 'Sign in'}
-                </button>
-              </p>
-            )}
-          </div>
+          {defaultRole !== 'admin' && (
+            <div className="mt-5 text-center text-xs text-neutral-500 dark:text-neutral-400">
+              {mode === 'signin' ? (
+                <p>
+                  {isRtl ? 'ليس لديك حساب؟ ' : "Don't have an account? "}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode('signup');
+                      setError(null);
+                    }}
+                    className="font-bold text-[#8B5CF6] hover:text-[#7C3AED] cursor-pointer"
+                  >
+                    {isRtl ? 'إنشاء حساب جديد' : 'Sign up now'}
+                  </button>
+                </p>
+              ) : (
+                <p>
+                  {isRtl ? 'لديك حساب بالفعل؟ ' : 'Already have an account? '}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode('signin');
+                      setError(null);
+                    }}
+                    className="font-bold text-[#8B5CF6] hover:text-[#7C3AED] cursor-pointer"
+                  >
+                    {isRtl ? 'تسجيل الدخول' : 'Sign in'}
+                  </button>
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Payment Methods Trust Bar */}
           <div className="mt-5 pt-3.5 border-t border-neutral-100 dark:border-[#201b2d] flex items-center justify-center gap-2.5 flex-wrap">

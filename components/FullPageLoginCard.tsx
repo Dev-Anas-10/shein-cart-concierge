@@ -49,7 +49,6 @@ export function FullPageLoginCard({ onGuestContinue }: FullPageLoginCardProps) {
   const isRtl = dir === 'rtl';
 
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
-  const [role, setRole] = useState<'user' | 'admin'>('user');
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -321,11 +320,15 @@ export function FullPageLoginCard({ onGuestContinue }: FullPageLoginCardProps) {
         const res = await fetch('/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password, role }),
+          body: JSON.stringify({ email, password }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || (isRtl ? 'فشل تسجيل الدخول' : 'Login failed'));
         login(data.data);
+        if (data.data?.role === 'admin') {
+          window.location.href = '/admin';
+          return;
+        }
       } else {
         const res = await fetch('/api/auth/signup', {
           method: 'POST',
@@ -431,44 +434,8 @@ export function FullPageLoginCard({ onGuestContinue }: FullPageLoginCardProps) {
           </p>
         </div>
 
-        {/* Role Selector (Customer vs Admin) */}
-        {mode === 'signin' && (
-          <div className="grid grid-cols-2 gap-2 p-1 bg-neutral-100 dark:bg-[#1a1626] rounded-2xl mb-4 border border-neutral-200/60 dark:border-[#292237]">
-            <button
-              type="button"
-              onClick={() => {
-                setRole('user');
-                setError(null);
-              }}
-              className={`py-2 text-xs font-black rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                role === 'user'
-                  ? 'bg-white dark:bg-[#2b243b] text-neutral-950 dark:text-white shadow-xs'
-                  : 'text-neutral-500 hover:text-neutral-950 dark:hover:text-white'
-              }`}
-            >
-              <User className="w-3.5 h-3.5" />
-              <span>{isRtl ? 'عميل' : 'Customer'}</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setRole('admin');
-                setError(null);
-              }}
-              className={`py-2 text-xs font-black rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                role === 'admin'
-                  ? 'bg-rose-600 text-white shadow-xs'
-                  : 'text-neutral-500 hover:text-rose-600'
-              }`}
-            >
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>{isRtl ? 'مشرف (Admin)' : 'Admin'}</span>
-            </button>
-          </div>
-        )}
-
         {/* Google Identity Services Section (For Customers) */}
-        {role === 'user' && (
+        {mode === 'signin' && (
           <div className="mb-4">
             {showGmailInput ? (
               <div className="p-4 bg-gradient-to-br from-blue-50/80 via-white to-purple-50/60 dark:from-blue-950/30 dark:via-[#1a1722] dark:to-purple-950/20 rounded-2xl border border-blue-200 dark:border-blue-900/60 space-y-3 shadow-xs">
