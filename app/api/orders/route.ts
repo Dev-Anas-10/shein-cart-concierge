@@ -9,6 +9,7 @@ import {
   rateLimitResponse,
   validateEgyptianPhone,
 } from '@/lib/rate-limit';
+import { validateRealName, validateRealEmail } from '@/lib/input-validation';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -149,7 +150,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 2. Strict Egyptian Mobile Phone Validation
+    // 2. Strict Recipient Full Name Validation (Anti-Gibberish / Delivery courier compliance)
+    const nameCheck = validateRealName(userName);
+    if (!nameCheck.isValid) {
+      return NextResponse.json(
+        { error: nameCheck.error || 'يرجى كتابة الاسم ثنائياً بالكامل لاستكمال بوليصة الشحن.' },
+        { status: 400 }
+      );
+    }
+
+    // 3. Strict Egyptian Mobile Phone Validation
     const phoneCheck = validateEgyptianPhone(userPhone);
     if (!phoneCheck.isValid) {
       return NextResponse.json(
@@ -160,10 +170,23 @@ export async function POST(req: NextRequest) {
 
     const session = await getRequestSession(req);
     const resolvedUserId = session?.userId || userId || 'guest-user';
-    const resolvedEmail = session?.email || userEmail || 'customer@example.com';
-    const resolvedName = userName.trim() || session?.name || 'عميل شي إن';
 
-    // 3. Customer Unpaid / Pending Orders Cap & Duplicate Cart Protection
+    // 4. Strict Email Validation if provided
+    let resolvedEmail = session?.email || '';
+    if (!resolvedEmail && userEmail && userEmail.trim()) {
+      const emailCheck = await validateRealEmail(userEmail, { checkMx: true });
+      if (!emailCheck.isValid) {
+        return NextResponse.json({ error: emailCheck.error }, { status: 400 });
+      }
+      resolvedEmail = emailCheck.email;
+    }
+    if (!resolvedEmail) {
+      resolvedEmail = 'customer@example.com';
+    }
+
+    const resolvedName = nameCheck.name;
+
+    // 5. Customer Unpaid / Pending Orders Cap & Duplicate Cart Protection
     // Retrieve existing orders to protect against spam / bulk throwing
     const allOrders = await db.getOrders({});
     const activeUnpaidOrders = allOrders.filter((o) => {
