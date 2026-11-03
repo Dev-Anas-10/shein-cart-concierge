@@ -64,19 +64,19 @@ export function ShipmentBatchLiveNudge() {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="rounded-2xl border border-purple-200/90 dark:border-purple-800/80 bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-purple-500/10 dark:from-purple-950/40 dark:via-pink-950/20 dark:to-purple-950/40 backdrop-blur-md p-3.5 sm:p-4 shadow-xs"
+      className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#14111d] p-4 shadow-xs"
     >
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5 w-full sm:w-auto">
-          <div className="w-8 h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center shrink-0 shadow-sm shadow-purple-600/30">
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="w-9 h-9 rounded-xl bg-purple-600 text-white flex items-center justify-center shrink-0">
             <Truck className="w-4 h-4" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-black text-neutral-900 dark:text-white">
-                📦 {shipmentInfo.code}
+              <span className="text-xs font-black text-neutral-950 dark:text-white">
+                {shipmentInfo.code}
               </span>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 animate-pulse">
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200/80 dark:border-rose-900/60">
                 <Clock className="w-2.5 h-2.5" />
                 {isRtl
                   ? `متبقي ${shipmentInfo.remaining} قطعة فقط للإغلاق`
@@ -93,18 +93,18 @@ export function ShipmentBatchLiveNudge() {
 
         {/* Progress bar meter */}
         <div className="w-full sm:w-48 space-y-1.5 shrink-0">
-          <div className="flex items-center justify-between text-[10px] font-bold text-neutral-600 dark:text-neutral-300">
+          <div className="flex items-center justify-between text-[10px] font-bold text-neutral-600 dark:text-neutral-400">
             <span>{isRtl ? 'اكتمال الشحنة:' : 'Batch Capacity:'}</span>
             <span className="font-mono tabular-nums text-purple-600 dark:text-purple-400 font-black">
               {shipmentInfo.percent}%
             </span>
           </div>
-          <div className="w-full h-2 rounded-full bg-neutral-200 dark:bg-neutral-800 overflow-hidden">
+          <div className="w-full h-2 rounded-full bg-neutral-100 dark:bg-neutral-800 overflow-hidden">
             <motion.div
               initial={{ width: 0 }}
               animate={{ width: `${shipmentInfo.percent}%` }}
               transition={{ duration: 0.8, ease: 'easeOut' }}
-              className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"
+              className="h-full bg-purple-600 dark:bg-purple-500 rounded-full"
             />
           </div>
         </div>

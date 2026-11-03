@@ -152,16 +152,15 @@ export default function HomePage() {
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-12">
         {!extractedData ? (
           <div className="space-y-10">
-            {/* Header Title: Rule 3 & 4 (Hero entrance 0.8s on mount) */}
+            {/* Header Title: Taste-Skill Editorial Hierarchy */}
             <motion.div {...heroEntrance} className="text-center sm:text-start space-y-3 pt-2">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-purple-50 dark:bg-purple-950/50 border border-purple-200/60 dark:border-purple-800/60 text-[#7C3AED] dark:text-purple-300 text-xs font-black uppercase tracking-wider shadow-xs">
-                <Sparkles className="w-3.5 h-3.5 text-[#8B5CF6]" />
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-purple-100 dark:bg-purple-950/70 border border-purple-200 dark:border-purple-800 text-[#7C3AED] dark:text-purple-300 text-[11px] font-black tracking-wide">
                 <span>{settings?.heroBadge || t.heroBadge}</span>
               </div>
               <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-neutral-950 dark:text-white tracking-tight leading-tight text-balance">
                 {settings?.heroTitle || t.heroTitle}
               </h1>
-              <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400 max-w-xl leading-relaxed text-balance">
+              <p className="text-xs sm:text-sm text-neutral-600 dark:text-neutral-400 max-w-xl leading-relaxed text-balance">
                 {settings?.heroSubtitle || t.heroSubtitle}
               </p>
             </motion.div>
@@ -186,18 +185,18 @@ export default function HomePage() {
               />
             </motion.div>
 
-            {/* Trust Metrics Bar: Scroll Reveal with Rule 6 interactive feedback */}
+            {/* Trust Metrics Bar: Solid Opaque Surfaces (Anti-Slop) */}
             {settings?.trustMetricsEnabled !== false && (
               <motion.div
                 {...scrollReveal}
                 className="grid grid-cols-2 md:grid-cols-4 gap-3 py-2"
               >
-                <motion.div {...interactiveFeedback} className="p-4 rounded-2xl bg-white/70 dark:bg-[#14111d]/70 backdrop-blur-md border border-neutral-200/60 dark:border-[#2a243a] flex items-center gap-3 cursor-pointer">
+                <motion.div {...interactiveFeedback} className="p-4.5 rounded-2xl bg-white dark:bg-[#14111d] border border-neutral-200 dark:border-neutral-800 shadow-xs flex items-center gap-3 cursor-pointer">
                   <div className="flex items-center -space-x-1.5 shrink-0">
-                    <div className="w-8 h-8 rounded-xl bg-white dark:bg-[#1b1726] p-1 border border-purple-200/80 dark:border-purple-800/80 shadow-xs flex items-center justify-center overflow-hidden">
+                    <div className="w-8 h-8 rounded-xl bg-white dark:bg-[#1b1726] p-1 border border-purple-200 dark:border-purple-800 flex items-center justify-center overflow-hidden">
                       <img src="/images/instapay.png" alt="InstaPay" className="w-full h-full object-contain" />
                     </div>
-                    <div className="w-8 h-8 rounded-xl bg-white dark:bg-[#1b1726] p-0.5 border border-rose-200/80 dark:border-rose-800/80 shadow-xs flex items-center justify-center overflow-hidden">
+                    <div className="w-8 h-8 rounded-xl bg-white dark:bg-[#1b1726] p-0.5 border border-rose-200 dark:border-rose-800 flex items-center justify-center overflow-hidden">
                       <img src="/images/vodafone-cash.png" alt="Vodafone Cash" className="w-full h-full object-contain" />
                     </div>
                   </div>
@@ -209,8 +208,8 @@ export default function HomePage() {
                   </div>
                 </motion.div>
 
-                <motion.div {...interactiveFeedback} className="p-4 rounded-2xl bg-white/70 dark:bg-[#14111d]/70 backdrop-blur-md border border-neutral-200/60 dark:border-[#2a243a] flex items-center gap-3 cursor-pointer">
-                  <div className="w-9 h-9 rounded-xl bg-emerald-100/70 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                <motion.div {...interactiveFeedback} className="p-4.5 rounded-2xl bg-white dark:bg-[#14111d] border border-neutral-200 dark:border-neutral-800 shadow-xs flex items-center gap-3 cursor-pointer">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200/80 dark:border-emerald-800/60 flex items-center justify-center shrink-0">
                     <ShieldCheck className="w-4 h-4" />
                   </div>
                   <div>
@@ -219,8 +218,8 @@ export default function HomePage() {
                   </div>
                 </motion.div>
 
-                <motion.div {...interactiveFeedback} className="p-4 rounded-2xl bg-white/70 dark:bg-[#14111d]/70 backdrop-blur-md border border-neutral-200/60 dark:border-[#2a243a] flex items-center gap-3 cursor-pointer">
-                  <div className="w-9 h-9 rounded-xl bg-amber-100/70 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                <motion.div {...interactiveFeedback} className="p-4.5 rounded-2xl bg-white dark:bg-[#14111d] border border-neutral-200 dark:border-neutral-800 shadow-xs flex items-center gap-3 cursor-pointer">
+                  <div className="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-200/80 dark:border-amber-800/60 flex items-center justify-center shrink-0">
                     <Truck className="w-4 h-4" />
                   </div>
                   <div>
@@ -229,8 +228,8 @@ export default function HomePage() {
                   </div>
                 </motion.div>
 
-                <motion.div {...interactiveFeedback} className="p-4 rounded-2xl bg-white/70 dark:bg-[#14111d]/70 backdrop-blur-md border border-neutral-200/60 dark:border-[#2a243a] flex items-center gap-3 cursor-pointer">
-                  <div className="w-9 h-9 rounded-xl bg-blue-100/70 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                <motion.div {...interactiveFeedback} className="p-4.5 rounded-2xl bg-white dark:bg-[#14111d] border border-neutral-200 dark:border-neutral-800 shadow-xs flex items-center gap-3 cursor-pointer">
+                  <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200/80 dark:border-blue-800/60 flex items-center justify-center shrink-0">
                     <Lock className="w-4 h-4" />
                   </div>
                   <div>

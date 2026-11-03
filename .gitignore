@@ -38,4 +38,7 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
+
+# working files
+.taste-skill/
 next-env.d.ts
